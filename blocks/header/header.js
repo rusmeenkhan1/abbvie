@@ -122,7 +122,19 @@ export default async function decorate(block) {
   block.textContent = '';
   const nav = document.createElement('nav');
   nav.id = 'nav';
-  while (fragment.firstElementChild) nav.append(fragment.firstElementChild);
+  if (fragment) {
+    while (fragment.firstElementChild) nav.append(fragment.firstElementChild);
+  } else {
+    nav.innerHTML = `<div class="default-content-wrapper"><p><a href="/">AbbVie</a></p></div>
+      <div class="default-content-wrapper"><ul>
+        <li><a href="/who-we-are.html">Who We Are</a></li>
+        <li><a href="/science.html">Science</a></li>
+        <li><a href="/patients.html">Patients</a></li>
+        <li><a href="/join-us.html">Join Us</a></li>
+        <li><a href="/sustainability.html">Sustainability</a></li>
+      </ul></div>
+      <div class="default-content-wrapper"><p><a href="/search.html">Search</a></p></div>`;
+  }
 
   const classes = ['brand', 'sections', 'tools'];
   classes.forEach((c, i) => {

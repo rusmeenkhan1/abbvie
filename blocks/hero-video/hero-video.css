@@ -5,8 +5,19 @@
 
 .hero-video {
   position: relative;
-  padding: 40px 24px;
-  min-height: 300px;
+  padding: 60px 24px;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.hero-video::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 50%) 0%, transparent 60%);
+  z-index: 0;
 }
 
 .hero-video h1,
@@ -20,6 +31,8 @@
   margin-left: auto;
   margin-right: auto;
   color: var(--background-color);
+  position: relative;
+  z-index: 1;
 }
 
 .hero-video.no-image * {
@@ -42,6 +55,7 @@
 
 @media (width >= 900px) {
   .hero-video {
-    padding: 40px 32px;
+    padding: 60px 32px;
+    min-height: 480px;
   }
 }

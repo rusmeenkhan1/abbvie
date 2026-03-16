@@ -1,5 +1,6 @@
 footer {
-  background-color: var(--light-color);
+  background-color: var(--color-navy);
+  color: var(--background-color);
   font-size: var(--body-font-size-xs);
 }
 
@@ -13,8 +14,74 @@ footer .footer p {
   margin: 0;
 }
 
+footer .footer a:any-link {
+  color: var(--background-color);
+}
+
+footer .footer a:hover {
+  text-decoration: underline;
+}
+
+footer .footer h2 {
+  color: var(--background-color);
+  font-size: var(--body-font-size-s);
+  font-weight: 700;
+  margin-top: 0;
+}
+
+footer .footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+footer .footer ul li {
+  padding: 4px 0;
+}
+
+footer .footer > div:first-child ul {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+footer .footer > div:last-child {
+  border-top: 1px solid rgb(255 255 255 / 20%);
+  padding-top: 16px;
+}
+
+footer .footer > div:last-child ul {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 @media (width >= 900px) {
+  footer .footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0 32px;
+  }
+
   footer .footer > div {
+    padding: 40px 0;
+  }
+
+  footer .footer > div:first-child {
+    grid-column: 1 / -1;
     padding: 40px 32px 24px;
+    border-bottom: 1px solid rgb(255 255 255 / 20%);
+  }
+
+  footer .footer > div:nth-child(4) {
+    grid-column: 1 / -1;
+    padding: 24px 32px;
+    font-size: var(--body-font-size-xs);
+    opacity: 0.8;
+  }
+
+  footer .footer > div:last-child {
+    grid-column: 1 / -1;
+    padding: 16px 32px 24px;
   }
 }

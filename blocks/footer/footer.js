@@ -14,7 +14,23 @@ export default async function decorate(block) {
   // decorate footer DOM
   block.textContent = '';
   const footer = document.createElement('div');
-  while (fragment.firstElementChild) footer.append(fragment.firstElementChild);
+  if (fragment) {
+    while (fragment.firstElementChild) footer.append(fragment.firstElementChild);
+  } else {
+    footer.innerHTML = `<div class="default-content-wrapper">
+        <p><a href="/">AbbVie</a></p>
+        <ul>
+          <li><a href="/who-we-are.html">Who We Are</a></li>
+          <li><a href="/science.html">Science</a></li>
+          <li><a href="/patients.html">Patients</a></li>
+          <li><a href="/join-us.html">Join Us</a></li>
+          <li><a href="/sustainability.html">Sustainability</a></li>
+        </ul>
+      </div>
+      <div class="default-content-wrapper">
+        <p>Copyright © 2026 AbbVie Inc. North Chicago, Illinois, U.S.A.</p>
+      </div>`;
+  }
 
   block.append(footer);
 }

@@ -114,6 +114,21 @@ function decorateButtons(main) {
 }
 
 /**
+ * Moves instrumentation attributes from source to target element.
+ * @param {Element} source The source element
+ * @param {Element} target The target element
+ */
+export function moveInstrumentation(source, target) {
+  if (!source || !target) return;
+  [...source.attributes].forEach((attr) => {
+    if (attr.name.startsWith('data-aue-') || attr.name.startsWith('data-richtext-')) {
+      target.setAttribute(attr.name, attr.value);
+      source.removeAttribute(attr.name);
+    }
+  });
+}
+
+/**
  * Decorates the main element.
  * @param {Element} main The main element
  */
