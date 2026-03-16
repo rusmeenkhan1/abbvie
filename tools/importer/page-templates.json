@@ -1,0 +1,185 @@
+{
+  "templates": [
+    {
+      "name": "homepage",
+      "urls": [
+        "https://www.abbvie.com/"
+      ],
+      "description": "AbbVie corporate homepage with hero, featured content sections, and corporate navigation",
+      "blocks": [
+        {
+          "name": "hero-homepage",
+          "instances": [
+            ".homepage-hero-controller .cmp-home-hero__primary.active .container.linear-gradient"
+          ]
+        },
+        {
+          "name": "cards-news",
+          "instances": [
+            ".container.homepage-overlap"
+          ]
+        },
+        {
+          "name": "columns-intro",
+          "instances": [
+            ".container.cmp-container-xxx-large.height-default.align-center > .cmp-container > .grid > .grid-container > .grid-row"
+          ]
+        },
+        {
+          "name": "hero-video",
+          "instances": [
+            ".video-js.bc-player-default_default"
+          ]
+        },
+        {
+          "name": "cards-dashboard",
+          "instances": [
+            "#maincontent .cardpagestory.card-dashboard.show-image-hide-desc, #maincontent .dashboardcards.medium-theme.hide-image, #maincontent .dashboardcards.dark-theme.hide-image"
+          ]
+        },
+        {
+          "name": "columns-media",
+          "instances": [
+            ".container.cmp-container-xxx-large.height-short > .cmp-container > .grid"
+          ]
+        },
+        {
+          "name": "cards-text",
+          "instances": [
+            ".container.cmp-container-xxx-large.height-short .grid-row .grid-cell .text"
+          ]
+        },
+        {
+          "name": "cards-cta",
+          "instances": [
+            ".container.large-radius.cmp-container-full-width.height-default.no-bottom-margin"
+          ]
+        },
+        {
+          "name": "columns-info",
+          "instances": [
+            ".container.medium-radius.cmp-container-medium.height-short.align-center"
+          ]
+        },
+        {
+          "name": "cards-esg",
+          "instances": [
+            ".container.large-radius.cmp-container-full-width.height-short.footer-overlap .grid-row"
+          ]
+        },
+        {
+          "name": "footer",
+          "instances": [
+            ".cmp-experiencefragment--footer"
+          ]
+        }
+      ],
+      "sections": [
+        {
+          "id": "header",
+          "name": "Header",
+          "selector": ".cmp-experiencefragment--header",
+          "style": null,
+          "blocks": [],
+          "defaultContent": []
+        },
+        {
+          "id": "hero",
+          "name": "Homepage Hero",
+          "selector": ".homepage-hero-controller",
+          "style": "dark",
+          "blocks": [
+            "hero-homepage"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "news-feed",
+          "name": "News Feed",
+          "selector": ".container.homepage-overlap",
+          "style": null,
+          "blocks": [
+            "cards-news"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "patient-stories",
+          "name": "Patient Stories",
+          "selector": ".container.cmp-container-xxx-large.height-default.align-center",
+          "style": null,
+          "blocks": [
+            "columns-intro",
+            "hero-video"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "science-innovation",
+          "name": "Science and Innovation",
+          "selector": "#maincontent > .aem-Grid > .responsivegrid:nth-child(3)",
+          "style": null,
+          "blocks": [
+            "columns-intro",
+            "cards-dashboard"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "podcast",
+          "name": "Podcast",
+          "selector": ".container.cmp-container-xxx-large.height-short",
+          "style": null,
+          "blocks": [
+            "columns-media"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "culture-community",
+          "name": "Culture of Community",
+          "selector": "#maincontent > .aem-Grid > .responsivegrid:nth-child(5)",
+          "style": null,
+          "blocks": [
+            "columns-intro",
+            "cards-text",
+            "cards-cta"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "invest-creating",
+          "name": "Investor Relations",
+          "selector": ".container.medium-radius.cmp-container-medium.height-short.align-center",
+          "style": null,
+          "blocks": [
+            "columns-intro",
+            "columns-info"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "esg-impact",
+          "name": "ESG Impact",
+          "selector": ".container.large-radius.cmp-container-full-width.height-short.footer-overlap",
+          "style": "dark",
+          "blocks": [
+            "columns-intro",
+            "cards-esg"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "footer",
+          "name": "Footer",
+          "selector": ".cmp-experiencefragment--footer",
+          "style": "dark",
+          "blocks": [
+            "footer"
+          ],
+          "defaultContent": []
+        }
+      ]
+    }
+  ]
+}

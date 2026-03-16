@@ -1,0 +1,23 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/",
+  "path": "index",
+  "timestamp": "2026-03-16T09:28:31.890Z",
+  "title": "Pharmaceutical Research & Development | AbbVie",
+  "template": "homepage",
+  "blocks": [
+    "hero-homepage",
+    "cards-news",
+    "columns-intro",
+    "hero-video",
+    "cards-dashboard",
+    "cards-dashboard",
+    "cards-dashboard",
+    "columns-media",
+    "cards-text",
+    "cards-cta",
+    "columns-info",
+    "cards-esg",
+    "footer"
+  ]
+}
