@@ -143,10 +143,21 @@ export default async function decorate(block) {
   });
 
   const navBrand = nav.querySelector('.nav-brand');
-  const brandLink = navBrand.querySelector('.button');
-  if (brandLink) {
-    brandLink.className = '';
-    brandLink.closest('.button-container').className = '';
+  if (navBrand) {
+    const brandLink = navBrand.querySelector('.button') || navBrand.querySelector('a');
+    if (brandLink) {
+      brandLink.className = '';
+      const btnContainer = brandLink.closest('.button-container');
+      if (btnContainer) btnContainer.className = '';
+      // Ensure brand has logo image
+      if (!brandLink.querySelector('img')) {
+        brandLink.textContent = '';
+        const logo = document.createElement('img');
+        logo.src = '/icons/abbvie-logo.svg';
+        logo.alt = 'AbbVie';
+        brandLink.appendChild(logo);
+      }
+    }
   }
 
   const navSections = nav.querySelector('.nav-sections');

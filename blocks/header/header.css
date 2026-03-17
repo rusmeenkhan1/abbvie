@@ -183,8 +183,18 @@ header nav .nav-sections ul {
 }
 
 header nav .nav-sections ul > li {
-  font-weight: 500;
-  color: var(--color-navy);
+  font-weight: 400;
+  color: var(--text-color);
+}
+
+header nav .nav-sections ul > li a:any-link {
+  color: var(--text-color);
+  text-decoration: none;
+  transition: color var(--transition-speed);
+}
+
+header nav .nav-sections ul > li a:hover {
+  color: var(--link-color);
 }
 
 header nav .nav-sections ul > li > ul {
@@ -279,4 +289,17 @@ header nav .nav-sections ul > li > ul > li {
 /* tools */
 header nav .nav-tools {
   grid-area: tools;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+header nav .nav-tools a {
+  color: var(--text-color);
+  font-size: var(--body-font-size-xs);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+header nav .nav-tools a:hover {
+  color: var(--link-color);
 }

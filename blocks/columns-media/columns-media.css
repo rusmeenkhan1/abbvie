@@ -6,8 +6,8 @@
 
 .columns-media {
   position: relative;
-  background: linear-gradient(135deg, var(--color-navy) 0%, var(--color-blue) 100%);
-  border-radius: 16px;
+  background-color: var(--color-lavender);
+  border-radius: 40px 0 0;
   padding: 48px 32px;
   min-height: 200px;
   max-width: var(--content-max-width);
@@ -45,22 +45,22 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--link-color-light);
+  color: var(--color-navy);
   margin-bottom: 8px;
 }
 
 .columns-media h5 {
   font-size: var(--heading-font-size-l);
   font-weight: 800;
-  color: var(--background-color);
+  color: var(--color-navy);
   margin-top: 0;
   line-height: 1.15;
 }
 
 .columns-media h4 {
-  font-size: var(--heading-font-size-l);
+  font-size: var(--heading-font-size-xl);
   font-weight: 800;
-  color: var(--background-color);
+  color: var(--color-navy);
   margin-top: 4px;
   line-height: 1.15;
 }
@@ -68,15 +68,18 @@
 .columns-media p {
   font-size: var(--body-font-size-s);
   line-height: 1.5;
-  color: rgb(255 255 255 / 85%);
+  color: var(--color-navy);
 }
 
 .columns-media a:any-link {
-  color: var(--link-color-light);
+  color: var(--background-color);
   font-weight: 700;
   font-size: var(--body-font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  background-color: var(--color-navy);
+  padding: 14px 40px;
+  display: inline-block;
 }
 
 @media (width >= 900px) {

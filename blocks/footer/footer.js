@@ -13,11 +13,20 @@ export default async function decorate(block) {
 
   // decorate footer DOM
   block.textContent = '';
-  const footer = document.createElement('div');
   if (fragment) {
-    while (fragment.firstElementChild) footer.append(fragment.firstElementChild);
+    // Unwrap section wrappers - append their default-content-wrapper children directly
+    while (fragment.firstElementChild) {
+      const section = fragment.firstElementChild;
+      const wrapper = section.querySelector('.default-content-wrapper');
+      if (wrapper) {
+        block.append(wrapper);
+      } else {
+        block.append(section);
+      }
+      if (section.parentElement) section.remove();
+    }
   } else {
-    footer.innerHTML = `<div class="default-content-wrapper">
+    block.innerHTML = `<div>
         <p><a href="/">AbbVie</a></p>
         <ul>
           <li><a href="/who-we-are.html">Who We Are</a></li>
@@ -27,10 +36,8 @@ export default async function decorate(block) {
           <li><a href="/sustainability.html">Sustainability</a></li>
         </ul>
       </div>
-      <div class="default-content-wrapper">
+      <div>
         <p>Copyright © 2026 AbbVie Inc. North Chicago, Illinois, U.S.A.</p>
       </div>`;
   }
-
-  block.append(footer);
 }

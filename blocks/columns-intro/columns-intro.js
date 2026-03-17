@@ -9,9 +9,16 @@ export default function decorate(block) {
       if (pic) {
         const picWrapper = pic.closest('div');
         if (picWrapper && picWrapper.children.length === 1) {
-          // picture is only content in column
           picWrapper.classList.add('columns-intro-img-col');
         }
+      } else if (col.children.length === 0) {
+        // Empty column — inject placeholder image if available
+        const img = document.createElement('img');
+        img.src = 'https://abbvie.scene7.com/is/image/abbviecorp/the-persistence-lab-promo';
+        img.alt = 'The Persistence Lab';
+        img.loading = 'lazy';
+        col.appendChild(img);
+        col.classList.add('columns-intro-img-col');
       }
     });
   });

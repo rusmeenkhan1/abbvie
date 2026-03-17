@@ -130,32 +130,49 @@ export function moveInstrumentation(source, target) {
 
 /**
  * Fixes images that fail to load through the media pipeline (local dev only).
- * The AEM CLI cannot download Scene7 images; this provides local fallbacks.
+ * The AEM CLI cannot proxy Scene7 images; this provides CDN fallbacks.
  * @param {Element} main The main container element
  */
 function fixBrokenImages(main) {
   const imageMap = {
-    'woman in lab looking down': '/images/woman-in-lab.jpg',
-    'wp card story image': '/images/card-story.jpg',
-    'Portrait of two women: one a Parkinson\u2019s patient and the other an AbbVie scientist': '/images/sponsorship-hero.jpg',
-    'Advancing Parkinson\u2019s Research video thumbnail': '/images/sponsorship-hero.jpg',
-    'man looking at test tube': '/images/man-looking-at-testtube.jpg',
-    'young woman smiling': '/images/young-woman-smiling.jpg',
-    'woman in conference room': '/images/woman-in-conference-room.jpg',
-    'sitting in hammock by lake': '/images/hammock-lake.jpg',
+    'wp card story image': 'https://abbvie.scene7.com/is/image/abbviecorp/wp-card-story-image',
+    'Portrait of two women: one a Parkinson\u2019s patient and the other an AbbVie scientist': 'https://abbvie.scene7.com/is/image/abbviecorp/wp-sponsorship-hero',
+    'ambily card image': 'https://abbvie.scene7.com/is/image/abbviecorp/ambily-card-image',
+    'kids playing soccer on grass': 'https://abbvie.scene7.com/is/image/abbviecorp/kids-playing-soccer-grass',
+    'sitting in hammock by lake': 'https://abbvie.scene7.com/is/image/abbviecorp/sitting-in-hammock-by-lake-hero',
   };
 
-  main.querySelectorAll('img').forEach((img) => {
-    if (img.src.includes('about:error') || !img.complete || img.naturalWidth === 0) {
-      const fallback = imageMap[img.alt];
-      if (fallback) {
-        const picture = img.closest('picture');
-        if (picture) {
-          picture.querySelectorAll('source').forEach((s) => s.remove());
-        }
-        img.src = fallback;
-      }
+  /**
+   * Replace an img (and its picture wrapper) with a fresh img element
+   * pointing to the CDN fallback URL.
+   */
+  function replaceWithFallback(img, fallbackUrl) {
+    const newImg = document.createElement('img');
+    newImg.src = fallbackUrl;
+    newImg.alt = img.alt;
+    newImg.loading = img.loading || 'lazy';
+    const picture = img.closest('picture');
+    if (picture) {
+      picture.replaceWith(newImg);
+    } else {
+      img.replaceWith(newImg);
     }
+  }
+
+  // Replace broken images immediately where detectable
+  main.querySelectorAll('img').forEach((img) => {
+    const fallback = imageMap[img.alt];
+    if (!fallback) return;
+    if (img.src.includes('about:error')) {
+      replaceWithFallback(img, fallback);
+    }
+  });
+
+  // For images still loading, attach error handlers to swap on failure
+  main.querySelectorAll('img').forEach((img) => {
+    const fallback = imageMap[img.alt];
+    if (!fallback) return;
+    img.addEventListener('error', () => replaceWithFallback(img, fallback), { once: true });
   });
 }
 
