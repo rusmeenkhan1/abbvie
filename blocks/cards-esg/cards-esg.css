@@ -1,19 +1,42 @@
 .cards-esg-wrapper {
-  background-color: var(--background-color);
-  padding: 48px 0;
+  padding: 0;
 }
 
+.cards-esg {
+  position: relative;
+  overflow: hidden;
+  min-height: 400px;
+}
+
+/* Background image covering the full block */
+.cards-esg .cards-esg-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.cards-esg .cards-esg-bg picture,
+.cards-esg .cards-esg-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Card grid overlaid on the background */
 .cards-esg > ul {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 32px 24px;
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
+  position: relative;
+  z-index: 1;
 }
 
 .cards-esg > ul > li {
-  background-color: var(--color-light-blue-bg);
+  background-color: var(--background-color);
   overflow: hidden;
   padding: 32px;
   border-radius: 0;
@@ -24,7 +47,15 @@
 }
 
 .cards-esg .cards-esg-card-body h4 {
-  font-size: var(--heading-font-size-m);
+  font-size: var(--heading-font-size-xl);
+  font-weight: 800;
+  color: var(--color-navy);
+  margin-top: 8px;
+  line-height: 1.1;
+}
+
+.cards-esg .cards-esg-card-body h5 {
+  font-size: var(--heading-font-size-s);
   font-weight: 800;
   color: var(--color-navy);
   margin-top: 8px;
@@ -34,6 +65,15 @@
 .cards-esg .cards-esg-card-body p {
   font-size: var(--body-font-size-s);
   line-height: 1.5;
+}
+
+.cards-esg .cards-esg-card-body p:first-child {
+  font-size: var(--body-font-size-xxs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-color);
+  opacity: 0.6;
 }
 
 .cards-esg .cards-esg-card-body a {
@@ -47,6 +87,7 @@
   line-height: 0;
 }
 
+/* stylelint-disable-next-line no-descending-specificity */
 .cards-esg > ul > li img {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -55,7 +96,17 @@
 }
 
 @media (width >= 900px) {
+  .cards-esg {
+    min-height: 500px;
+  }
+
   .cards-esg > ul {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
+    padding: 80px 70px;
+    gap: 24px;
+  }
+
+  .cards-esg > ul > li {
+    padding: 40px;
   }
 }

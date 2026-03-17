@@ -8,18 +8,19 @@ main .footer-wrapper ~ .default-content-wrapper {
   display: none;
 }
 
-/* Footer base - white background matching original AbbVie */
+/* Footer base - light blue background with curved top-left matching original AbbVie */
 footer {
-  background-color: var(--background-color);
+  background-color: transparent;
   color: var(--color-navy);
   font-size: var(--body-font-size-s);
-  border-top: 1px solid #e0e0e0;
 }
 
 footer .footer {
-  max-width: var(--content-max-width);
-  margin: auto;
-  padding: 48px 24px 0;
+  background-color: var(--color-light-blue-bg);
+  border-radius: 40px 0 0;
+  max-width: none;
+  margin: 0;
+  padding: 56px 24px 0;
 }
 
 footer .footer p {
@@ -137,7 +138,7 @@ footer .footer > div:last-child ul li a {
     display: grid;
     grid-template-columns: 1fr 2fr 1fr 1fr;
     gap: 0 40px;
-    padding: 56px 32px 0;
+    padding: 56px 70px 0;
   }
 
   /* Logo + nav links: columns 1-2 */

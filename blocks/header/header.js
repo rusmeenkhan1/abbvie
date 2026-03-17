@@ -4,6 +4,44 @@ import { loadFragment } from '../fragment/fragment.js';
 // media query match that indicates mobile/tablet width
 const isDesktop = window.matchMedia('(min-width: 900px)');
 
+// Sub-navigation content matching the original AbbVie site
+const NAV_SUBMENUS = {
+  'Who We Are': [
+    { text: 'Our Principles', href: '/who-we-are/our-principles' },
+    { text: 'Operating with Integrity', href: '/who-we-are/operating-with-integrity' },
+    { text: 'Key Facts', href: '/who-we-are/key-facts' },
+    { text: 'Our Leaders', href: '/who-we-are/our-leaders' },
+    { text: 'Policies & Disclosures', href: '/who-we-are/policies-and-disclosures' },
+    { text: 'Our Stories', href: '/who-we-are/our-stories' },
+  ],
+  Science: [
+    { text: 'Immunology', href: '/science/areas-of-focus/immunology' },
+    { text: 'Oncology', href: '/science/areas-of-focus/oncology' },
+    { text: 'Neuroscience', href: '/science/areas-of-focus/neuroscience' },
+    { text: 'Eye Care', href: '/science/areas-of-focus/eye-care' },
+    { text: 'Aesthetics', href: '/science/areas-of-focus/aesthetics' },
+    { text: 'Pipeline', href: '/science/pipeline' },
+    { text: 'Partner with Us', href: '/science/partner-with-us' },
+    { text: 'Clinical Trials', href: '/science/clinical-trials' },
+  ],
+  Patients: [
+    { text: 'Patient Support', href: '/patients/patient-support' },
+    { text: 'Product Quality & Safety', href: '/patients/product-quality-and-safety' },
+    { text: 'Products', href: '/patients/products' },
+  ],
+  'Join Us': [
+    { text: 'Opportunities', href: '/join-us/opportunities' },
+    { text: 'Life at AbbVie', href: '/join-us/life-at-abbvie' },
+    { text: 'Why AbbVie', href: '/join-us/why-abbvie' },
+    { text: 'Students & New Graduates', href: '/join-us/students-and-new-graduates' },
+  ],
+  Sustainability: [
+    { text: 'AbbVie Foundation', href: '/sustainability/abbvie-foundation' },
+    { text: 'Environmental, Social & Governance', href: '/sustainability/environmental-social-and-governance' },
+    { text: 'Disaster Relief', href: '/sustainability/disaster-relief' },
+  ],
+};
+
 function closeOnEscape(e) {
   if (e.code === 'Escape') {
     const nav = document.getElementById('nav');
@@ -163,23 +201,35 @@ export default async function decorate(block) {
   const navSections = nav.querySelector('.nav-sections');
   if (navSections) {
     navSections.querySelectorAll(':scope .default-content-wrapper > ul > li').forEach((navSection) => {
-      // Treat every top-level nav item as a dropdown toggle
       navSection.classList.add('nav-drop');
 
-      // Build a dropdown panel with a "Go to page" link
       const link = navSection.querySelector(':scope > a');
       if (link && !navSection.querySelector('ul')) {
+        const label = link.textContent.trim();
+        const submenuItems = NAV_SUBMENUS[label] || [];
         const dropdown = document.createElement('ul');
-        const li = document.createElement('li');
-        const goLink = document.createElement('a');
-        goLink.href = link.href;
-        goLink.textContent = `Go to ${link.textContent}`;
-        li.append(goLink);
-        dropdown.append(li);
+
+        submenuItems.forEach((item) => {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = item.href;
+          a.textContent = item.text;
+          li.append(a);
+          dropdown.append(li);
+        });
+
+        if (dropdown.children.length === 0) {
+          const li = document.createElement('li');
+          const goLink = document.createElement('a');
+          goLink.href = link.href;
+          goLink.textContent = `Go to ${label}`;
+          li.append(goLink);
+          dropdown.append(li);
+        }
+
         navSection.append(dropdown);
       }
 
-      // Prevent the top-level link from navigating
       if (link) {
         link.addEventListener('click', (e) => {
           e.preventDefault();
