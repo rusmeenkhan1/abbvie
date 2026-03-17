@@ -2,142 +2,139 @@
 /* global WebImporter */
 
 /**
- * Transformer: AbbVie site cleanup.
- * Selectors from captured DOM of https://www.abbvie.com/
+ * Transformer: AbbVie cleanup.
+ * Removes non-authorable content from the AbbVie homepage.
+ * Selectors from captured DOM (migration-work/cleaned.html).
  */
 const TransformHook = { beforeTransform: 'beforeTransform', afterTransform: 'afterTransform' };
 
 export default function transform(hookName, element, payload) {
   if (hookName === TransformHook.beforeTransform) {
-    // Resolve lazy-loaded images: AbbVie uses data-cmp-src on parent divs
-    // with placeholder data:image/gif in the actual <img> src
-    element.querySelectorAll('div[data-cmp-src]').forEach((div) => {
-      const realSrc = div.getAttribute('data-cmp-src');
-      const img = div.querySelector('img');
-      if (img && realSrc) {
-        img.src = realSrc;
-      }
-    });
-
-    // Also handle img[data-src] and img[data-lazy] patterns
-    element.querySelectorAll('img[data-src], img[data-lazy]').forEach((img) => {
-      const realSrc = img.getAttribute('data-src') || img.getAttribute('data-lazy');
-      if (realSrc && !realSrc.startsWith('data:')) {
-        img.src = realSrc;
-      }
-    });
-
-    // Replace any remaining placeholder data-URI or blob src with empty to avoid errors
-    element.querySelectorAll('img').forEach((img) => {
-      if (img.src.startsWith('data:') || img.src.startsWith('blob:')) {
-        // Check for a data-cmp-src on any ancestor
-        const parent = img.closest('[data-cmp-src]');
-        if (parent) {
-          img.src = parent.getAttribute('data-cmp-src');
-        }
-      }
-    });
-
-    // Strip query params from Scene7 URLs so the Edge Delivery media bus
-    // can download them. Presets like ?$Square$, ?$Hero$, ?fmt=webp cause
-    // the media bus to fail; bare Scene7 URLs return standard JPEG.
-    element.querySelectorAll('img').forEach((img) => {
-      if (img.src && img.src.includes('scene7.com/is/image/')) {
-        try {
-          const u = new URL(img.src);
-          u.search = '';
-          img.src = u.href;
-        } catch (_) { /* ignore malformed URLs */ }
-      }
-    });
-
     // Remove cookie consent banner (OneTrust)
-    // Found in DOM: <div id="onetrust-consent-sdk">
     WebImporter.DOMUtils.remove(element, [
       '#onetrust-consent-sdk',
       '#onetrust-banner-sdk',
-      '.optanon-alert-box-wrapper',
-      '[class*="cookie"]',
+      '#onetrust-pc-sdk',
     ]);
 
-    // Remove video player artifacts that interfere with parsing
-    // Found in DOM: <video class="vjs-tech"> and related elements
-    WebImporter.DOMUtils.remove(element, [
-      '.vjs-text-track-display',
-      '.vjs-loading-spinner',
-      '.vjs-control-bar',
-      '.vjs-modal-dialog',
-      '.vjs-error-display',
-      '.vjs-caption-settings',
-      '.vjs-poster',
-    ]);
+    // Remove skip-to-main-content link
+    WebImporter.DOMUtils.remove(element, ['.skip-link', 'a[href="#maincontent"]']);
 
-    // Remove hidden hero alternatives (only keep active)
-    // Found in DOM: <div class="cmp-home-hero__alternative hide">
-    WebImporter.DOMUtils.remove(element, [
-      '.cmp-home-hero__alternative.hide',
-    ]);
+    // Fix blob: URLs on images - replace with source srcset or data attributes
+    element.querySelectorAll('img').forEach((img) => {
+      const src = img.getAttribute('src') || '';
+      if (src.startsWith('blob:')) {
+        // Strategy 1: Check data attributes for original URL
+        const dataSrc = img.getAttribute('data-src')
+          || img.getAttribute('data-lazy')
+          || img.getAttribute('data-original')
+          || img.getAttribute('data-lazy-src');
+        if (dataSrc) {
+          img.setAttribute('src', dataSrc);
+          return;
+        }
+        // Strategy 2: Check parent <picture> > <source> for srcset
+        const picture = img.closest('picture');
+        if (picture) {
+          const sources = picture.querySelectorAll('source[srcset]');
+          for (const source of sources) {
+            const srcset = source.getAttribute('srcset');
+            if (srcset && !srcset.startsWith('blob:') && !srcset.startsWith('data:')) {
+              img.setAttribute('src', srcset.split(',')[0].trim().split(' ')[0]);
+              return;
+            }
+          }
+        }
+        // Strategy 3: Check if there's a noscript sibling with an img (lazy loading pattern)
+        const noscript = img.parentElement?.querySelector('noscript');
+        if (noscript) {
+          const match = noscript.textContent.match(/src=["']([^"']+)["']/);
+          if (match) {
+            img.setAttribute('src', match[1]);
+            return;
+          }
+        }
+        // Strategy 4: Keep the img but clear the blob: src - let the parser decide
+        // Don't remove - the parser may use alt text or other context
+        img.removeAttribute('src');
+      }
+    });
 
-    // Remove empty results containers
-    // Found in DOM: <div class="stories-empty-results-container hide">
+    // Fix video elements with blob: src - keep the element for poster extraction
+    element.querySelectorAll('video').forEach((video) => {
+      const src = video.getAttribute('src') || '';
+      if (src.startsWith('blob:')) {
+        video.removeAttribute('src');
+      }
+    });
+
+    // Remove popup/modal dialogs and cookie consent
     WebImporter.DOMUtils.remove(element, [
-      '.stories-empty-results-container',
-      '.cmp-list-buttons',
+      '.xf-popup',
+      '.cmp-xfpopup',
+      '[class*="popup"]',
+      '[role="alertdialog"]',
+      '[role="dialog"]',
+      '#onetrust-consent-sdk',
     ]);
+    // Remove popup button/text elements before they get serialized
+    element.querySelectorAll('button, span, p, h5, a').forEach((el) => {
+      const text = el.textContent.trim();
+      if (text === 'CLOSE' || text === 'Yes, I agree' || text === 'No, I disagree'
+        || text.includes('You are about to leave')
+        || text.includes('product-specific site Internet site')
+        || text === 'Cookies Settings') {
+        el.remove();
+      }
+    });
   }
 
   if (hookName === TransformHook.afterTransform) {
-    // Remove non-authorable content: header navigation
-    // Found in DOM: <div class="cmp-experiencefragment cmp-experiencefragment--header">
+    // Remove non-authorable site chrome elements
     WebImporter.DOMUtils.remove(element, [
-      '.cmp-experiencefragment--header',
       'header.nav-bar',
-    ]);
-
-    // Remove non-authorable content: footer
-    // Found in DOM: <div class="cmp-experiencefragment cmp-experiencefragment--footer">
-    WebImporter.DOMUtils.remove(element, [
+      '.cmp-experiencefragment--header',
       '.cmp-experiencefragment--footer',
-    ]);
-
-    // Remove separator elements (decorative only)
-    // Found in DOM: <div class="separator separator-height-48">
-    WebImporter.DOMUtils.remove(element, [
-      '.separator',
-      '.cmp-separator',
-    ]);
-
-    // Remove iframes, noscript, link elements
-    WebImporter.DOMUtils.remove(element, [
-      'iframe',
       'noscript',
       'link',
+      'iframe',
     ]);
 
-    // Remove tracking pixel images (Twitter, analytics, etc.)
+    // Remove tracking pixel images
     element.querySelectorAll('img').forEach((img) => {
-      const src = img.src || '';
-      if (src.includes('t.co/') || src.includes('analytics.twitter.com')
-        || src.includes('bing.com/c.gif') || src.includes('facebook.com/tr')
-        || (!img.alt && (src.includes('adsct') || src.includes('pixel')))) {
+      const src = img.getAttribute('src') || '';
+      if (src.includes('t.co/i/adsct')
+        || src.includes('analytics.twitter.com')
+        || src.includes('metrics.brightcove.com')
+        || src.includes('adservice.google.com')
+        || src.includes('reddit.com/rp.gif')
+        || src.includes('siteimproveanalytics')
+        || src.includes('adsrvr.org')
+        || src.includes('casalemedia.com')
+        || src.includes('google.com/pagead')
+        || src.includes('insight.adsrvr.org')) {
         img.remove();
       }
     });
 
-    // Remove links with blob: URLs (video player artifacts)
-    element.querySelectorAll('a[href^="blob:"]').forEach((a) => {
-      // Keep the content but remove the blob link wrapper
-      const parent = a.parentElement;
-      while (a.firstChild) parent.insertBefore(a.firstChild, a);
-      a.remove();
+    // Remove any remaining popup/consent text elements
+    element.querySelectorAll('button, span, h5, p, a').forEach((el) => {
+      const text = el.textContent.trim();
+      if (text.includes('You are about to leave')
+        || text === 'CLOSE'
+        || text === 'No, I disagree'
+        || text === 'Yes, I agree'
+        || text === 'Cookies Settings'
+        || text.includes('product-specific site Internet site')) {
+        el.remove();
+      }
     });
 
-    // Clean tracking attributes
+    // Remove tracking/data attributes from all elements
     element.querySelectorAll('*').forEach((el) => {
       el.removeAttribute('data-track');
       el.removeAttribute('data-analytics');
       el.removeAttribute('onclick');
-      el.removeAttribute('data-cmp-data-layer');
     });
   }
 }

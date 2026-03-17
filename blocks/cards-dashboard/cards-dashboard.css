@@ -3,6 +3,16 @@
   padding: 24px 0;
 }
 
+/* Hide empty cards-dashboard blocks (no content rows) */
+.cards-dashboard:not(:has(> div)) {
+  display: none;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+.cards-dashboard-wrapper:has(.cards-dashboard:not(:has(> div))) {
+  display: none;
+}
+
 .cards-dashboard > ul {
   list-style: none;
   margin: 0;

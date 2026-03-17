@@ -5,66 +5,60 @@
       "urls": [
         "https://www.abbvie.com/"
       ],
-      "description": "AbbVie corporate homepage with hero, featured content sections, and corporate navigation",
+      "description": "AbbVie corporate homepage with hero, news cards, video hero, dashboard cards, columns sections, and footer",
       "blocks": [
         {
           "name": "hero-homepage",
           "instances": [
-            ".homepage-hero-controller .cmp-home-hero__primary.active .container.linear-gradient"
+            ".cmp-home-hero"
           ]
         },
         {
           "name": "cards-news",
           "instances": [
-            ".container.homepage-overlap"
-          ]
-        },
-        {
-          "name": "columns-intro",
-          "instances": [
-            ".container.cmp-container-xxx-large.height-default.align-center > .cmp-container > .grid > .grid-container > .grid-row"
+            ".homepage-overlap"
           ]
         },
         {
           "name": "hero-video",
           "instances": [
-            ".video-js.bc-player-default_default"
+            ".cmp-video--youtube"
           ]
         },
         {
           "name": "cards-dashboard",
           "instances": [
-            "#maincontent .cardpagestory.card-dashboard.show-image-hide-desc, #maincontent .dashboardcards.medium-theme.hide-image, #maincontent .dashboardcards.dark-theme.hide-image"
+            ".grid-row:has(.cardpagestory):has(.dashboardcards):not(:has(.dashboard-card_link__list))"
           ]
         },
         {
-          "name": "columns-media",
+          "name": "columns-intro",
           "instances": [
-            ".container.cmp-container-xxx-large.height-short > .cmp-container > .grid"
-          ]
-        },
-        {
-          "name": "cards-text",
-          "instances": [
-            ".container.cmp-container-xxx-large.height-short .grid-row .grid-cell .text"
-          ]
-        },
-        {
-          "name": "cards-cta",
-          "instances": [
-            ".container.large-radius.cmp-container-full-width.height-default.no-bottom-margin"
+            ".cmp-container:has(.cmp-image--small):has(.cmp-title)"
           ]
         },
         {
           "name": "columns-info",
           "instances": [
-            ".container.medium-radius.cmp-container-medium.height-short.align-center"
+            ".cmp-grid-custom:has(.grid-row__col-with-4)"
+          ]
+        },
+        {
+          "name": "columns-media",
+          "instances": [
+            ".abbvie-container.medium-radius:has(.dark-theme)"
+          ]
+        },
+        {
+          "name": "cards-cta",
+          "instances": [
+            ".grid:not(.cmp-grid-custom):has(.cardpagestory):has(.dashboard-card_link__list)"
           ]
         },
         {
           "name": "cards-esg",
           "instances": [
-            ".container.large-radius.cmp-container-full-width.height-short.footer-overlap .grid-row"
+            ".cmp-container:has(.cmp-container__bg-image):has(.dashboard-card-facts)"
           ]
         },
         {
@@ -76,27 +70,19 @@
       ],
       "sections": [
         {
-          "id": "header",
-          "name": "Header",
-          "selector": ".cmp-experiencefragment--header",
-          "style": null,
-          "blocks": [],
-          "defaultContent": []
-        },
-        {
-          "id": "hero",
-          "name": "Homepage Hero",
+          "id": "section-1",
+          "name": "Hero",
           "selector": ".homepage-hero-controller",
-          "style": "dark",
+          "style": null,
           "blocks": [
             "hero-homepage"
           ],
           "defaultContent": []
         },
         {
-          "id": "news-feed",
-          "name": "News Feed",
-          "selector": ".container.homepage-overlap",
+          "id": "section-2",
+          "name": "News & Featured",
+          "selector": ".homepage-overlap",
           "style": null,
           "blocks": [
             "cards-news"
@@ -104,73 +90,105 @@
           "defaultContent": []
         },
         {
-          "id": "patient-stories",
-          "name": "Patient Stories",
-          "selector": ".container.cmp-container-xxx-large.height-default.align-center",
+          "id": "section-3",
+          "name": "Patients Teaser",
+          "selector": "#section01.cmp-teaser",
+          "style": null,
+          "blocks": [],
+          "defaultContent": [
+            "#section01 .cmp-teaser__title",
+            "#section01 .cmp-teaser__description",
+            "#section01 .cmp-teaser__action-link"
+          ]
+        },
+        {
+          "id": "section-4",
+          "name": "Video Feature",
+          "selector": ".video.cmp-video-xx-large",
           "style": null,
           "blocks": [
-            "columns-intro",
             "hero-video"
           ],
           "defaultContent": []
         },
         {
-          "id": "science-innovation",
-          "name": "Science and Innovation",
-          "selector": "#maincontent > .aem-Grid > .responsivegrid:nth-child(3)",
+          "id": "section-5",
+          "name": "Science & Innovation",
+          "selector": "#teaser-a2987e48b8",
           "style": null,
           "blocks": [
-            "columns-intro",
             "cards-dashboard"
+          ],
+          "defaultContent": [
+            "#teaser-a2987e48b8 .cmp-teaser__pretitle",
+            "#teaser-a2987e48b8 .cmp-teaser__title",
+            "#teaser-a2987e48b8 .cmp-teaser__description"
+          ]
+        },
+        {
+          "id": "section-6",
+          "name": "Podcast",
+          "selector": ".abbvie-container.default-radius.cmp-container-xxx-large",
+          "style": null,
+          "blocks": [
+            "columns-intro"
           ],
           "defaultContent": []
         },
         {
-          "id": "podcast",
-          "name": "Podcast",
-          "selector": ".container.cmp-container-xxx-large.height-short",
+          "id": "section-7",
+          "name": "Culture of Curiosity",
+          "selector": "#section02.cmp-teaser",
           "style": null,
+          "blocks": [
+            "columns-info"
+          ],
+          "defaultContent": [
+            "#section02 .cmp-teaser__pretitle",
+            "#section02 .cmp-teaser__title",
+            "#section02 .cmp-teaser__description"
+          ]
+        },
+        {
+          "id": "section-8",
+          "name": "Explore Opportunities CTA",
+          "selector": ".abbvie-container.medium-radius:has(.dark-theme)",
+          "style": "navy-gradient",
           "blocks": [
             "columns-media"
           ],
           "defaultContent": []
         },
         {
-          "id": "culture-community",
-          "name": "Culture of Community",
-          "selector": "#maincontent > .aem-Grid > .responsivegrid:nth-child(5)",
+          "id": "section-9",
+          "name": "Investor Resources",
+          "selector": "#section03.cmp-teaser",
           "style": null,
           "blocks": [
-            "columns-intro",
-            "cards-text",
             "cards-cta"
           ],
-          "defaultContent": []
+          "defaultContent": [
+            "#section03 .cmp-teaser__pretitle",
+            "#section03 .cmp-teaser__title",
+            "#section03 .cmp-teaser__description"
+          ]
         },
         {
-          "id": "invest-creating",
-          "name": "Investor Relations",
-          "selector": ".container.medium-radius.cmp-container-medium.height-short.align-center",
+          "id": "section-10",
+          "name": "ESG",
+          "selector": "#section04.cmp-teaser",
           "style": null,
           "blocks": [
-            "columns-intro",
-            "columns-info"
-          ],
-          "defaultContent": []
-        },
-        {
-          "id": "esg-impact",
-          "name": "ESG Impact",
-          "selector": ".container.large-radius.cmp-container-full-width.height-short.footer-overlap",
-          "style": "dark",
-          "blocks": [
-            "columns-intro",
             "cards-esg"
           ],
-          "defaultContent": []
+          "defaultContent": [
+            "#section04 .cmp-teaser__pretitle",
+            "#section04 .cmp-teaser__title",
+            "#section04 .cmp-teaser__description"
+          ]
         },
         {
-          "id": "footer",
+          "id": "section-11",
           "name": "Footer",
           "selector": ".cmp-experiencefragment--footer",
           "style": "dark",

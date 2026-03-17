@@ -1,3 +1,13 @@
+/* Hide footer blocks that appear inside main content (duplicates) */
+main .footer-wrapper {
+  display: none;
+}
+
+/* Hide footer-related default content that appears after inline footer */
+main .footer-wrapper ~ .default-content-wrapper {
+  display: none;
+}
+
 footer {
   background-color: var(--color-navy);
   color: var(--background-color);

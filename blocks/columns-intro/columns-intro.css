@@ -1,5 +1,5 @@
 .columns-intro-wrapper {
-  background-color: var(--background-color);
+  background-color: var(--light-color);
   padding: 48px 0;
 }
 
@@ -13,10 +13,18 @@
   order: 1;
 }
 
+.columns-intro > div > div:empty {
+  display: none;
+}
+
 .columns-intro > div > .columns-intro-img-col {
   order: 0;
   border-radius: 16px;
   overflow: hidden;
+}
+
+.columns-intro > div > .columns-intro-img-col:empty {
+  display: none;
 }
 
 .columns-intro img {
@@ -45,6 +53,13 @@
   font-size: var(--body-font-size-s);
   line-height: 1.5;
   color: var(--text-color);
+}
+
+.columns-intro a:any-link {
+  font-weight: 700;
+  font-size: var(--body-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 @media (width >= 900px) {

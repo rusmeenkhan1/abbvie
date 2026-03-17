@@ -428,8 +428,211 @@ main .section.dark .default-content-wrapper a:any-link {
   color: var(--link-color);
 }
 
+/* Default content images in sections should be full-width and rounded */
+main .section .default-content-wrapper p > img {
+  width: 100%;
+  border-radius: 16px;
+  display: block;
+}
+
+/* Section separators between content areas */
+main .section .default-content-wrapper hr {
+  border: none;
+  border-top: 1px solid var(--color-grey-border);
+  margin: 32px 0;
+}
+
 @media (width >= 900px) {
   main .section.dark .default-content-wrapper {
     padding: 48px 32px;
+  }
+}
+
+/* Culture of curiosity section - 3-column card layout for image+text+link groups */
+main .section.columns-intro-container > .default-content-wrapper {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 32px;
+  padding-top: 48px;
+  padding-bottom: 48px;
+}
+
+main .section.columns-intro-container > .default-content-wrapper > p:nth-child(-n+3) {
+  grid-column: 1 / -1;
+}
+
+main .section.columns-intro-container > .default-content-wrapper > p:nth-child(1) {
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--link-color);
+  margin-bottom: 0;
+}
+
+main .section.columns-intro-container > .default-content-wrapper > p:nth-child(2) {
+  font-size: var(--heading-font-size-l);
+  font-weight: 800;
+  color: var(--color-navy);
+  line-height: 1.15;
+  margin-top: 8px;
+}
+
+/* Card images should have controlled aspect ratio */
+main .section.columns-intro-container > .default-content-wrapper > p:nth-child(n+4) > img {
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+/* Card link styles */
+main .section.columns-intro-container > .default-content-wrapper > p:nth-child(3n+6) a {
+  font-weight: 700;
+  font-size: var(--body-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+@media (width >= 900px) {
+  main .section.columns-intro-container > .default-content-wrapper {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  main .section.columns-intro-container > .default-content-wrapper > p:nth-child(2) {
+    font-size: var(--heading-font-size-xl);
+  }
+
+  /* Explicitly place card groups into columns
+     Card 1: image(4), text(5), link(6) → column 1 */
+  main .section.columns-intro-container > .default-content-wrapper > p:nth-child(4) {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  main .section.columns-intro-container > .default-content-wrapper > p:nth-child(5) {
+    grid-column: 1;
+    grid-row: 5;
+  }
+
+  main .section.columns-intro-container > .default-content-wrapper > p:nth-child(6) {
+    grid-column: 1;
+    grid-row: 6;
+  }
+
+  /* Card 2: image(7), text(8), link(9) → column 2 */
+  main .section.columns-intro-container > .default-content-wrapper > p:nth-child(7) {
+    grid-column: 2;
+    grid-row: 4;
+  }
+
+  main .section.columns-intro-container > .default-content-wrapper > p:nth-child(8) {
+    grid-column: 2;
+    grid-row: 5;
+  }
+
+  main .section.columns-intro-container > .default-content-wrapper > p:nth-child(9) {
+    grid-column: 2;
+    grid-row: 6;
+  }
+
+  /* Card 3: image(10), text(11), link(12) → column 3 */
+  main .section.columns-intro-container > .default-content-wrapper > p:nth-child(10) {
+    grid-column: 3;
+    grid-row: 4;
+  }
+
+  main .section.columns-intro-container > .default-content-wrapper > p:nth-child(11) {
+    grid-column: 3;
+    grid-row: 5;
+  }
+
+  main .section.columns-intro-container > .default-content-wrapper > p:nth-child(12) {
+    grid-column: 3;
+    grid-row: 6;
+  }
+}
+
+/* Investor resources section heading styles */
+main .section.columns-media-container > .default-content-wrapper > p:first-child {
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--link-color);
+  margin-bottom: 0;
+}
+
+main .section.columns-media-container > .default-content-wrapper > p:nth-child(2) {
+  font-size: var(--heading-font-size-l);
+  font-weight: 800;
+  color: var(--color-navy);
+  line-height: 1.15;
+  margin-top: 8px;
+}
+
+/* Investor resource links - display as spaced list */
+main .section.columns-media-container > .default-content-wrapper > p:nth-child(9) a {
+  display: inline-block;
+  margin-right: 24px;
+  font-weight: 700;
+  font-size: var(--body-font-size-xs);
+  letter-spacing: 0.02em;
+}
+
+/* "investor resources" label in right column */
+main .section.columns-media-container > .default-content-wrapper > p:nth-child(7) {
+  font-size: var(--body-font-size-xxs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-color);
+  opacity: 0.6;
+  margin-bottom: 0;
+}
+
+/* ESG section heading (child 10) */
+main .section.columns-media-container > .default-content-wrapper > p:nth-child(10) {
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--link-color);
+  margin-bottom: 0;
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid var(--color-grey-border);
+}
+
+main .section.columns-media-container > .default-content-wrapper > p:nth-child(11) {
+  font-size: var(--heading-font-size-l);
+  font-weight: 800;
+  color: var(--color-navy);
+  line-height: 1.15;
+  margin-top: 8px;
+}
+
+@media (width >= 900px) {
+  main .section.columns-media-container > .default-content-wrapper > p:nth-child(2) {
+    font-size: var(--heading-font-size-xl);
+  }
+
+  main .section.columns-media-container > .default-content-wrapper > p:nth-child(11) {
+    font-size: var(--heading-font-size-xl);
+  }
+
+  main .section.columns-media-container > .default-content-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 32px;
+    padding-top: 48px;
+    padding-bottom: 48px;
+  }
+
+  main .section.columns-media-container > .default-content-wrapper > p:nth-child(-n+3) {
+    grid-column: 1 / -1;
+  }
+
+  main .section.columns-media-container > .default-content-wrapper > p:nth-child(n+10) {
+    grid-column: 1 / -1;
   }
 }

@@ -4,187 +4,85 @@
 // PARSER IMPORTS
 import heroHomepageParser from './parsers/hero-homepage.js';
 import cardsNewsParser from './parsers/cards-news.js';
-import columnsIntroParser from './parsers/columns-intro.js';
 import heroVideoParser from './parsers/hero-video.js';
 import cardsDashboardParser from './parsers/cards-dashboard.js';
-import columnsMediaParser from './parsers/columns-media.js';
-import cardsTextParser from './parsers/cards-text.js';
-import cardsCtaParser from './parsers/cards-cta.js';
+import columnsIntroParser from './parsers/columns-intro.js';
 import columnsInfoParser from './parsers/columns-info.js';
+import columnsMediaParser from './parsers/columns-media.js';
+import cardsCtaParser from './parsers/cards-cta.js';
 import cardsEsgParser from './parsers/cards-esg.js';
 import footerParser from './parsers/footer.js';
 
 // TRANSFORMER IMPORTS
-import abbvieCleanupTransformer from './transformers/abbvie-cleanup.js';
-import abbvieSectionsTransformer from './transformers/abbvie-sections.js';
+import cleanupTransformer from './transformers/abbvie-cleanup.js';
+import sectionsTransformer from './transformers/abbvie-sections.js';
 
 // PARSER REGISTRY
 const parsers = {
   'hero-homepage': heroHomepageParser,
   'cards-news': cardsNewsParser,
-  'columns-intro': columnsIntroParser,
   'hero-video': heroVideoParser,
   'cards-dashboard': cardsDashboardParser,
-  'columns-media': columnsMediaParser,
-  'cards-text': cardsTextParser,
-  'cards-cta': cardsCtaParser,
+  'columns-intro': columnsIntroParser,
   'columns-info': columnsInfoParser,
+  'columns-media': columnsMediaParser,
+  'cards-cta': cardsCtaParser,
   'cards-esg': cardsEsgParser,
   'footer': footerParser,
 };
 
+// TRANSFORMER REGISTRY
+const transformers = [
+  cleanupTransformer,
+];
+
 // PAGE TEMPLATE CONFIGURATION
 const PAGE_TEMPLATE = {
   name: 'homepage',
-  description: 'AbbVie corporate homepage with hero, featured content sections, and corporate navigation',
+  description: 'AbbVie corporate homepage with hero, news cards, video hero, dashboard cards, columns sections, and footer',
   urls: [
-    'https://www.abbvie.com/'
+    'https://www.abbvie.com/',
   ],
   blocks: [
-    {
-      name: 'hero-homepage',
-      instances: ['.homepage-hero-controller .cmp-home-hero__primary.active .container.linear-gradient']
-    },
-    {
-      name: 'cards-news',
-      instances: ['.container.homepage-overlap']
-    },
-    {
-      name: 'columns-intro',
-      instances: ['.container.cmp-container-xxx-large.height-default.align-center > .cmp-container > .grid > .grid-container > .grid-row']
-    },
-    {
-      name: 'hero-video',
-      instances: ['.video-js.bc-player-default_default']
-    },
-    {
-      name: 'cards-dashboard',
-      instances: ['#maincontent .cardpagestory.card-dashboard.show-image-hide-desc, #maincontent .dashboardcards.medium-theme.hide-image, #maincontent .dashboardcards.dark-theme.hide-image']
-    },
-    {
-      name: 'columns-media',
-      instances: ['.container.cmp-container-xxx-large.height-short > .cmp-container > .grid']
-    },
-    {
-      name: 'cards-text',
-      instances: ['.container.cmp-container-xxx-large.height-short .grid-row .grid-cell .text']
-    },
-    {
-      name: 'cards-cta',
-      instances: ['.container.large-radius.cmp-container-full-width.height-default.no-bottom-margin']
-    },
-    {
-      name: 'columns-info',
-      instances: ['.container.medium-radius.cmp-container-medium.height-short.align-center']
-    },
-    {
-      name: 'cards-esg',
-      instances: ['.container.large-radius.cmp-container-full-width.height-short.footer-overlap .grid-row']
-    },
-    {
-      name: 'footer',
-      instances: ['.cmp-experiencefragment--footer']
-    }
+    { name: 'hero-homepage', instances: ['.cmp-home-hero'] },
+    { name: 'cards-news', instances: ['.homepage-overlap'] },
+    { name: 'hero-video', instances: ['.cmp-video--youtube'] },
+    { name: 'cards-dashboard', instances: ['.grid-row:has(.cardpagestory):has(.dashboardcards):not(:has(.dashboard-card_link__list))'] },
+    { name: 'columns-intro', instances: ['.cmp-container:has(.cmp-image--small):has(.cmp-title)'] },
+    { name: 'columns-info', instances: ['.cmp-grid-custom:has(.grid-row__col-with-4)'] },
+    { name: 'columns-media', instances: ['.abbvie-container.medium-radius:has(.dark-theme)'] },
+    { name: 'cards-cta', instances: ['.grid:not(.cmp-grid-custom):has(.cardpagestory):has(.dashboard-card_link__list)'] },
+    { name: 'cards-esg', instances: ['.cmp-container:has(.cmp-container__bg-image):has(.dashboard-card-facts)'] },
+    { name: 'footer', instances: ['.cmp-experiencefragment--footer'] },
   ],
   sections: [
-    {
-      id: 'header',
-      name: 'Header',
-      selector: '.cmp-experiencefragment--header',
-      style: null,
-      blocks: [],
-      defaultContent: []
-    },
-    {
-      id: 'hero',
-      name: 'Homepage Hero',
-      selector: '.homepage-hero-controller',
-      style: 'dark',
-      blocks: ['hero-homepage'],
-      defaultContent: []
-    },
-    {
-      id: 'news-feed',
-      name: 'News Feed',
-      selector: '.container.homepage-overlap',
-      style: null,
-      blocks: ['cards-news'],
-      defaultContent: []
-    },
-    {
-      id: 'patient-stories',
-      name: 'Patient Stories',
-      selector: '.container.cmp-container-xxx-large.height-default.align-center',
-      style: null,
-      blocks: ['columns-intro', 'hero-video'],
-      defaultContent: []
-    },
-    {
-      id: 'science-innovation',
-      name: 'Science and Innovation',
-      selector: '#maincontent > .aem-Grid > .responsivegrid:nth-child(3)',
-      style: null,
-      blocks: ['columns-intro', 'cards-dashboard'],
-      defaultContent: []
-    },
-    {
-      id: 'podcast',
-      name: 'Podcast',
-      selector: '.container.cmp-container-xxx-large.height-short',
-      style: null,
-      blocks: ['columns-media'],
-      defaultContent: []
-    },
-    {
-      id: 'culture-community',
-      name: 'Culture of Community',
-      selector: '#maincontent > .aem-Grid > .responsivegrid:nth-child(5)',
-      style: null,
-      blocks: ['columns-intro', 'cards-text', 'cards-cta'],
-      defaultContent: []
-    },
-    {
-      id: 'invest-creating',
-      name: 'Investor Relations',
-      selector: '.container.medium-radius.cmp-container-medium.height-short.align-center',
-      style: null,
-      blocks: ['columns-intro', 'columns-info'],
-      defaultContent: []
-    },
-    {
-      id: 'esg-impact',
-      name: 'ESG Impact',
-      selector: '.container.large-radius.cmp-container-full-width.height-short.footer-overlap',
-      style: 'dark',
-      blocks: ['columns-intro', 'cards-esg'],
-      defaultContent: []
-    },
-    {
-      id: 'footer',
-      name: 'Footer',
-      selector: '.cmp-experiencefragment--footer',
-      style: 'dark',
-      blocks: ['footer'],
-      defaultContent: []
-    }
-  ]
+    { id: 'section-1', name: 'Hero', selector: '.homepage-hero-controller', style: null, blocks: ['hero-homepage'], defaultContent: [] },
+    { id: 'section-2', name: 'News & Featured', selector: '.homepage-overlap', style: null, blocks: ['cards-news'], defaultContent: [] },
+    { id: 'section-3', name: 'Patients Teaser', selector: '#section01.cmp-teaser', style: null, blocks: [], defaultContent: ['#section01 .cmp-teaser__title', '#section01 .cmp-teaser__description', '#section01 .cmp-teaser__action-link'] },
+    { id: 'section-4', name: 'Video Feature', selector: '.video.cmp-video-xx-large', style: null, blocks: ['hero-video'], defaultContent: [] },
+    { id: 'section-5', name: 'Science & Innovation', selector: '#teaser-a2987e48b8', style: null, blocks: ['cards-dashboard'], defaultContent: ['#teaser-a2987e48b8 .cmp-teaser__pretitle', '#teaser-a2987e48b8 .cmp-teaser__title', '#teaser-a2987e48b8 .cmp-teaser__description'] },
+    { id: 'section-6', name: 'Podcast', selector: '.abbvie-container.default-radius.cmp-container-xxx-large', style: null, blocks: ['columns-intro'], defaultContent: [] },
+    { id: 'section-7', name: 'Culture of Curiosity', selector: '#section02.cmp-teaser', style: null, blocks: ['columns-info'], defaultContent: ['#section02 .cmp-teaser__pretitle', '#section02 .cmp-teaser__title', '#section02 .cmp-teaser__description'] },
+    { id: 'section-8', name: 'Explore Opportunities CTA', selector: '.abbvie-container.medium-radius:has(.dark-theme)', style: 'navy-gradient', blocks: ['columns-media'], defaultContent: [] },
+    { id: 'section-9', name: 'Investor Resources', selector: '#section03.cmp-teaser', style: null, blocks: ['cards-cta'], defaultContent: ['#section03 .cmp-teaser__pretitle', '#section03 .cmp-teaser__title', '#section03 .cmp-teaser__description'] },
+    { id: 'section-10', name: 'ESG', selector: '#section04.cmp-teaser', style: null, blocks: ['cards-esg'], defaultContent: ['#section04 .cmp-teaser__pretitle', '#section04 .cmp-teaser__title', '#section04 .cmp-teaser__description'] },
+    { id: 'section-11', name: 'Footer', selector: '.cmp-experiencefragment--footer', style: 'dark', blocks: ['footer'], defaultContent: [] },
+  ],
 };
-
-// TRANSFORMER REGISTRY
-const transformers = [
-  abbvieCleanupTransformer,
-  ...(PAGE_TEMPLATE.sections && PAGE_TEMPLATE.sections.length > 1 ? [abbvieSectionsTransformer] : []),
-];
 
 /**
  * Execute all page transformers for a specific hook
  */
 function executeTransformers(hookName, element, payload) {
-  const enhancedPayload = {
-    ...payload,
-    template: PAGE_TEMPLATE
-  };
-  transformers.forEach((transformerFn) => {
+  const enhancedPayload = { ...payload, template: PAGE_TEMPLATE };
+  const allTransformers = [...transformers];
+
+  // Add section transformer in afterTransform if template has 2+ sections
+  if (hookName === 'afterTransform' && PAGE_TEMPLATE.sections && PAGE_TEMPLATE.sections.length > 1) {
+    allTransformers.push(sectionsTransformer);
+  }
+
+  allTransformers.forEach((transformerFn) => {
     try {
       transformerFn.call(null, hookName, element, enhancedPayload);
     } catch (e) {
@@ -194,10 +92,11 @@ function executeTransformers(hookName, element, payload) {
 }
 
 /**
- * Find all blocks on the page based on the embedded template configuration
+ * Find all blocks on the page based on embedded template configuration
  */
 function findBlocksOnPage(document, template) {
   const pageBlocks = [];
+
   template.blocks.forEach((blockDef) => {
     blockDef.instances.forEach((selector) => {
       try {
@@ -207,18 +106,20 @@ function findBlocksOnPage(document, template) {
             name: blockDef.name,
             selector,
             element,
-            section: blockDef.section || null
+            section: blockDef.section || null,
           });
         });
       } catch (e) {
-        console.warn(`Invalid selector for block "${blockDef.name}": ${selector}`, e);
+        console.warn(`Invalid selector for "${blockDef.name}": ${selector}`);
       }
     });
   });
+
   console.log(`Found ${pageBlocks.length} block instances on page`);
   return pageBlocks;
 }
 
+// EXPORT DEFAULT CONFIGURATION
 export default {
   transform: (payload) => {
     const { document, url, html, params } = payload;
@@ -244,7 +145,7 @@ export default {
       }
     });
 
-    // 4. Execute afterTransform transformers (final cleanup + section breaks)
+    // 4. Execute afterTransform transformers (final cleanup + section breaks/metadata)
     executeTransformers('afterTransform', main, payload);
 
     // 5. Apply WebImporter built-in rules
@@ -266,7 +167,7 @@ export default {
         title: document.title,
         template: PAGE_TEMPLATE.name,
         blocks: pageBlocks.map((b) => b.name),
-      }
+      },
     }];
-  }
+  },
 };
