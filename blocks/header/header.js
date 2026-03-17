@@ -163,7 +163,29 @@ export default async function decorate(block) {
   const navSections = nav.querySelector('.nav-sections');
   if (navSections) {
     navSections.querySelectorAll(':scope .default-content-wrapper > ul > li').forEach((navSection) => {
-      if (navSection.querySelector('ul')) navSection.classList.add('nav-drop');
+      // Treat every top-level nav item as a dropdown toggle
+      navSection.classList.add('nav-drop');
+
+      // Build a dropdown panel with a "Go to page" link
+      const link = navSection.querySelector(':scope > a');
+      if (link && !navSection.querySelector('ul')) {
+        const dropdown = document.createElement('ul');
+        const li = document.createElement('li');
+        const goLink = document.createElement('a');
+        goLink.href = link.href;
+        goLink.textContent = `Go to ${link.textContent}`;
+        li.append(goLink);
+        dropdown.append(li);
+        navSection.append(dropdown);
+      }
+
+      // Prevent the top-level link from navigating
+      if (link) {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+        });
+      }
+
       navSection.addEventListener('click', () => {
         if (isDesktop.matches) {
           const expanded = navSection.getAttribute('aria-expanded') === 'true';
