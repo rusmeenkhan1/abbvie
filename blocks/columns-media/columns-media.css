@@ -1,10 +1,12 @@
+.columns-media-wrapper {
+  background-color: var(--background-color);
+  padding: 48px 0;
+}
+
 .columns-media > div {
   display: flex;
   flex-direction: column;
-}
-
-.columns-media img {
-  width: 100%;
+  gap: 24px;
 }
 
 .columns-media > div > div {
@@ -13,21 +15,59 @@
 
 .columns-media > div > .columns-media-img-col {
   order: 0;
+  border-radius: 16px;
+  overflow: hidden;
 }
 
-.columns-media > div > .columns-media-img-col img {
+.columns-media img {
+  width: 100%;
   display: block;
+}
+
+.columns-media h2 {
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--link-color);
+  margin-bottom: 8px;
+}
+
+.columns-media h5 {
+  font-size: var(--heading-font-size-l);
+  font-weight: 800;
+  color: var(--color-navy);
+  margin-top: 0;
+  line-height: 1.15;
+}
+
+.columns-media h4 {
+  font-size: var(--heading-font-size-l);
+  font-weight: 800;
+  color: var(--color-navy);
+  margin-top: 4px;
+  line-height: 1.15;
+}
+
+.columns-media p {
+  font-size: var(--body-font-size-s);
+  line-height: 1.5;
+  color: var(--text-color);
 }
 
 @media (width >= 900px) {
   .columns-media > div {
     align-items: center;
-    flex-direction: unset;
-    gap: 24px;
+    flex-direction: row;
+    gap: 48px;
   }
 
   .columns-media > div > div {
     flex: 1;
     order: unset;
+  }
+
+  .columns-media > div > .columns-media-img-col {
+    flex: 0 0 45%;
   }
 }

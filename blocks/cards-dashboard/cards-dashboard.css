@@ -1,17 +1,22 @@
+.cards-dashboard-wrapper {
+  background-color: var(--background-color);
+  padding: 24px 0;
+}
+
 .cards-dashboard > ul {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 24px;
+  gap: 16px;
 }
 
 .cards-dashboard > ul > li {
-  border: 1px solid var(--color-grey-border);
-  background-color: var(--background-color);
+  background-color: var(--color-light-blue-bg);
   overflow: hidden;
-  padding: 24px;
+  padding: 32px;
+  border-radius: 0;
 }
 
 .cards-dashboard .cards-dashboard-card-body {
@@ -20,9 +25,16 @@
 
 .cards-dashboard .cards-dashboard-card-body h4 {
   font-size: var(--heading-font-size-m);
+  font-weight: 800;
   color: var(--color-navy);
   margin-top: 8px;
-  line-height: 1.3;
+  line-height: 1.2;
+}
+
+.cards-dashboard .cards-dashboard-card-body p {
+  font-size: var(--body-font-size-s);
+  color: var(--text-color);
+  line-height: 1.5;
 }
 
 .cards-dashboard .cards-dashboard-card-image {
@@ -37,6 +49,6 @@
 
 @media (width >= 900px) {
   .cards-dashboard > ul {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
   }
 }

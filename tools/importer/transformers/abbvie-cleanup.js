@@ -9,6 +9,48 @@ const TransformHook = { beforeTransform: 'beforeTransform', afterTransform: 'aft
 
 export default function transform(hookName, element, payload) {
   if (hookName === TransformHook.beforeTransform) {
+    // Resolve lazy-loaded images: AbbVie uses data-cmp-src on parent divs
+    // with placeholder data:image/gif in the actual <img> src
+    element.querySelectorAll('div[data-cmp-src]').forEach((div) => {
+      const realSrc = div.getAttribute('data-cmp-src');
+      const img = div.querySelector('img');
+      if (img && realSrc) {
+        img.src = realSrc;
+      }
+    });
+
+    // Also handle img[data-src] and img[data-lazy] patterns
+    element.querySelectorAll('img[data-src], img[data-lazy]').forEach((img) => {
+      const realSrc = img.getAttribute('data-src') || img.getAttribute('data-lazy');
+      if (realSrc && !realSrc.startsWith('data:')) {
+        img.src = realSrc;
+      }
+    });
+
+    // Replace any remaining placeholder data-URI or blob src with empty to avoid errors
+    element.querySelectorAll('img').forEach((img) => {
+      if (img.src.startsWith('data:') || img.src.startsWith('blob:')) {
+        // Check for a data-cmp-src on any ancestor
+        const parent = img.closest('[data-cmp-src]');
+        if (parent) {
+          img.src = parent.getAttribute('data-cmp-src');
+        }
+      }
+    });
+
+    // Strip query params from Scene7 URLs so the Edge Delivery media bus
+    // can download them. Presets like ?$Square$, ?$Hero$, ?fmt=webp cause
+    // the media bus to fail; bare Scene7 URLs return standard JPEG.
+    element.querySelectorAll('img').forEach((img) => {
+      if (img.src && img.src.includes('scene7.com/is/image/')) {
+        try {
+          const u = new URL(img.src);
+          u.search = '';
+          img.src = u.href;
+        } catch (_) { /* ignore malformed URLs */ }
+      }
+    });
+
     // Remove cookie consent banner (OneTrust)
     // Found in DOM: <div id="onetrust-consent-sdk">
     WebImporter.DOMUtils.remove(element, [
@@ -71,6 +113,24 @@ export default function transform(hookName, element, payload) {
       'noscript',
       'link',
     ]);
+
+    // Remove tracking pixel images (Twitter, analytics, etc.)
+    element.querySelectorAll('img').forEach((img) => {
+      const src = img.src || '';
+      if (src.includes('t.co/') || src.includes('analytics.twitter.com')
+        || src.includes('bing.com/c.gif') || src.includes('facebook.com/tr')
+        || (!img.alt && (src.includes('adsct') || src.includes('pixel')))) {
+        img.remove();
+      }
+    });
+
+    // Remove links with blob: URLs (video player artifacts)
+    element.querySelectorAll('a[href^="blob:"]').forEach((a) => {
+      // Keep the content but remove the blob link wrapper
+      const parent = a.parentElement;
+      while (a.firstChild) parent.insertBefore(a.firstChild, a);
+      a.remove();
+    });
 
     // Clean tracking attributes
     element.querySelectorAll('*').forEach((el) => {

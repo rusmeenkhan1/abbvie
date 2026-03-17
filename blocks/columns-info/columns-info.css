@@ -1,10 +1,12 @@
+.columns-info-wrapper {
+  background-color: var(--background-color);
+  padding: 48px 0;
+}
+
 .columns-info > div {
   display: flex;
   flex-direction: column;
-}
-
-.columns-info img {
-  width: 100%;
+  gap: 24px;
 }
 
 .columns-info > div > div {
@@ -15,15 +17,35 @@
   order: 0;
 }
 
-.columns-info > div > .columns-info-img-col img {
+.columns-info img {
+  width: 100%;
   display: block;
+}
+
+.columns-info h5 {
+  font-size: var(--heading-font-size-s);
+  font-weight: 700;
+  color: var(--color-navy);
+  margin-top: 0;
+}
+
+.columns-info p {
+  font-size: var(--body-font-size-s);
+  line-height: 1.5;
+}
+
+.columns-info a {
+  font-weight: 700;
+  font-size: var(--body-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 @media (width >= 900px) {
   .columns-info > div {
-    align-items: center;
-    flex-direction: unset;
-    gap: 24px;
+    align-items: flex-start;
+    flex-direction: row;
+    gap: 48px;
   }
 
   .columns-info > div > div {

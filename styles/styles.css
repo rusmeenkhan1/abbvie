@@ -15,15 +15,17 @@
   --background-color: #fff;
   --light-color: #fafafa;
   --dark-color: #071d49;
-  --text-color: #000;
+  --text-color: #2d2d2d;
   --link-color: #0066f5;
   --link-hover-color: #004fc4;
+  --link-color-light: #479ff8;
   --color-navy: #071d49;
   --color-blue: #0066f5;
   --color-light-blue-bg: #f1f3ff;
   --color-lavender: #a6b5e0;
   --color-light-grey: #fafafa;
   --color-grey-border: #efefef;
+  --color-dark-bg: #151b17;
 
   /* fonts */
   --body-font-family: roboto, roboto-fallback, helvetica, arial, sans-serif;
@@ -33,17 +35,26 @@
   --body-font-size-m: 18px;
   --body-font-size-s: 16px;
   --body-font-size-xs: 14px;
+  --body-font-size-xxs: 12px;
 
-  /* heading sizes */
-  --heading-font-size-xxl: 40px;
-  --heading-font-size-xl: 32px;
-  --heading-font-size-l: 28px;
+  /* heading sizes - mobile first */
+  --heading-font-size-xxl: 36px;
+  --heading-font-size-xl: 28px;
+  --heading-font-size-l: 24px;
   --heading-font-size-m: 22px;
   --heading-font-size-s: 18px;
   --heading-font-size-xs: 16px;
 
+  /* spacing */
+  --section-padding: 48px 0;
+  --content-max-width: 1200px;
+  --content-padding: 0 24px;
+
   /* nav height */
   --nav-height: 72px;
+
+  /* transitions */
+  --transition-speed: 0.3s;
 }
 
 /* fallback fonts */
@@ -55,12 +66,20 @@
 
 @media (width >= 900px) {
   :root {
-    --heading-font-size-xxl: 48px;
-    --heading-font-size-xl: 36px;
+    --heading-font-size-xxl: 56px;
+    --heading-font-size-xl: 40px;
     --heading-font-size-l: 28px;
     --heading-font-size-m: 22px;
     --heading-font-size-s: 18px;
     --heading-font-size-xs: 16px;
+    --content-padding: 0 32px;
+    --nav-height: 88px;
+  }
+}
+
+@media (width >= 1200px) {
+  :root {
+    --heading-font-size-xxl: 64px;
   }
 }
 
@@ -70,8 +89,8 @@ body {
   background-color: var(--background-color);
   color: var(--text-color);
   font-family: var(--body-font-family);
-  font-size: var(--body-font-size-m);
-  line-height: 1.6;
+  font-size: var(--body-font-size-s);
+  line-height: 1.5;
 }
 
 body.appear {
@@ -101,22 +120,36 @@ h6 {
   margin-top: 0.8em;
   margin-bottom: 0.25em;
   font-family: var(--heading-font-family);
-  font-weight: 700;
-  line-height: 1.25;
+  font-weight: 800;
+  line-height: 1.1;
   scroll-margin: 40px;
   color: var(--color-navy);
+  letter-spacing: -0.02em;
 }
 
 h1 {
   font-size: var(--heading-font-size-xxl);
-  font-weight: 800;
 }
 
 h2 { font-size: var(--heading-font-size-xl); }
 h3 { font-size: var(--heading-font-size-l); }
-h4 { font-size: var(--heading-font-size-m); }
-h5 { font-size: var(--heading-font-size-s); }
-h6 { font-size: var(--heading-font-size-xs); }
+
+h4 {
+  font-size: var(--heading-font-size-m);
+  font-weight: 700;
+}
+
+h5 {
+  font-size: var(--heading-font-size-s);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+h6 {
+  font-size: var(--heading-font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0;
+}
 
 p,
 dl,
@@ -157,6 +190,7 @@ a:any-link {
   color: var(--link-color);
   text-decoration: none;
   overflow-wrap: break-word;
+  transition: color var(--transition-speed) ease;
 }
 
 a:hover {
@@ -166,7 +200,7 @@ a:hover {
 
 /* buttons - AbbVie uses outline-style buttons with square corners */
 p.button-wrapper {
-  margin: 12px 0;
+  margin: 16px 0;
 }
 
 a.button:any-link,
@@ -175,15 +209,18 @@ button.button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   max-width: 100%;
   margin: 0;
   border: 1px solid var(--link-color);
   border-radius: 0;
-  padding: 12px 32px;
+  padding: 14px 40px;
   font-family: var(--body-font-family);
   font-size: var(--body-font-size-xs);
   font-weight: 700;
   line-height: 1.25;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
   overflow: hidden;
@@ -191,7 +228,7 @@ button.button {
   white-space: nowrap;
   color: var(--link-color);
   background-color: transparent;
-  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  transition: background-color var(--transition-speed), color var(--transition-speed), border-color var(--transition-speed);
 }
 
 a.button:hover,
@@ -310,38 +347,29 @@ main img {
 
 /* sections */
 main > .section {
-  margin: 40px 0;
+  margin: 0;
+  padding: var(--section-padding);
 }
 
 main > .section > div {
-  max-width: 1200px;
+  max-width: var(--content-max-width);
   margin: auto;
-  padding: 0 24px;
+  padding: var(--content-padding);
 }
 
 main > .section:first-of-type {
-  margin-top: 0;
-}
-
-@media (width >= 900px) {
-  main > .section > div {
-    padding: 0 32px;
-  }
+  padding-top: 0;
 }
 
 /* section metadata */
 main .section.light,
 main .section.highlight {
   background-color: var(--light-color);
-  margin: 0;
-  padding: 40px 0;
 }
 
 main .section.dark {
   background-color: var(--color-navy);
   color: var(--background-color);
-  margin: 0;
-  padding: 40px 0;
 }
 
 main .section.dark h1,
@@ -354,11 +382,54 @@ main .section.dark h6 {
 }
 
 main .section.dark a:any-link {
+  color: var(--link-color-light);
+}
+
+main .section.dark a.button:any-link {
+  border-color: var(--background-color);
+  color: var(--background-color);
+}
+
+main .section.dark a.button:hover {
+  background-color: var(--background-color);
+  color: var(--color-navy);
+}
+
+main .section.dark p {
   color: var(--background-color);
 }
 
 main .section.light-blue {
   background-color: var(--color-light-blue-bg);
-  margin: 0;
-  padding: 40px 0;
+}
+
+/* When blocks with their own backgrounds are in a dark section,
+   the default content wrappers between them also need white backgrounds */
+main .section.dark .default-content-wrapper {
+  background-color: var(--background-color);
+  padding: 48px 24px;
+  color: var(--text-color);
+}
+
+main .section.dark .default-content-wrapper h1,
+main .section.dark .default-content-wrapper h2,
+main .section.dark .default-content-wrapper h3,
+main .section.dark .default-content-wrapper h4,
+main .section.dark .default-content-wrapper h5,
+main .section.dark .default-content-wrapper h6 {
+  color: var(--color-navy);
+}
+
+main .section.dark .default-content-wrapper p {
+  color: var(--text-color);
+}
+
+main .section.dark .default-content-wrapper a:any-link {
+  color: var(--link-color);
+}
+
+@media (width >= 900px) {
+  main .section.dark .default-content-wrapper {
+    padding: 48px 32px;
+  }
 }

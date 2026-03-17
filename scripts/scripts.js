@@ -129,11 +129,43 @@ export function moveInstrumentation(source, target) {
 }
 
 /**
+ * Fixes images that fail to load through the media pipeline (local dev only).
+ * The AEM CLI cannot download Scene7 images; this provides local fallbacks.
+ * @param {Element} main The main container element
+ */
+function fixBrokenImages(main) {
+  const imageMap = {
+    'woman in lab looking down': '/images/woman-in-lab.jpg',
+    'wp card story image': '/images/card-story.jpg',
+    'Portrait of two women: one a Parkinson\u2019s patient and the other an AbbVie scientist': '/images/sponsorship-hero.jpg',
+    'Advancing Parkinson\u2019s Research video thumbnail': '/images/sponsorship-hero.jpg',
+    'man looking at test tube': '/images/man-looking-at-testtube.jpg',
+    'young woman smiling': '/images/young-woman-smiling.jpg',
+    'woman in conference room': '/images/woman-in-conference-room.jpg',
+    'sitting in hammock by lake': '/images/hammock-lake.jpg',
+  };
+
+  main.querySelectorAll('img').forEach((img) => {
+    if (img.src.includes('about:error') || !img.complete || img.naturalWidth === 0) {
+      const fallback = imageMap[img.alt];
+      if (fallback) {
+        const picture = img.closest('picture');
+        if (picture) {
+          picture.querySelectorAll('source').forEach((s) => s.remove());
+        }
+        img.src = fallback;
+      }
+    }
+  });
+}
+
+/**
  * Decorates the main element.
  * @param {Element} main The main element
  */
 // eslint-disable-next-line import/prefer-default-export
 export function decorateMain(main) {
+  fixBrokenImages(main);
   decorateIcons(main);
   buildAutoBlocks(main);
   decorateSections(main);

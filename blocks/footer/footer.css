@@ -6,20 +6,23 @@ footer {
 
 footer .footer > div {
   margin: auto;
-  max-width: 1200px;
+  max-width: var(--content-max-width);
   padding: 40px 24px 24px;
 }
 
 footer .footer p {
   margin: 0;
+  color: var(--background-color);
 }
 
 footer .footer a:any-link {
   color: var(--background-color);
+  transition: opacity var(--transition-speed);
 }
 
 footer .footer a:hover {
   text-decoration: underline;
+  opacity: 0.8;
 }
 
 footer .footer h2 {
@@ -27,6 +30,7 @@ footer .footer h2 {
   font-size: var(--body-font-size-s);
   font-weight: 700;
   margin-top: 0;
+  letter-spacing: 0;
 }
 
 footer .footer ul {
@@ -54,6 +58,14 @@ footer .footer > div:last-child ul {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
+  font-size: var(--body-font-size-xxs);
+}
+
+/* Legal disclaimer text */
+footer .footer > div:nth-child(4) p {
+  font-size: var(--body-font-size-xxs);
+  opacity: 0.7;
+  line-height: 1.5;
 }
 
 @media (width >= 900px) {
@@ -61,6 +73,8 @@ footer .footer > div:last-child ul {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 0 32px;
+    max-width: var(--content-max-width);
+    margin: auto;
   }
 
   footer .footer > div {
@@ -69,19 +83,17 @@ footer .footer > div:last-child ul {
 
   footer .footer > div:first-child {
     grid-column: 1 / -1;
-    padding: 40px 32px 24px;
+    padding: 48px 32px 24px;
     border-bottom: 1px solid rgb(255 255 255 / 20%);
   }
 
   footer .footer > div:nth-child(4) {
     grid-column: 1 / -1;
     padding: 24px 32px;
-    font-size: var(--body-font-size-xs);
-    opacity: 0.8;
   }
 
   footer .footer > div:last-child {
     grid-column: 1 / -1;
-    padding: 16px 32px 24px;
+    padding: 16px 32px 32px;
   }
 }
