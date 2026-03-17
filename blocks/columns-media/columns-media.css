@@ -50,19 +50,19 @@
 }
 
 .columns-media h5 {
-  font-size: var(--heading-font-size-l);
+  font-size: 28px;
   font-weight: 800;
   color: var(--color-navy);
   margin-top: 0;
-  line-height: 1.15;
+  line-height: 1.14;
 }
 
 .columns-media h4 {
-  font-size: var(--heading-font-size-xl);
-  font-weight: 800;
+  font-size: 40px;
+  font-weight: 700;
   color: var(--color-navy);
   margin-top: 4px;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 
 .columns-media p {
@@ -78,13 +78,18 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   background-color: var(--color-navy);
-  padding: 14px 40px;
+  padding: 16px 40px;
   display: inline-block;
 }
 
 @media (width >= 900px) {
   .columns-media {
     padding: 64px 48px;
+  }
+
+  .columns-media h5 {
+    font-size: 48px;
+    line-height: 1.08;
   }
 
   .columns-media > div {

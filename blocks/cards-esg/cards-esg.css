@@ -47,11 +47,11 @@
 }
 
 .cards-esg .cards-esg-card-body h4 {
-  font-size: var(--heading-font-size-xl);
-  font-weight: 800;
+  font-size: 32px;
+  font-weight: 700;
   color: var(--color-navy);
   margin-top: 8px;
-  line-height: 1.1;
+  line-height: 1.125;
 }
 
 .cards-esg .cards-esg-card-body h5 {

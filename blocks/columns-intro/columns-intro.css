@@ -63,6 +63,11 @@
 }
 
 @media (width >= 900px) {
+  .columns-intro h5 {
+    font-size: 48px;
+    line-height: 1.08;
+  }
+
   .columns-intro > div {
     align-items: center;
     flex-direction: row;

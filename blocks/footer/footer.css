@@ -138,7 +138,7 @@ footer .footer > div:last-child ul li a {
     display: grid;
     grid-template-columns: 1fr 2fr 1fr 1fr;
     gap: 0 40px;
-    padding: 56px 70px 0;
+    padding: 80px 70px 0;
   }
 
   /* Logo + nav links: columns 1-2 */

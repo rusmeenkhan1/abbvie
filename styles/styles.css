@@ -17,7 +17,7 @@
   --dark-color: #071d49;
   --text-color: #2d2d2d;
   --link-color: #0066f5;
-  --link-hover-color: #004fc4;
+  --link-hover-color: #071d49;
   --link-color-light: #479ff8;
   --color-navy: #071d49;
   --color-blue: #0066f5;
@@ -32,6 +32,7 @@
   --heading-font-family: roboto, roboto-fallback, helvetica, arial, sans-serif;
 
   /* body sizes */
+  --body-font-size-l: 20px;
   --body-font-size-m: 18px;
   --body-font-size-s: 16px;
   --body-font-size-xs: 14px;
@@ -214,7 +215,7 @@ button.button {
   margin: 0;
   border: 1px solid var(--link-color);
   border-radius: 0;
-  padding: 14px 40px;
+  padding: 16px 40px;
   font-family: var(--body-font-family);
   font-size: var(--body-font-size-xs);
   font-weight: 700;
@@ -383,6 +384,10 @@ main .section.dark h6 {
 
 main .section.dark a:any-link {
   color: var(--link-color-light);
+}
+
+main .section.dark a:hover {
+  color: var(--color-lavender);
 }
 
 main .section.dark a.button:any-link {
