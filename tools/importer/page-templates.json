@@ -198,6 +198,124 @@
           "defaultContent": []
         }
       ]
+    },
+    {
+      "name": "our-principles",
+      "urls": [
+        "https://www.abbvie.com/who-we-are/our-principles.html"
+      ],
+      "description": "AbbVie Our Principles page - corporate values and principles content page under Who We Are section",
+      "blocks": [
+        {
+          "name": "hero-interior",
+          "instances": [
+            ".abbvie-container.large-radius.cmp-container-full-width.height-default",
+            ".abbvie-container.overlap-predecessor"
+          ]
+        },
+        {
+          "name": "embed-video",
+          "instances": [
+            ".video.cmp-video-full-width"
+          ]
+        },
+        {
+          "name": "accordion-principles",
+          "instances": [
+            ".accordion.cmp-accordion-medium"
+          ]
+        },
+        {
+          "name": "quote-ceo",
+          "instances": [
+            ".abbvie-container.semi-transparent-layer .quote.cmp-quote-large"
+          ]
+        },
+        {
+          "name": "cards-related",
+          "instances": [
+            "#container-71624373e4 .grid-row:has(.cardpagestory)"
+          ]
+        }
+      ],
+      "sections": [
+        {
+          "id": "section-1",
+          "name": "Hero",
+          "selector": [
+            ".abbvie-container.large-radius.cmp-container-full-width.height-default",
+            ".abbvie-container.overlap-predecessor"
+          ],
+          "style": null,
+          "blocks": [
+            "hero-interior"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "section-2",
+          "name": "Principles Intro",
+          "selector": "#container-19b96aeaf5",
+          "style": null,
+          "blocks": [],
+          "defaultContent": [
+            "#container-19b96aeaf5 .cmp-title__text",
+            "#container-19b96aeaf5 .cmp-text p"
+          ]
+        },
+        {
+          "id": "section-3",
+          "name": "Video",
+          "selector": ".video.cmp-video-full-width",
+          "style": null,
+          "blocks": [
+            "embed-video"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "section-4",
+          "name": "Body Text",
+          "selector": "#container-14eb95722c",
+          "style": null,
+          "blocks": [],
+          "defaultContent": [
+            "#container-14eb95722c .cmp-text p"
+          ]
+        },
+        {
+          "id": "section-5",
+          "name": "Accordion Principles",
+          "selector": ".accordion.cmp-accordion-medium",
+          "style": null,
+          "blocks": [
+            "accordion-principles"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "section-6",
+          "name": "CEO Quote",
+          "selector": ".abbvie-container.semi-transparent-layer",
+          "style": "dark-overlay",
+          "blocks": [
+            "quote-ceo"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "section-7",
+          "name": "Related Content",
+          "selector": ".abbvie-container.cmp-container-full-width.no-bottom-margin:has(#container-71624373e4)",
+          "style": null,
+          "blocks": [
+            "cards-related"
+          ],
+          "defaultContent": [
+            "#title-8d51d53c2c .cmp-title__text"
+          ]
+        }
+      ]
     }
   ]
 }

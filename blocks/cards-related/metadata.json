@@ -1,0 +1,31 @@
+{
+  "variantName": "cards-related",
+  "baseBlock": "cards",
+  "version": "1.0.0",
+  "created": "2026-03-18T05:55:00.000Z",
+  "sourceContext": {
+    "originUrl": "https://www.abbvie.com/who-we-are/our-principles.html",
+    "originPage": "AbbVie Our Principles page",
+    "blockPosition": "bottom"
+  },
+  "visualCharacteristics": {
+    "colorScheme": "light",
+    "density": "spacious",
+    "purpose": "related-content",
+    "imagePattern": "large"
+  },
+  "contentPattern": {
+    "structure": "image + eyebrow + heading + description + cta",
+    "buttonCount": 1,
+    "imageCount": 1
+  },
+  "reuseGuidance": {
+    "suitableFor": ["related content sections", "related article cards", "see also cards"],
+    "notSuitableFor": ["news feeds with dates", "stats cards", "text-only cards"]
+  },
+  "usage": {
+    "pagesUsing": ["/who-we-are/our-principles"],
+    "reuseCount": 1,
+    "lastUsed": "2026-03-18T05:55:00.000Z"
+  }
+}

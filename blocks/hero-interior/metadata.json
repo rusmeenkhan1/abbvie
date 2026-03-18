@@ -1,0 +1,31 @@
+{
+  "variantName": "hero-interior",
+  "baseBlock": "hero",
+  "version": "1.0.0",
+  "created": "2026-03-18T05:55:00.000Z",
+  "sourceContext": {
+    "originUrl": "https://www.abbvie.com/who-we-are/our-principles.html",
+    "originPage": "AbbVie Our Principles interior content page",
+    "blockPosition": "top"
+  },
+  "visualCharacteristics": {
+    "colorScheme": "light",
+    "density": "spacious",
+    "purpose": "interior-hero",
+    "imagePattern": "large"
+  },
+  "contentPattern": {
+    "structure": "background-image + heading + subtitle",
+    "buttonCount": 0,
+    "imageCount": 1
+  },
+  "reuseGuidance": {
+    "suitableFor": ["interior page heroes", "content page banners with background image and heading"],
+    "notSuitableFor": ["homepage heroes with CTAs", "text-only heroes"]
+  },
+  "usage": {
+    "pagesUsing": ["/who-we-are/our-principles"],
+    "reuseCount": 1,
+    "lastUsed": "2026-03-18T05:55:00.000Z"
+  }
+}
