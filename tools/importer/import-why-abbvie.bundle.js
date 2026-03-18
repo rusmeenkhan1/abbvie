@@ -34,10 +34,10 @@ var CustomImportScript = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // tools/importer/import-our-principles.js
-  var import_our_principles_exports = {};
-  __export(import_our_principles_exports, {
-    default: () => import_our_principles_default
+  // tools/importer/import-why-abbvie.js
+  var import_why_abbvie_exports = {};
+  __export(import_why_abbvie_exports, {
+    default: () => import_why_abbvie_default
   });
 
   // tools/importer/parsers/hero-interior.js
@@ -62,65 +62,8 @@ var CustomImportScript = (() => {
     element.replaceWith(block);
   }
 
-  // tools/importer/parsers/embed-video.js
-  function parse2(element, { document }) {
-    const iframe = element.querySelector('iframe.youtube-video, iframe[src*="youtube"], iframe[data-iframesrc*="youtube"]');
-    const videoDiv = !iframe ? element.querySelector('div.youtube-video[data-iframesrc], [data-iframesrc*="youtube"]') : null;
-    let youtubeUrl = "";
-    const videoEl = iframe || videoDiv;
-    if (videoEl) {
-      const src = videoEl.getAttribute("src") || videoEl.getAttribute("data-iframesrc") || "";
-      const match = src.match(/youtube(?:-nocookie)?\.com\/embed\/([^?&]+)/);
-      if (match) {
-        youtubeUrl = `https://www.youtube.com/watch?v=${match[1]}`;
-      }
-    }
-    const posterImg = element.querySelector(".cmp-video__image img, .cmp-image__image, img");
-    const contentCell = [];
-    if (posterImg) {
-      contentCell.push(posterImg);
-    }
-    if (youtubeUrl) {
-      const link = document.createElement("a");
-      link.href = youtubeUrl;
-      link.textContent = youtubeUrl;
-      contentCell.push(link);
-    }
-    const cells = [];
-    if (contentCell.length > 0) {
-      cells.push(contentCell);
-    }
-    const block = WebImporter.Blocks.createBlock(document, { name: "embed-video", cells });
-    element.replaceWith(block);
-  }
-
-  // tools/importer/parsers/accordion-principles.js
-  function parse3(element, { document }) {
-    const items = element.querySelectorAll(".cmp-accordion__item");
-    const cells = [];
-    items.forEach((item) => {
-      const titleEl = item.querySelector(".cmp-accordion__title");
-      const title = titleEl ? titleEl.textContent.trim() : "";
-      const panel = item.querySelector(".cmp-accordion__panel");
-      const contentText = panel ? panel.querySelector(".cmp-text p, p") : null;
-      const titleCell = document.createElement("p");
-      titleCell.textContent = title;
-      if (contentText) {
-        cells.push([titleCell, contentText]);
-      } else if (panel) {
-        cells.push([titleCell, panel]);
-      } else {
-        const emptyContent = document.createElement("p");
-        emptyContent.textContent = "";
-        cells.push([titleCell, emptyContent]);
-      }
-    });
-    const block = WebImporter.Blocks.createBlock(document, { name: "accordion-principles", cells });
-    element.replaceWith(block);
-  }
-
   // tools/importer/parsers/quote-ceo.js
-  function parse4(element, { document }) {
+  function parse2(element, { document }) {
     const quoteTextEl = element.querySelector(".cmp-quote__text");
     let quoteText = "";
     if (quoteTextEl) {
@@ -154,6 +97,119 @@ var CustomImportScript = (() => {
       cells.push(attributionCell);
     }
     const block = WebImporter.Blocks.createBlock(document, { name: "quote-ceo", cells });
+    element.replaceWith(block);
+  }
+
+  // tools/importer/parsers/columns-content.js
+  function parse3(element, { document }) {
+    const gridRow = element.querySelector(".grid-row");
+    if (!gridRow) {
+      return;
+    }
+    const cells = Array.from(gridRow.querySelectorAll(':scope > [class*="grid-row__col-with"]')).filter((col) => !col.classList.contains("grid-row__col-with-1"));
+    if (cells.length < 2) {
+      return;
+    }
+    let imageCol = null;
+    let textCol = null;
+    cells.forEach((col) => {
+      const hasImage = col.querySelector(".cmp-image img, .cmp-image__image, img");
+      if (hasImage && !imageCol) {
+        imageCol = col;
+      } else {
+        textCol = col;
+      }
+    });
+    if (!imageCol) {
+      imageCol = cells[0];
+      textCol = cells[1];
+    }
+    if (!textCol) {
+      textCol = cells[1] || cells[0];
+    }
+    const img = imageCol.querySelector(".cmp-image__image, .cmp-image img, img");
+    const imageCell = [];
+    if (img) {
+      imageCell.push(img);
+    }
+    const textCell = [];
+    const headers = textCol.querySelectorAll(".cmp-header__text");
+    const headings = textCol.querySelectorAll(".cmp-title__text");
+    const paragraphs = textCol.querySelectorAll(".cmp-text p");
+    const ctas = textCol.querySelectorAll("a.cmp-button");
+    const contentElements = textCol.querySelectorAll(".header, .title, .text, .button");
+    contentElements.forEach((el) => {
+      if (el.classList.contains("header")) {
+        const headerText = el.querySelector(".cmp-header__text");
+        if (headerText && headerText.textContent.trim()) {
+          const p = document.createElement("p");
+          const em = document.createElement("em");
+          em.textContent = headerText.textContent.trim();
+          p.appendChild(em);
+          textCell.push(p);
+        }
+      } else if (el.classList.contains("title")) {
+        const heading = el.querySelector(".cmp-title__text");
+        if (heading) {
+          textCell.push(heading);
+        }
+      } else if (el.classList.contains("text")) {
+        const p = el.querySelector(".cmp-text p");
+        if (p) {
+          textCell.push(p);
+        }
+      } else if (el.classList.contains("button")) {
+        const link = el.querySelector("a.cmp-button");
+        if (link) {
+          const a = document.createElement("a");
+          a.href = link.href || link.getAttribute("href") || "#";
+          a.textContent = link.textContent.trim() || "Learn more";
+          textCell.push(a);
+        }
+      }
+    });
+    if (textCell.length === 0) {
+      headings.forEach((h) => textCell.push(h));
+      paragraphs.forEach((p) => textCell.push(p));
+      ctas.forEach((a) => {
+        const link = document.createElement("a");
+        link.href = a.href || a.getAttribute("href") || "#";
+        link.textContent = a.textContent.trim() || "Learn more";
+        textCell.push(link);
+      });
+    }
+    const blockCells = [[imageCell, textCell]];
+    const block = WebImporter.Blocks.createBlock(document, { name: "columns-content", cells: blockCells });
+    element.replaceWith(block);
+  }
+
+  // tools/importer/parsers/embed-video.js
+  function parse4(element, { document }) {
+    const iframe = element.querySelector('iframe.youtube-video, iframe[src*="youtube"], iframe[data-iframesrc*="youtube"]');
+    let youtubeUrl = "";
+    if (iframe) {
+      const src = iframe.getAttribute("src") || iframe.getAttribute("data-iframesrc") || "";
+      const match = src.match(/youtube(?:-nocookie)?\.com\/embed\/([^?&]+)/);
+      if (match) {
+        youtubeUrl = `https://www.youtube.com/watch?v=${match[1]}`;
+      }
+    }
+    const posterImg = element.querySelector(".cmp-video__image img, .cmp-image__image, img");
+    const contentCell = [];
+    if (posterImg) {
+      contentCell.push(posterImg);
+    }
+    if (youtubeUrl) {
+      const link = document.createElement("a");
+      link.href = youtubeUrl;
+      link.textContent = youtubeUrl;
+      contentCell.push(link);
+    }
+    const cells = [];
+    if (contentCell.length > 0) {
+      cells.push(contentCell);
+    }
+    const block = WebImporter.Blocks.createBlock(document, { name: "embed-video", cells });
     element.replaceWith(block);
   }
 
@@ -348,26 +404,33 @@ var CustomImportScript = (() => {
     }
   }
 
-  // tools/importer/import-our-principles.js
-  var parsers = {
-    "hero-interior": parse,
-    "embed-video": parse2,
-    "accordion-principles": parse3,
-    "quote-ceo": parse4,
-    "cards-related": parse5
-  };
+  // tools/importer/import-why-abbvie.js
   var PAGE_TEMPLATE = {
-    name: "our-principles",
-    description: "AbbVie Our Principles page - corporate values and principles content page under Who We Are section",
+    name: "why-abbvie",
+    description: "AbbVie Why AbbVie page - Join Us career recruitment page showcasing company culture, benefits, and employee experience",
     urls: [
-      "https://www.abbvie.com/who-we-are/our-principles.html"
+      "https://www.abbvie.com/join-us/why-abbvie.html"
     ],
     blocks: [
       {
         name: "hero-interior",
         instances: [
-          ".abbvie-container.large-radius.cmp-container-full-width.height-default",
+          ".abbvie-container.large-radius.cmp-container-full-width.height-default.no-bottom-margin",
           ".abbvie-container.overlap-predecessor"
+        ]
+      },
+      {
+        name: "quote-ceo",
+        instances: [
+          ".abbvie-container.semi-transparent-layer .quote.cmp-quote-x-large"
+        ]
+      },
+      {
+        name: "columns-content",
+        instances: [
+          ".grid.cmp-grid-custom.aem-GridColumn:has(.grid-row__col-with-5)",
+          ".grid.cmp-grid-custom.no-bottom-margin.aem-GridColumn:has(.grid-row__col-with-5)",
+          "#container-8a03b815bf .grid:has(.grid-row__col-with-6)"
         ]
       },
       {
@@ -377,21 +440,9 @@ var CustomImportScript = (() => {
         ]
       },
       {
-        name: "accordion-principles",
-        instances: [
-          ".accordion.cmp-accordion-medium"
-        ]
-      },
-      {
-        name: "quote-ceo",
-        instances: [
-          ".abbvie-container.semi-transparent-layer .quote.cmp-quote-large"
-        ]
-      },
-      {
         name: "cards-related",
         instances: [
-          "#container-71624373e4 .grid-row:has(.cardpagestory)"
+          "#container-48e385c3cb .grid-row:has(.cardpagestory)"
         ]
       }
     ],
@@ -400,7 +451,7 @@ var CustomImportScript = (() => {
         id: "section-1",
         name: "Hero",
         selector: [
-          ".abbvie-container.large-radius.cmp-container-full-width.height-default",
+          ".abbvie-container.large-radius.cmp-container-full-width.height-default.no-bottom-margin",
           ".abbvie-container.overlap-predecessor"
         ],
         style: null,
@@ -409,60 +460,89 @@ var CustomImportScript = (() => {
       },
       {
         id: "section-2",
-        name: "Principles Intro",
-        selector: "#container-19b96aeaf5",
-        style: null,
-        blocks: [],
-        defaultContent: [
-          "#container-19b96aeaf5 .cmp-title__text",
-          "#container-19b96aeaf5 .cmp-text p"
-        ]
-      },
-      {
-        id: "section-3",
-        name: "Video",
-        selector: ".video.cmp-video-full-width",
-        style: null,
-        blocks: ["embed-video"],
-        defaultContent: []
-      },
-      {
-        id: "section-4",
-        name: "Body Text",
-        selector: "#container-14eb95722c",
-        style: null,
-        blocks: [],
-        defaultContent: [
-          "#container-14eb95722c .cmp-text p"
-        ]
-      },
-      {
-        id: "section-5",
-        name: "Accordion Principles",
-        selector: ".accordion.cmp-accordion-medium",
-        style: null,
-        blocks: ["accordion-principles"],
-        defaultContent: []
-      },
-      {
-        id: "section-6",
-        name: "CEO Quote",
+        name: "Employee Quote",
         selector: ".abbvie-container.semi-transparent-layer",
         style: "dark-overlay",
         blocks: ["quote-ceo"],
         defaultContent: []
       },
       {
-        id: "section-7",
-        name: "Related Content",
-        selector: ".abbvie-container.cmp-container-full-width.no-bottom-margin:has(#container-71624373e4)",
+        id: "section-3",
+        name: "Purpose and Statistics",
+        selector: [
+          ".teaser.aem-GridColumn",
+          ".grid.cmp-grid-custom.aem-GridColumn:has(.cmp-header)"
+        ],
         style: null,
+        blocks: ["columns-content"],
+        defaultContent: [
+          "#teaser-848789944f .cmp-teaser__pretitle",
+          "#teaser-848789944f .cmp-teaser__title",
+          "#teaser-848789944f .cmp-teaser__description"
+        ]
+      },
+      {
+        id: "section-4",
+        name: "Culture Video",
+        selector: ".video.cmp-video-full-width",
+        style: null,
+        blocks: ["embed-video"],
+        defaultContent: []
+      },
+      {
+        id: "section-5",
+        name: "Diversity and Recognition",
+        selector: [
+          ".grid.cmp-grid-custom.no-bottom-margin.aem-GridColumn:has(#image-e57f81e7d6)",
+          ".grid.cmp-grid-custom.no-bottom-margin.aem-GridColumn:has(#image-20b8d7055d)"
+        ],
+        style: null,
+        blocks: ["columns-content"],
+        defaultContent: [
+          "#title-4c12278885 .cmp-title__text",
+          "#text-a43bba9e51 .cmp-text p",
+          "#button-7cf701b8a6"
+        ]
+      },
+      {
+        id: "section-6",
+        name: "Benefits",
+        selector: "#container-76c182b4c4",
+        style: "light-grey",
         blocks: ["cards-related"],
         defaultContent: [
-          "#title-8d51d53c2c .cmp-title__text"
+          "#title-7967251ed1 .cmp-title__text",
+          "#text-6c3e472352 .cmp-text p"
+        ]
+      },
+      {
+        id: "section-7",
+        name: "Growth and Learning",
+        selector: "#container-8a03b815bf",
+        style: null,
+        blocks: ["columns-content"],
+        defaultContent: []
+      },
+      {
+        id: "section-8",
+        name: "CTA Banner",
+        selector: ".abbvie-container.medium-radius.cmp-container-xxx-large.height-short",
+        style: "navy-blue",
+        blocks: [],
+        defaultContent: [
+          "#title-01ad0bf01a .cmp-title__text",
+          "#text-8f05388d27 .cmp-text p",
+          "#button-c9789a0bdb"
         ]
       }
     ]
+  };
+  var parsers = {
+    "hero-interior": parse,
+    "quote-ceo": parse2,
+    "columns-content": parse3,
+    "embed-video": parse4,
+    "cards-related": parse5
   };
   var transformers = [
     transform,
@@ -484,25 +564,27 @@ var CustomImportScript = (() => {
     const pageBlocks = [];
     template.blocks.forEach((blockDef) => {
       blockDef.instances.forEach((selector) => {
-        try {
-          const elements = document.querySelectorAll(selector);
-          elements.forEach((element) => {
-            pageBlocks.push({
-              name: blockDef.name,
-              selector,
-              element,
-              section: blockDef.section || null
-            });
-          });
-        } catch (e) {
-          console.warn(`Block "${blockDef.name}" selector failed: ${selector}`, e);
+        const elements = document.querySelectorAll(selector);
+        if (elements.length === 0) {
+          console.warn(`Block "${blockDef.name}" selector not found: ${selector}`);
         }
+        elements.forEach((element) => {
+          pageBlocks.push({
+            name: blockDef.name,
+            selector,
+            element,
+            section: blockDef.section || null
+          });
+        });
       });
     });
     console.log(`Found ${pageBlocks.length} block instances on page`);
     return pageBlocks;
   }
-  var import_our_principles_default = {
+  var import_why_abbvie_default = {
+    /**
+     * Main transformation function for why-abbvie template
+     */
     transform: (payload) => {
       const { document, url, html, params } = payload;
       const main = document.body;
@@ -540,5 +622,5 @@ var CustomImportScript = (() => {
       }];
     }
   };
-  return __toCommonJS(import_our_principles_exports);
+  return __toCommonJS(import_why_abbvie_exports);
 })();

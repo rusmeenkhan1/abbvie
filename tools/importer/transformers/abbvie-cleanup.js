@@ -20,20 +20,41 @@ export default function transform(hookName, element, payload) {
     // Remove skip-to-main-content link
     WebImporter.DOMUtils.remove(element, ['.skip-link', 'a[href="#maincontent"]']);
 
-    // Fix blob: URLs on images - replace with source srcset or data attributes
+    // Fix lazy-loaded, blob:, and placeholder images
     element.querySelectorAll('img').forEach((img) => {
       const src = img.getAttribute('src') || '';
-      if (src.startsWith('blob:')) {
-        // Strategy 1: Check data attributes for original URL
+      const isPlaceholder = src.startsWith('data:image/gif') || src.startsWith('data:image/svg');
+      const isBlob = src.startsWith('blob:');
+      const isEmpty = !src;
+
+      if (isPlaceholder || isBlob || isEmpty) {
+        // Strategy 1: Check parent .cmp-image for data-cmp-src (AEM lazy loading pattern)
+        const cmpImage = img.closest('.cmp-image, [data-cmp-src]');
+        if (cmpImage) {
+          const cmpSrc = cmpImage.getAttribute('data-cmp-src');
+          if (cmpSrc && !cmpSrc.startsWith('blob:') && !cmpSrc.startsWith('data:')) {
+            // Normalize Scene7 URLs: replace dynamic params with fmt=webp
+            let normalizedSrc = cmpSrc;
+            if (cmpSrc.includes('scene7.com/is/image/')) {
+              const baseUrl = cmpSrc.split('?')[0];
+              normalizedSrc = `${baseUrl}?fmt=webp`;
+            }
+            img.setAttribute('src', normalizedSrc);
+            return;
+          }
+        }
+
+        // Strategy 2: Check img's own data attributes for original URL
         const dataSrc = img.getAttribute('data-src')
           || img.getAttribute('data-lazy')
           || img.getAttribute('data-original')
           || img.getAttribute('data-lazy-src');
-        if (dataSrc) {
+        if (dataSrc && !dataSrc.startsWith('blob:') && !dataSrc.startsWith('data:')) {
           img.setAttribute('src', dataSrc);
           return;
         }
-        // Strategy 2: Check parent <picture> > <source> for srcset
+
+        // Strategy 3: Check parent <picture> > <source> for srcset
         const picture = img.closest('picture');
         if (picture) {
           const sources = picture.querySelectorAll('source[srcset]');
@@ -45,7 +66,8 @@ export default function transform(hookName, element, payload) {
             }
           }
         }
-        // Strategy 3: Check if there's a noscript sibling with an img (lazy loading pattern)
+
+        // Strategy 4: Check if there's a noscript sibling with an img (lazy loading pattern)
         const noscript = img.parentElement?.querySelector('noscript');
         if (noscript) {
           const match = noscript.textContent.match(/src=["']([^"']+)["']/);
@@ -54,9 +76,11 @@ export default function transform(hookName, element, payload) {
             return;
           }
         }
-        // Strategy 4: Keep the img but clear the blob: src - let the parser decide
-        // Don't remove - the parser may use alt text or other context
-        img.removeAttribute('src');
+
+        // Strategy 5: Clear invalid src but keep the img for alt text context
+        if (isBlob || isPlaceholder) {
+          img.removeAttribute('src');
+        }
       }
     });
 

@@ -24,8 +24,8 @@
     "notSuitableFor": ["news feeds with dates", "stats cards", "text-only cards"]
   },
   "usage": {
-    "pagesUsing": ["/who-we-are/our-principles"],
-    "reuseCount": 1,
-    "lastUsed": "2026-03-18T05:55:00.000Z"
+    "pagesUsing": ["/who-we-are/our-principles", "/join-us/why-abbvie"],
+    "reuseCount": 2,
+    "lastUsed": "2026-03-18T06:30:00.000Z"
   }
 }

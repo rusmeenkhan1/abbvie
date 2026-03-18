@@ -9,13 +9,17 @@
  * Source DOM: .video.cmp-video-full-width containing .cmp-video--youtube iframe
  */
 export default function parse(element, { document }) {
-  // Extract YouTube URL from iframe src
-  const iframe = element.querySelector('iframe.youtube-video, iframe[src*="youtube"]');
+  // Extract YouTube URL from iframe or server-rendered div with data-iframesrc
+  // AbbVie pattern: server HTML has <div class="youtube-video" data-iframesrc="...">,
+  // JavaScript creates <iframe> at runtime. Check both patterns.
+  const iframe = element.querySelector('iframe.youtube-video, iframe[src*="youtube"], iframe[data-iframesrc*="youtube"]');
+  const videoDiv = !iframe ? element.querySelector('div.youtube-video[data-iframesrc], [data-iframesrc*="youtube"]') : null;
   let youtubeUrl = '';
-  if (iframe) {
-    const src = iframe.getAttribute('src') || '';
-    // Convert embed URL to watch URL
-    const match = src.match(/youtube\.com\/embed\/([^?&]+)/);
+  const videoEl = iframe || videoDiv;
+  if (videoEl) {
+    const src = videoEl.getAttribute('src') || videoEl.getAttribute('data-iframesrc') || '';
+    // Convert embed URL to watch URL (handles both youtube.com and youtube-nocookie.com)
+    const match = src.match(/youtube(?:-nocookie)?\.com\/embed\/([^?&]+)/);
     if (match) {
       youtubeUrl = `https://www.youtube.com/watch?v=${match[1]}`;
     }

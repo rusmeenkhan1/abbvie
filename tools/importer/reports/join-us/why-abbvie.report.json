@@ -1,0 +1,21 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/join-us/why-abbvie.html",
+  "path": "join-us/why-abbvie",
+  "timestamp": "2026-03-18T07:07:40.794Z",
+  "title": "Why AbbVie | AbbVie",
+  "template": "why-abbvie",
+  "blocks": [
+    "hero-interior",
+    "hero-interior",
+    "quote-ceo",
+    "columns-content",
+    "columns-content",
+    "columns-content",
+    "columns-content",
+    "columns-content",
+    "columns-content",
+    "embed-video",
+    "cards-related"
+  ]
+}
