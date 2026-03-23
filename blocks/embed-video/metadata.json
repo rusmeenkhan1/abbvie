@@ -1,0 +1,31 @@
+{
+  "variantName": "embed-video",
+  "baseBlock": "embed",
+  "version": "1.0.0",
+  "created": "2026-03-18T05:55:00.000Z",
+  "sourceContext": {
+    "originUrl": "https://www.abbvie.com/who-we-are/our-principles.html",
+    "originPage": "AbbVie Our Principles page",
+    "blockPosition": "middle"
+  },
+  "visualCharacteristics": {
+    "colorScheme": "light",
+    "density": "spacious",
+    "purpose": "video-embed",
+    "imagePattern": "large"
+  },
+  "contentPattern": {
+    "structure": "poster-image + youtube-url",
+    "buttonCount": 0,
+    "imageCount": 1
+  },
+  "reuseGuidance": {
+    "suitableFor": ["YouTube video embeds", "video content with poster images", "corporate video sections"],
+    "notSuitableFor": ["social media embeds", "audio-only content"]
+  },
+  "usage": {
+    "pagesUsing": ["/who-we-are/our-principles", "/join-us/why-abbvie"],
+    "reuseCount": 2,
+    "lastUsed": "2026-03-18T06:30:00.000Z"
+  }
+}

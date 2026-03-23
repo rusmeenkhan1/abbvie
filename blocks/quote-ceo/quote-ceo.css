@@ -1,0 +1,41 @@
+.quote-ceo blockquote {
+  margin: 0 auto;
+  padding: 0 24px;
+  max-width: 900px;
+}
+
+@media (width >= 900px) {
+  .quote-ceo blockquote {
+    padding: 0 32px;
+  }
+}
+
+.quote-ceo blockquote .quote-ceo-quotation {
+  font-size: 120%;
+}
+
+.quote-ceo blockquote .quote-ceo-quotation > :first-child {
+  text-indent: -0.5ch;
+}
+
+.quote-ceo blockquote .quote-ceo-quotation p:first-child::before,
+.quote-ceo blockquote .quote-ceo-quotation p:last-child::after {
+  line-height: 0;
+}
+
+.quote-ceo blockquote .quote-ceo-quotation p:first-child::before {
+  content: '\201C';
+}
+
+.quote-ceo blockquote .quote-ceo-quotation p:last-child::after {
+  content: '\201D';
+}
+
+.quote-ceo blockquote .quote-ceo-attribution {
+  text-align: right;
+}
+
+.quote-ceo blockquote .quote-ceo-attribution p:first-child::before {
+  content: '\2014';
+  padding-right: 0.5ch;
+}

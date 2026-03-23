@@ -1,0 +1,39 @@
+{
+  "variantName": "columns-content",
+  "baseBlock": "columns",
+  "version": "1.0.0",
+  "created": "2026-03-18T06:30:00.000Z",
+  "sourceContext": {
+    "originUrl": "https://www.abbvie.com/join-us/why-abbvie.html",
+    "originPage": "AbbVie Why AbbVie career page",
+    "blockPosition": "middle"
+  },
+  "visualCharacteristics": {
+    "colorScheme": "light",
+    "density": "spacious",
+    "purpose": "content-showcase",
+    "imagePattern": "large"
+  },
+  "contentPattern": {
+    "structure": "image + heading + paragraph + CTA",
+    "buttonCount": 1,
+    "imageCount": 1
+  },
+  "reuseGuidance": {
+    "suitableFor": [
+      "image and text side-by-side layouts",
+      "feature highlight sections",
+      "content showcase with image and description"
+    ],
+    "notSuitableFor": [
+      "statistics-only layouts",
+      "icon-based info grids",
+      "media playback sections"
+    ]
+  },
+  "usage": {
+    "pagesUsing": ["/join-us/why-abbvie"],
+    "reuseCount": 1,
+    "lastUsed": "2026-03-18T06:30:00.000Z"
+  }
+}

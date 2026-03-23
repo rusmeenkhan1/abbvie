@@ -1,8 +1,25 @@
 var CustomImportScript = (() => {
   var __defProp = Object.defineProperty;
+  var __defProps = Object.defineProperties;
   var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
   var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __getOwnPropSymbols = Object.getOwnPropertySymbols;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __propIsEnum = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    if (__getOwnPropSymbols)
+      for (var prop of __getOwnPropSymbols(b)) {
+        if (__propIsEnum.call(b, prop))
+          __defNormalProp(a, prop, b[prop]);
+      }
+    return a;
+  };
+  var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   var __export = (target, all) => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
@@ -134,12 +151,13 @@ var CustomImportScript = (() => {
 
   // tools/importer/parsers/hero-video.js
   function parse3(element, { document }) {
+    var _a;
     const posterImg = element.querySelector(".cmp-video__poster img, img.cmp-video__poster-image, img");
     const title = element.querySelector(".cmp-video__title, h3, h4, .cmp-title__text");
     const subtitle = element.querySelector(".cmp-video__description, .cmp-text p, p");
     const videoIframe = element.querySelector('iframe[src*="youtube"], iframe[src*="brightcove"]');
     const videoSrc = videoIframe ? videoIframe.src : null;
-    const dataVideoId = element.getAttribute("data-video-id") || element.querySelector("[data-video-id]")?.getAttribute("data-video-id");
+    const dataVideoId = element.getAttribute("data-video-id") || ((_a = element.querySelector("[data-video-id]")) == null ? void 0 : _a.getAttribute("data-video-id"));
     const cells = [];
     if (posterImg) {
       cells.push([posterImg]);
@@ -228,9 +246,10 @@ var CustomImportScript = (() => {
       }
       if (title) textCell.push(title);
       links.forEach((link) => {
+        var _a;
         const a = document.createElement("a");
         a.href = link.href || "#";
-        a.textContent = link.querySelector(".link-text")?.textContent.trim() || link.textContent.trim();
+        a.textContent = ((_a = link.querySelector(".link-text")) == null ? void 0 : _a.textContent.trim()) || link.textContent.trim();
         textCell.push(a);
       });
       cells.push(["", textCell]);
@@ -241,6 +260,7 @@ var CustomImportScript = (() => {
 
   // tools/importer/parsers/columns-intro.js
   function parse5(element, { document }) {
+    var _a;
     let image = null;
     const imgEl = element.querySelector(".cmp-image--small img, .cmp-image img");
     if (imgEl) {
@@ -292,7 +312,7 @@ var CustomImportScript = (() => {
     if (description) textCell.push(description);
     if (cta) {
       const a = document.createElement("a");
-      a.href = cta.href || cta.closest("a")?.href || "#";
+      a.href = cta.href || ((_a = cta.closest("a")) == null ? void 0 : _a.href) || "#";
       a.textContent = cta.textContent.trim() || "Learn more";
       textCell.push(a);
     }
@@ -303,6 +323,7 @@ var CustomImportScript = (() => {
 
   // tools/importer/parsers/columns-info.js
   function findValidImage(container, document) {
+    var _a;
     const imgs = container.querySelectorAll("img");
     for (const img of imgs) {
       const src = img.getAttribute("src") || "";
@@ -318,7 +339,7 @@ var CustomImportScript = (() => {
         if (srcset && !srcset.startsWith("blob:")) {
           const img = document.createElement("img");
           img.src = srcset.split(",")[0].trim().split(" ")[0];
-          img.alt = picture.querySelector("img")?.alt || "";
+          img.alt = ((_a = picture.querySelector("img")) == null ? void 0 : _a.alt) || "";
           return img;
         }
       }
@@ -411,9 +432,10 @@ var CustomImportScript = (() => {
       }
       if (title) textCell.push(title);
       links.forEach((link) => {
+        var _a;
         const a = document.createElement("a");
         a.href = link.href || "#";
-        a.textContent = link.querySelector(".link-text")?.textContent.trim() || link.textContent.trim();
+        a.textContent = ((_a = link.querySelector(".link-text")) == null ? void 0 : _a.textContent.trim()) || link.textContent.trim();
         textCell.push(a);
       });
       cells.push(["", textCell]);
@@ -491,9 +513,10 @@ var CustomImportScript = (() => {
       }
       if (title) textCell.push(title);
       links.forEach((link) => {
+        var _a;
         const a = document.createElement("a");
         a.href = link.href || "#";
-        a.textContent = link.querySelector(".link-text")?.textContent.trim() || link.textContent.trim();
+        a.textContent = ((_a = link.querySelector(".link-text")) == null ? void 0 : _a.textContent.trim()) || link.textContent.trim();
         textCell.push(a);
       });
       cells.push(["", textCell]);
@@ -570,10 +593,27 @@ var CustomImportScript = (() => {
       ]);
       WebImporter.DOMUtils.remove(element, [".skip-link", 'a[href="#maincontent"]']);
       element.querySelectorAll("img").forEach((img) => {
+        var _a;
         const src = img.getAttribute("src") || "";
-        if (src.startsWith("blob:")) {
+        const isPlaceholder = src.startsWith("data:image/gif") || src.startsWith("data:image/svg");
+        const isBlob = src.startsWith("blob:");
+        const isEmpty = !src;
+        if (isPlaceholder || isBlob || isEmpty) {
+          const cmpImage = img.closest(".cmp-image, [data-cmp-src]");
+          if (cmpImage) {
+            const cmpSrc = cmpImage.getAttribute("data-cmp-src");
+            if (cmpSrc && !cmpSrc.startsWith("blob:") && !cmpSrc.startsWith("data:")) {
+              let normalizedSrc = cmpSrc;
+              if (cmpSrc.includes("scene7.com/is/image/")) {
+                const baseUrl = cmpSrc.split("?")[0];
+                normalizedSrc = `${baseUrl}?fmt=webp`;
+              }
+              img.setAttribute("src", normalizedSrc);
+              return;
+            }
+          }
           const dataSrc = img.getAttribute("data-src") || img.getAttribute("data-lazy") || img.getAttribute("data-original") || img.getAttribute("data-lazy-src");
-          if (dataSrc) {
+          if (dataSrc && !dataSrc.startsWith("blob:") && !dataSrc.startsWith("data:")) {
             img.setAttribute("src", dataSrc);
             return;
           }
@@ -588,7 +628,7 @@ var CustomImportScript = (() => {
               }
             }
           }
-          const noscript = img.parentElement?.querySelector("noscript");
+          const noscript = (_a = img.parentElement) == null ? void 0 : _a.querySelector("noscript");
           if (noscript) {
             const match = noscript.textContent.match(/src=["']([^"']+)["']/);
             if (match) {
@@ -596,7 +636,9 @@ var CustomImportScript = (() => {
               return;
             }
           }
-          img.removeAttribute("src");
+          if (isBlob || isPlaceholder) {
+            img.removeAttribute("src");
+          }
         }
       });
       element.querySelectorAll("video").forEach((video) => {
@@ -734,7 +776,7 @@ var CustomImportScript = (() => {
     ]
   };
   function executeTransformers(hookName, element, payload) {
-    const enhancedPayload = { ...payload, template: PAGE_TEMPLATE };
+    const enhancedPayload = __spreadProps(__spreadValues({}, payload), { template: PAGE_TEMPLATE });
     const allTransformers = [...transformers];
     if (hookName === "afterTransform" && PAGE_TEMPLATE.sections && PAGE_TEMPLATE.sections.length > 1) {
       allTransformers.push(transform2);

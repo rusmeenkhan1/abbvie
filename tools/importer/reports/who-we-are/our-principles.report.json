@@ -1,0 +1,16 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-principles.html",
+  "path": "who-we-are/our-principles",
+  "timestamp": "2026-03-18T07:13:03.548Z",
+  "title": "Our Principles | AbbVie",
+  "template": "our-principles",
+  "blocks": [
+    "hero-interior",
+    "hero-interior",
+    "embed-video",
+    "accordion-principles",
+    "quote-ceo",
+    "cards-related"
+  ]
+}
