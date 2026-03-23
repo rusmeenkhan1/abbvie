@@ -1,0 +1,31 @@
+{
+  "variantName": "columns-media",
+  "baseBlock": "columns",
+  "version": "1.0.0",
+  "created": "2026-03-16T09:08:00.000Z",
+  "sourceContext": {
+    "originUrl": "https://www.abbvie.com/",
+    "originPage": "AbbVie corporate homepage",
+    "blockPosition": "middle"
+  },
+  "visualCharacteristics": {
+    "colorScheme": "light",
+    "density": "spacious",
+    "purpose": "media-text",
+    "imagePattern": "large"
+  },
+  "contentPattern": {
+    "structure": "image + eyebrow + heading + body-text + cta",
+    "buttonCount": 1,
+    "imageCount": 1
+  },
+  "reuseGuidance": {
+    "suitableFor": ["media + text side-by-side layouts", "podcast/video promotion sections", "featured content with image"],
+    "notSuitableFor": ["text-only sections", "multi-column grids"]
+  },
+  "usage": {
+    "pagesUsing": ["/index"],
+    "reuseCount": 1,
+    "lastUsed": "2026-03-16T09:08:00.000Z"
+  }
+}

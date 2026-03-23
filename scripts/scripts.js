@@ -114,11 +114,75 @@ function decorateButtons(main) {
 }
 
 /**
+ * Moves instrumentation attributes from source to target element.
+ * @param {Element} source The source element
+ * @param {Element} target The target element
+ */
+export function moveInstrumentation(source, target) {
+  if (!source || !target) return;
+  [...source.attributes].forEach((attr) => {
+    if (attr.name.startsWith('data-aue-') || attr.name.startsWith('data-richtext-')) {
+      target.setAttribute(attr.name, attr.value);
+      source.removeAttribute(attr.name);
+    }
+  });
+}
+
+/**
+ * Fixes images that fail to load through the media pipeline (local dev only).
+ * The AEM CLI cannot proxy Scene7 images; this provides CDN fallbacks.
+ * @param {Element} main The main container element
+ */
+function fixBrokenImages(main) {
+  const imageMap = {
+    'wp card story image': 'https://abbvie.scene7.com/is/image/abbviecorp/wp-card-story-image',
+    'Portrait of two women: one a Parkinson\u2019s patient and the other an AbbVie scientist': 'https://abbvie.scene7.com/is/image/abbviecorp/wp-sponsorship-hero',
+    'ambily card image': 'https://abbvie.scene7.com/is/image/abbviecorp/ambily-card-image',
+    'kids playing soccer on grass': 'https://abbvie.scene7.com/is/image/abbviecorp/kids-playing-soccer-grass',
+    'sitting in hammock by lake': 'https://abbvie.scene7.com/is/image/abbviecorp/sitting-in-hammock-by-lake-hero',
+  };
+
+  /**
+   * Replace an img (and its picture wrapper) with a fresh img element
+   * pointing to the CDN fallback URL.
+   */
+  function replaceWithFallback(img, fallbackUrl) {
+    const newImg = document.createElement('img');
+    newImg.src = fallbackUrl;
+    newImg.alt = img.alt;
+    newImg.loading = img.loading || 'lazy';
+    const picture = img.closest('picture');
+    if (picture) {
+      picture.replaceWith(newImg);
+    } else {
+      img.replaceWith(newImg);
+    }
+  }
+
+  // Replace broken images immediately where detectable
+  main.querySelectorAll('img').forEach((img) => {
+    const fallback = imageMap[img.alt];
+    if (!fallback) return;
+    if (img.src.includes('about:error')) {
+      replaceWithFallback(img, fallback);
+    }
+  });
+
+  // For images still loading, attach error handlers to swap on failure
+  main.querySelectorAll('img').forEach((img) => {
+    const fallback = imageMap[img.alt];
+    if (!fallback) return;
+    img.addEventListener('error', () => replaceWithFallback(img, fallback), { once: true });
+  });
+}
+
+/**
  * Decorates the main element.
  * @param {Element} main The main element
  */
 // eslint-disable-next-line import/prefer-default-export
 export function decorateMain(main) {
+  fixBrokenImages(main);
   decorateIcons(main);
   buildAutoBlocks(main);
   decorateSections(main);

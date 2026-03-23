@@ -1,0 +1,79 @@
+.cards-cta-wrapper {
+  background-color: var(--color-light-blue-bg);
+  padding: 48px 0;
+}
+
+.cards-cta > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+.cards-cta > ul > li {
+  background-color: var(--color-light-blue-bg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+}
+
+.cards-cta .cards-cta-card-body {
+  padding: 32px;
+}
+
+.cards-cta .cards-cta-card-body h4 {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-navy);
+  margin-top: 0;
+  margin-bottom: 12px;
+  line-height: 1.125;
+}
+
+.cards-cta .cards-cta-card-body p {
+  font-size: var(--body-font-size-s);
+  line-height: 1.5;
+}
+
+.cards-cta .cards-cta-card-image {
+  line-height: 0;
+  order: 1;
+}
+
+.cards-cta > ul > li img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.cards-cta .cards-cta-card-body a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  font-size: var(--body-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+@media (width >= 900px) {
+  .cards-cta > ul > li {
+    flex-direction: row;
+  }
+
+  .cards-cta .cards-cta-card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    order: 0;
+  }
+
+  .cards-cta .cards-cta-card-image {
+    flex: 0 0 50%;
+    order: 1;
+  }
+}
