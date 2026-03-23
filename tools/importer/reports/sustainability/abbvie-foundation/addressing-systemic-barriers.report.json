@@ -1,0 +1,14 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/sustainability/abbvie-foundation/addressing-systemic-barriers.html",
+  "path": "sustainability/abbvie-foundation/addressing-systemic-barriers",
+  "timestamp": "2026-03-23T09:20:54.417Z",
+  "title": "Addressing Systemic Barriers | AbbVie",
+  "template": "addressing-systemic-barriers",
+  "blocks": [
+    "hero-interior",
+    "embed-video",
+    "cards-related",
+    "columns-impact"
+  ]
+}

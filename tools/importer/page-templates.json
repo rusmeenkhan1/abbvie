@@ -198,6 +198,68 @@
           "defaultContent": []
         }
       ]
+    },
+    {
+      "name": "addressing-systemic-barriers",
+      "urls": [
+        "https://www.abbvie.com/sustainability/abbvie-foundation/addressing-systemic-barriers.html"
+      ],
+      "description": "AbbVie Foundation page about addressing systemic barriers in sustainability initiatives",
+      "blocks": [
+        {
+          "name": "hero-interior",
+          "instances": [
+            "#maincontent .abbvie-container.large-radius.cmp-container-full-width.height-default:not(.footer-overlap)"
+          ]
+        },
+        {
+          "name": "embed-video",
+          "instances": [
+            "#container-d677408707 .video.cmp-video-full-width"
+          ]
+        },
+        {
+          "name": "cards-related",
+          "instances": [
+            ".abbvie-container.float"
+          ]
+        },
+        {
+          "name": "columns-impact",
+          "instances": [
+            "#maincontent .abbvie-container.default-radius.cmp-container-full-width.height-default"
+          ]
+        }
+      ],
+      "sections": [
+        {
+          "id": "section-1",
+          "name": "Hero",
+          "selector": "#maincontent .abbvie-container.large-radius.cmp-container-full-width.height-default:not(.footer-overlap)",
+          "style": null,
+          "blocks": ["hero-interior"],
+          "defaultContent": []
+        },
+        {
+          "id": "section-2",
+          "name": "Maternal Health Content",
+          "selector": ".grid.no-bottom-margin:has(#container-d677408707)",
+          "style": null,
+          "blocks": ["embed-video", "cards-related"],
+          "defaultContent": [
+            "#container-d677408707 .cmp-title",
+            "#container-d677408707 .cmp-text"
+          ]
+        },
+        {
+          "id": "section-3",
+          "name": "Program Impact",
+          "selector": "#maincontent .abbvie-container.default-radius.cmp-container-full-width.height-default",
+          "style": null,
+          "blocks": ["columns-impact"],
+          "defaultContent": []
+        }
+      ]
     }
   ]
 }

@@ -1,0 +1,33 @@
+.columns-impact > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.columns-impact img {
+  width: 100%;
+}
+
+.columns-impact > div > div {
+  order: 1;
+}
+
+.columns-impact > div > .columns-impact-img-col {
+  order: 0;
+}
+
+.columns-impact > div > .columns-impact-img-col img {
+  display: block;
+}
+
+@media (width >= 900px) {
+  .columns-impact > div {
+    align-items: center;
+    flex-direction: unset;
+    gap: 24px;
+  }
+
+  .columns-impact > div > div {
+    flex: 1;
+    order: unset;
+  }
+}

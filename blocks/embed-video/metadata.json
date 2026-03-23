@@ -1,0 +1,38 @@
+{
+  "variantName": "embed-video",
+  "baseBlock": "embed",
+  "version": "1.0.0",
+  "created": "2026-03-23T09:02:00.000Z",
+  "sourceContext": {
+    "originUrl": "https://www.abbvie.com/sustainability/abbvie-foundation/addressing-systemic-barriers.html",
+    "originPage": "AbbVie Foundation addressing systemic barriers page",
+    "blockPosition": "middle"
+  },
+  "visualCharacteristics": {
+    "colorScheme": "light",
+    "density": "spacious",
+    "purpose": "video-embed",
+    "imagePattern": "large"
+  },
+  "contentPattern": {
+    "structure": "poster-image + video-url",
+    "buttonCount": 0,
+    "imageCount": 1
+  },
+  "reuseGuidance": {
+    "suitableFor": [
+      "Brightcove video embeds",
+      "YouTube/Vimeo video embeds",
+      "video content with poster images"
+    ],
+    "notSuitableFor": [
+      "social media embeds",
+      "iframe-only embeds without video"
+    ]
+  },
+  "usage": {
+    "pagesUsing": ["/sustainability/abbvie-foundation/addressing-systemic-barriers"],
+    "reuseCount": 1,
+    "lastUsed": "2026-03-23T09:02:00.000Z"
+  }
+}

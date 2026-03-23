@@ -1,0 +1,39 @@
+{
+  "variantName": "cards-related",
+  "baseBlock": "cards",
+  "version": "1.0.0",
+  "created": "2026-03-23T09:02:00.000Z",
+  "sourceContext": {
+    "originUrl": "https://www.abbvie.com/sustainability/abbvie-foundation/addressing-systemic-barriers.html",
+    "originPage": "AbbVie Foundation addressing systemic barriers page",
+    "blockPosition": "middle"
+  },
+  "visualCharacteristics": {
+    "colorScheme": "light",
+    "density": "compact",
+    "purpose": "related-content",
+    "imagePattern": "large"
+  },
+  "contentPattern": {
+    "structure": "image + date + tag + title + description + cta",
+    "buttonCount": 0,
+    "imageCount": 1
+  },
+  "reuseGuidance": {
+    "suitableFor": [
+      "sidebar related content cards",
+      "story card links with date and category",
+      "single card related content sections"
+    ],
+    "notSuitableFor": [
+      "multi-card news grids",
+      "dashboard stats cards",
+      "text-only cards"
+    ]
+  },
+  "usage": {
+    "pagesUsing": ["/sustainability/abbvie-foundation/addressing-systemic-barriers"],
+    "reuseCount": 1,
+    "lastUsed": "2026-03-23T09:02:00.000Z"
+  }
+}

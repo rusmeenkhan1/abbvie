@@ -1,0 +1,39 @@
+{
+  "variantName": "hero-interior",
+  "baseBlock": "hero",
+  "version": "1.0.0",
+  "created": "2026-03-23T09:02:00.000Z",
+  "sourceContext": {
+    "originUrl": "https://www.abbvie.com/sustainability/abbvie-foundation/addressing-systemic-barriers.html",
+    "originPage": "AbbVie Foundation addressing systemic barriers page",
+    "blockPosition": "top"
+  },
+  "visualCharacteristics": {
+    "colorScheme": "light",
+    "density": "spacious",
+    "purpose": "interior-hero",
+    "imagePattern": "large"
+  },
+  "contentPattern": {
+    "structure": "background-image + heading + intro-text + body-text",
+    "buttonCount": 0,
+    "imageCount": 1
+  },
+  "reuseGuidance": {
+    "suitableFor": [
+      "interior page heroes with background image",
+      "foundation/sustainability pages",
+      "content pages with breadcrumb and body text"
+    ],
+    "notSuitableFor": [
+      "homepage heroes with CTA buttons",
+      "video hero sections",
+      "text-only heroes"
+    ]
+  },
+  "usage": {
+    "pagesUsing": ["/sustainability/abbvie-foundation/addressing-systemic-barriers"],
+    "reuseCount": 1,
+    "lastUsed": "2026-03-23T09:02:00.000Z"
+  }
+}
