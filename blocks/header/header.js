@@ -77,7 +77,8 @@ function toggleAllNavSections(sections, expanded = false) {
  * @returns {Object} { label, href, description, items[] }
  */
 function getMegaMenuData(navSection) {
-  const link = navSection.querySelector(':scope > a');
+  let link = navSection.querySelector(':scope > a');
+  if (!link) link = navSection.querySelector(':scope > p > a');
   const label = link ? link.textContent.trim() : '';
   const href = link ? link.getAttribute('href') : '';
 
@@ -293,7 +294,9 @@ export default async function decorate(block) {
   const navSections = nav.querySelector('.nav-sections');
   if (navSections) {
     navSections.querySelectorAll(':scope .default-content-wrapper > ul > li').forEach((navSection) => {
-      const link = navSection.querySelector(':scope > a');
+      // Find link — may be direct child or wrapped in a <p> by AEM content pipeline
+      let link = navSection.querySelector(':scope > a');
+      if (!link) link = navSection.querySelector(':scope > p > a');
       const label = link ? link.textContent.trim() : '';
 
       // Check if this section has mega-menu content (from DOM or data module)
@@ -304,9 +307,21 @@ export default async function decorate(block) {
       if (hasDropdown) {
         navSection.classList.add('nav-drop');
 
-        // Hide the description <p> from rendering in the nav bar
-        const descP = navSection.querySelector(':scope > p');
-        if (descP) descP.hidden = true;
+        // Unwrap the link from its <p> wrapper so it's a direct child of <li>
+        if (link) {
+          const linkParent = link.parentElement;
+          if (linkParent && linkParent.tagName === 'P' && linkParent.parentElement === navSection) {
+            navSection.insertBefore(link, linkParent);
+            linkParent.remove();
+          }
+        }
+
+        // Hide description <p> elements (those without links, after the nav link)
+        navSection.querySelectorAll(':scope > p').forEach((p) => {
+          if (!p.querySelector('a')) {
+            p.hidden = true;
+          }
+        });
       }
 
       if (link) {
