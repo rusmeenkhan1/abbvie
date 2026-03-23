@@ -15,7 +15,7 @@
   --background-color: #fff;
   --light-color: #fafafa;
   --dark-color: #071d49;
-  --text-color: #2d2d2d;
+  --text-color: #071d49;
   --link-color: #0066f5;
   --link-hover-color: #071d49;
   --link-color-light: #479ff8;
@@ -26,12 +26,14 @@
   --color-light-grey: #fafafa;
   --color-grey-border: #efefef;
   --color-dark-bg: #151b17;
+  --color-meta-grey: #666b7a;
 
   /* fonts */
   --body-font-family: roboto, roboto-fallback, helvetica, arial, sans-serif;
   --heading-font-family: roboto, roboto-fallback, helvetica, arial, sans-serif;
 
   /* body sizes */
+  --body-font-size-xl: 24px;
   --body-font-size-l: 20px;
   --body-font-size-m: 18px;
   --body-font-size-s: 16px;
@@ -91,7 +93,7 @@ body {
   color: var(--text-color);
   font-family: var(--body-font-family);
   font-size: var(--body-font-size-s);
-  line-height: 1.5;
+  line-height: 1.375;
 }
 
 body.appear {

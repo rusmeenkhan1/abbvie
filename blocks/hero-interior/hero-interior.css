@@ -1,3 +1,5 @@
+/* Hero Interior - AbbVie interior page hero with banner image above text */
+
 .hero-interior-container .hero-interior-wrapper {
   max-width: unset;
   padding: 0;
@@ -5,43 +7,113 @@
 
 .hero-interior {
   position: relative;
-  padding: 40px 24px;
-  min-height: 300px;
-}
-
-.hero-interior h1,
-.hero-interior h2,
-.hero-interior h3,
-.hero-interior h4,
-.hero-interior h5,
-.hero-interior h6,
-.hero-interior p {
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
-  color: var(--background-color);
-}
-
-.hero-interior.no-image * {
-  color: var(--text-color);
+  overflow: hidden;
 }
 
 .hero-interior picture {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  object-fit: cover;
-  box-sizing: border-box;
+  display: block;
+  line-height: 0;
 }
 
 .hero-interior img {
-  object-fit: cover;
   width: 100%;
-  height: 100%;
+  height: 280px;
+  object-fit: cover;
+  display: block;
+}
+
+/* Text content below the hero image */
+.hero-interior-container > .default-content-wrapper {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 32px 24px 0;
+}
+
+/* Breadcrumb list */
+.hero-interior-container > .default-content-wrapper ol {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0;
+  margin: 0 0 24px;
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.hero-interior-container > .default-content-wrapper ol li {
+  color: var(--color-navy);
+}
+
+.hero-interior-container > .default-content-wrapper ol li + li::before {
+  content: ">";
+  margin-right: 4px;
+  color: var(--color-navy);
+}
+
+.hero-interior-container > .default-content-wrapper ol a {
+  color: var(--color-navy);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.hero-interior-container > .default-content-wrapper ol a:hover {
+  text-decoration: underline;
+}
+
+/* Body paragraphs */
+.hero-interior-container > .default-content-wrapper p {
+  color: var(--text-color);
+  line-height: 1.375;
+}
+
+/* Intro paragraph - lighter weight, larger size */
+/* stylelint-disable-next-line no-descending-specificity */
+.hero-interior-container > .default-content-wrapper h1 + p {
+  font-size: var(--body-font-size-xl);
+  font-weight: 300;
+  line-height: 1.25;
+  color: var(--color-navy);
+  margin: 0 0 24px;
+}
+
+/* Page title paragraph before breadcrumbs - hide as redundant with h1 */
+.hero-interior-container > .default-content-wrapper > p:first-child {
+  display: none;
+}
+
+.hero-interior-container > .default-content-wrapper h1 {
+  font-size: var(--heading-font-size-xxl);
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-navy);
+  margin: 0 0 16px;
+}
+
+.hero-interior.no-image {
+  min-height: 0;
+}
+
+@media (width >= 600px) {
+  .hero-interior img {
+    height: 340px;
+  }
 }
 
 @media (width >= 900px) {
-  .hero-interior {
-    padding: 40px 32px;
+  .hero-interior img {
+    height: 400px;
+  }
+
+  .hero-interior-container > .default-content-wrapper {
+    padding: 40px 32px 0;
+  }
+}
+
+@media (width >= 1200px) {
+  .hero-interior img {
+    height: 440px;
   }
 }

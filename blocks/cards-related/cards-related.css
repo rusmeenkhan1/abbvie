@@ -1,19 +1,17 @@
+/* Cards Related - Related content card with image and text */
+
 .cards-related > ul {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(257px, 1fr));
+  grid-template-columns: 1fr;
   gap: 24px;
 }
 
 .cards-related > ul > li {
-  border: 1px solid #dadada;
-  background-color: var(--background-color);
-}
-
-.cards-related .cards-related-card-body {
-  margin: 16px;
+  background-color: var(--color-light-blue-bg);
+  overflow: hidden;
 }
 
 .cards-related .cards-related-card-image {
@@ -22,6 +20,94 @@
 
 .cards-related > ul > li img {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
+  display: block;
+}
+
+.cards-related .cards-related-card-body {
+  padding: 24px;
+}
+
+/* Date metadata */
+.cards-related .cards-related-card-body > p:first-child {
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-meta-grey);
+  margin: 0 0 4px;
+}
+
+/* Tag/category */
+.cards-related .cards-related-card-body > p:nth-child(2) {
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-navy);
+  margin: 0 0 32px;
+}
+
+.cards-related .cards-related-card-body > p:nth-child(2) em {
+  font-style: normal;
+}
+
+/* Card title */
+.cards-related .cards-related-card-body h4 {
+  font-size: var(--heading-font-size-l);
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--color-navy);
+  margin: 0 0 8px;
+}
+
+/* Card description */
+.cards-related .cards-related-card-body > p:nth-child(4) {
+  font-size: var(--body-font-size-xs);
+  line-height: 1.43;
+  color: var(--color-navy);
+  margin: 0 0 24px;
+}
+
+/* CTA link */
+.cards-related .cards-related-card-body > p:last-child {
+  margin: 0;
+}
+
+.cards-related .cards-related-card-body > p:last-child a {
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--link-color);
+  text-decoration: none;
+  transition: color var(--transition-speed) ease;
+}
+
+.cards-related .cards-related-card-body > p:last-child a:hover {
+  color: var(--link-hover-color);
+}
+
+@media (width >= 900px) {
+  .cards-related > ul > li {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cards-related > ul > li img {
+    aspect-ratio: auto;
+    height: 100%;
+  }
+
+  .cards-related .cards-related-card-body {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .cards-related .cards-related-card-body h4 {
+    font-size: var(--heading-font-size-xl);
+  }
 }

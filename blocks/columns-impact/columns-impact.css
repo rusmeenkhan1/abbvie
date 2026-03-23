@@ -1,12 +1,54 @@
+/* Columns Impact - Two-column layout with text and video */
+
+.columns-impact-container .columns-impact-wrapper {
+  max-width: unset;
+  padding: 0;
+}
+
+.columns-impact-container {
+  background-color: var(--color-light-blue-bg);
+}
+
+.columns-impact {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
 .columns-impact > div {
   display: flex;
   flex-direction: column;
+  gap: 32px;
 }
 
 .columns-impact img {
   width: 100%;
+  border-radius: 8px;
+  display: block;
 }
 
+/* Text column */
+.columns-impact > div > div:first-child h3 {
+  font-size: var(--heading-font-size-l);
+  font-weight: 800;
+  line-height: 1.13;
+  color: var(--color-navy);
+  margin: 0 0 16px;
+}
+
+.columns-impact > div > div:first-child p {
+  font-size: var(--body-font-size-s);
+  line-height: 1.375;
+  color: var(--text-color);
+  margin: 0;
+}
+
+/* Video column - hide raw URL link */
+.columns-impact > div > div:last-child a {
+  display: none;
+}
+
+/* Image column ordering */
 .columns-impact > div > div {
   order: 1;
 }
@@ -20,10 +62,14 @@
 }
 
 @media (width >= 900px) {
+  .columns-impact {
+    padding: 64px 32px;
+  }
+
   .columns-impact > div {
+    flex-direction: row;
     align-items: center;
-    flex-direction: unset;
-    gap: 24px;
+    gap: 48px;
   }
 
   .columns-impact > div > div {
