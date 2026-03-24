@@ -1,0 +1,89 @@
+/* Columns Showcase - alternating image/text pairs with eyebrow, title, description */
+
+.columns-showcase-wrapper {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.columns-showcase > div {
+  display: flex;
+  flex-direction: column;
+  padding: 32px 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.columns-showcase > div:last-child {
+  border-bottom: none;
+}
+
+.columns-showcase img {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+.columns-showcase > div > div {
+  order: 1;
+}
+
+.columns-showcase > div > .columns-showcase-img-col {
+  order: 0;
+  margin-bottom: 24px;
+}
+
+/* Eyebrow text */
+.columns-showcase p:first-child {
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-navy);
+  margin: 0 0 8px;
+}
+
+.columns-showcase h5 {
+  font-size: var(--heading-font-size-m);
+  font-weight: 700;
+  color: var(--color-navy);
+  margin: 0 0 12px;
+  line-height: 1.2;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+.columns-showcase p {
+  color: var(--text-color);
+  line-height: 1.5;
+}
+
+.columns-showcase a.button {
+  margin-top: 16px;
+}
+
+@media (width >= 900px) {
+  .columns-showcase-wrapper {
+    padding: 0 70px;
+  }
+
+  .columns-showcase > div {
+    align-items: center;
+    flex-direction: row;
+    gap: 48px;
+    padding: 48px 0;
+  }
+
+  .columns-showcase > div > div {
+    flex: 1;
+    order: unset;
+  }
+
+  .columns-showcase > div > .columns-showcase-img-col {
+    margin-bottom: 0;
+  }
+
+  /* Alternate image position: even rows have image on right */
+  .columns-showcase > div:nth-child(even) {
+    flex-direction: row-reverse;
+  }
+}

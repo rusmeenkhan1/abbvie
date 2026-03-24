@@ -22,11 +22,15 @@
   display: block;
 }
 
-/* Text content below the hero image */
+/* Text content overlapping the hero image */
 .hero-interior-container > .default-content-wrapper {
   max-width: var(--content-max-width);
-  margin: 0 auto;
-  padding: 32px 24px 0;
+  margin: -48px auto 0;
+  padding: 40px 24px 0;
+  background-color: var(--background-color);
+  border-radius: 16px 16px 0 0;
+  position: relative;
+  z-index: 1;
 }
 
 /* Breadcrumb list */
@@ -45,6 +49,11 @@
 
 .hero-interior-container > .default-content-wrapper ol li {
   color: var(--color-navy);
+}
+
+/* Active breadcrumb item (last) is grey */
+.hero-interior-container > .default-content-wrapper ol li:last-child {
+  color: var(--color-meta-grey);
 }
 
 .hero-interior-container > .default-content-wrapper ol li + li::before {
@@ -108,7 +117,8 @@
   }
 
   .hero-interior-container > .default-content-wrapper {
-    padding: 40px 32px 0;
+    margin-top: -64px;
+    padding: 56px 70px 0;
   }
 }
 

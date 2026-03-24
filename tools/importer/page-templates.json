@@ -237,7 +237,9 @@
           "name": "Hero",
           "selector": "#maincontent .abbvie-container.large-radius.cmp-container-full-width.height-default:not(.footer-overlap)",
           "style": null,
-          "blocks": ["hero-interior"],
+          "blocks": [
+            "hero-interior"
+          ],
           "defaultContent": []
         },
         {
@@ -245,7 +247,10 @@
           "name": "Maternal Health Content",
           "selector": ".grid.no-bottom-margin:has(#container-d677408707)",
           "style": null,
-          "blocks": ["embed-video", "cards-related"],
+          "blocks": [
+            "embed-video",
+            "cards-related"
+          ],
           "defaultContent": [
             "#container-d677408707 .cmp-title",
             "#container-d677408707 .cmp-text"
@@ -256,7 +261,120 @@
           "name": "Program Impact",
           "selector": "#maincontent .abbvie-container.default-radius.cmp-container-full-width.height-default",
           "style": null,
-          "blocks": ["columns-impact"],
+          "blocks": [
+            "columns-impact"
+          ],
+          "defaultContent": []
+        }
+      ]
+    },
+    {
+      "name": "community-of-science",
+      "urls": [
+        "https://www.abbvie.com/science/our-people/community-of-science.html"
+      ],
+      "description": "Science community page showcasing AbbVie's scientific people and community initiatives",
+      "blocks": [
+        {
+          "name": "hero-interior",
+          "instances": [
+            "#maincontent .abbvie-container.large-radius.cmp-container-full-width.height-default:not(.footer-overlap)"
+          ]
+        },
+        {
+          "name": "cards-stats",
+          "instances": [
+            ".abbvie-container.large-radius.cmp-container-full-width:has(.cmp-grid-full-page-5-v1)"
+          ]
+        },
+        {
+          "name": "columns-showcase",
+          "instances": [
+            "#maincontent > .aem-Grid > .responsivegrid > .aem-Grid > .container:has(.grid-row):has(.cmp-header):not(:has(.separator-divider)):not(:has(.cmp-teaser))"
+          ]
+        },
+        {
+          "name": "columns-programs",
+          "instances": [
+            ".grid:has(.grid-row__col-with-6):has(.separator-divider)"
+          ]
+        },
+        {
+          "name": "columns-cta",
+          "instances": [
+            "#container-789c79eb77"
+          ]
+        },
+        {
+          "name": "footer",
+          "instances": [
+            ".cmp-experiencefragment--footer"
+          ]
+        }
+      ],
+      "sections": [
+        {
+          "id": "section-1",
+          "name": "Hero",
+          "selector": "#maincontent .abbvie-container.large-radius.cmp-container-full-width.height-default:not(.footer-overlap)",
+          "style": null,
+          "blocks": [
+            "hero-interior"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "section-2",
+          "name": "Stats Dashboard",
+          "selector": ".abbvie-container.large-radius.cmp-container-full-width:has(.cmp-grid-full-page-5-v1)",
+          "style": "dark",
+          "blocks": [
+            "cards-stats"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "section-3",
+          "name": "Programs Showcase",
+          "selector": "#maincontent > .aem-Grid > .responsivegrid > .aem-Grid > .container:has(.grid-row):has(.cmp-header):not(:has(.separator-divider)):not(:has(.cmp-teaser))",
+          "style": null,
+          "blocks": [
+            "columns-showcase"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "section-4",
+          "name": "Programs at a Glance",
+          "selector": "#teaser-b1d0863457",
+          "style": null,
+          "blocks": [
+            "columns-programs"
+          ],
+          "defaultContent": [
+            "#teaser-b1d0863457 .cmp-teaser__pretitle",
+            "#teaser-b1d0863457 .cmp-teaser__title",
+            "#teaser-b1d0863457 .cmp-teaser__description"
+          ]
+        },
+        {
+          "id": "section-5",
+          "name": "CTA",
+          "selector": "#container-789c79eb77",
+          "style": null,
+          "blocks": [
+            "columns-cta"
+          ],
+          "defaultContent": []
+        },
+        {
+          "id": "section-6",
+          "name": "Footer",
+          "selector": ".cmp-experiencefragment--footer",
+          "style": "dark",
+          "blocks": [
+            "footer"
+          ],
           "defaultContent": []
         }
       ]

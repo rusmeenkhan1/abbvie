@@ -89,14 +89,44 @@ const loadEmbed = (block, link, autoplay) => {
 };
 
 export default function decorate(block) {
-  const placeholder = block.querySelector('picture');
+  const placeholder = block.querySelector('picture') || block.querySelector('img');
   const link = block.querySelector('a').href;
+
+  // Extract overlay content from additional rows (row 2: title/desc, row 3: CTA)
+  const rows = [...block.children];
+  let overlayTitle = '';
+  let overlayDesc = '';
+  let overlayCta = '';
+  if (rows.length > 1) {
+    const titleCell = rows[1]?.querySelector('div:first-child');
+    const descCell = rows[1]?.querySelector('div:last-child');
+    overlayTitle = titleCell?.textContent?.trim() || '';
+    overlayDesc = descCell?.textContent?.trim() || '';
+  }
+  if (rows.length > 2) {
+    const ctaCell = rows[2]?.querySelector('div:first-child');
+    overlayCta = ctaCell?.textContent?.trim() || '';
+  }
+
   block.textContent = '';
 
   if (placeholder) {
     const wrapper = document.createElement('div');
     wrapper.className = 'embed-video-placeholder';
-    wrapper.innerHTML = '<div class="embed-video-placeholder-play"><button type="button" title="Play"></button></div>';
+
+    // Build overlay HTML
+    let overlayHTML = '';
+    if (overlayTitle || overlayCta) {
+      overlayHTML += '<div class="embed-video-overlay">';
+      if (overlayTitle) overlayHTML += `<h2>${overlayTitle}</h2>`;
+      if (overlayDesc) overlayHTML += `<p>${overlayDesc}</p>`;
+      if (overlayCta) overlayHTML += `<button type="button" class="embed-video-cta"><span class="embed-video-cta-icon"></span><span>${overlayCta}</span></button>`;
+      overlayHTML += '</div>';
+    } else {
+      overlayHTML = '<div class="embed-video-placeholder-play"><button type="button" title="Play"></button></div>';
+    }
+
+    wrapper.innerHTML = overlayHTML;
     wrapper.prepend(placeholder);
     wrapper.addEventListener('click', () => {
       loadEmbed(block, link, true);

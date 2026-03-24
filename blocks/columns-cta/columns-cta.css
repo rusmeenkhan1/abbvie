@@ -1,0 +1,70 @@
+/* Columns CTA - image + heading + text + CTA button */
+
+.columns-cta-wrapper {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.columns-cta > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.columns-cta img {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+}
+
+.columns-cta > div > div {
+  order: 1;
+}
+
+.columns-cta > div > .columns-cta-img-col {
+  order: 0;
+  margin-bottom: 24px;
+}
+
+.columns-cta > div > .columns-cta-img-col img {
+  display: block;
+}
+
+.columns-cta h2 {
+  font-size: var(--heading-font-size-l);
+  font-weight: 700;
+  color: var(--color-navy);
+  margin: 0 0 16px;
+  line-height: 1.15;
+}
+
+.columns-cta p {
+  color: var(--text-color);
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+
+.columns-cta a.button {
+  display: inline-block;
+}
+
+@media (width >= 900px) {
+  .columns-cta-wrapper {
+    padding: 64px 70px;
+  }
+
+  .columns-cta > div {
+    align-items: center;
+    flex-direction: row;
+    gap: 48px;
+  }
+
+  .columns-cta > div > div {
+    flex: 1;
+    order: unset;
+  }
+
+  .columns-cta > div > .columns-cta-img-col {
+    margin-bottom: 0;
+  }
+}

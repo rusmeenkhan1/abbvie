@@ -1,0 +1,16 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/science/our-people/community-of-science.html",
+  "path": "science/our-people/community-of-science",
+  "timestamp": "2026-03-24T06:35:23.870Z",
+  "title": "Community of Science | AbbVie",
+  "template": "community-of-science",
+  "blocks": [
+    "hero-interior",
+    "hero-interior",
+    "cards-stats",
+    "columns-programs",
+    "columns-cta",
+    "footer"
+  ]
+}

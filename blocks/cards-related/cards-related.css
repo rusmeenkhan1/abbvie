@@ -1,5 +1,18 @@
 /* Cards Related - Related content card with image and text */
 
+/* "Related content" heading with blue top bar */
+.default-content-wrapper:has(+ .cards-related-wrapper) h2 {
+  display: inline-block;
+  border-top: 5px solid #0066f5;
+  padding-top: 16px;
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.56px;
+  color: var(--text-color);
+  margin: 0 0 24px;
+}
+
 .cards-related > ul {
   list-style: none;
   margin: 0;
