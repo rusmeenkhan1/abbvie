@@ -38,6 +38,10 @@
 
   /* nav height */
   --nav-height: 64px;
+
+  /* abbvie brand colors */
+  --abbvie-navy: #071d49;
+  --abbvie-blue: #0066f5;
 }
 
 /* fallback fonts */
