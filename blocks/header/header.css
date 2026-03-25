@@ -7,7 +7,7 @@ header {
   --header-blue: #0066f5;
   --header-promo-bg: #f1f3ff;
   --header-font: 'Roboto', 'Helvetica Neue', helvetica, arial, sans-serif;
-  --header-max-width: 1400px;
+  --header-max-width: 1440px;
 }
 
 /* --- Wrapper --- */
@@ -45,6 +45,35 @@ header .nav-header-right {
   gap: 8px;
 }
 
+/* --- Utility Nav (MORE + GLOBAL) --- */
+header .nav-utility {
+  display: none;
+}
+
+header .nav-utility-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  font-family: var(--header-font);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--header-navy);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+
+header .nav-utility-btn img {
+  width: 20px;
+  height: 20px;
+}
+
+/* GLOBAL hidden by default, shown on desktop via .nav-utility flex */
+
 /* --- Brand / Logo --- */
 header .nav-brand {
   flex-shrink: 0;
@@ -62,7 +91,7 @@ header .nav-brand-link {
 }
 
 header .nav-brand img {
-  width: 88px;
+  width: 110px;
   height: auto;
 }
 
@@ -396,6 +425,92 @@ header .mega-go-to-page:hover {
   text-decoration: none;
 }
 
+/* --- Expandable Sub-Items (mobile base) --- */
+header .mega-expand-item {
+  border-bottom: 1px solid #b9b4b4;
+}
+
+header .mega-expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 24px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--header-navy);
+  font-family: var(--header-font);
+  text-align: left;
+}
+
+header .mega-expand-icon::before {
+  content: '+';
+  display: inline-block;
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--header-navy);
+  width: 20px;
+  text-align: center;
+}
+
+header .mega-expand-item.expanded .mega-expand-icon::before {
+  content: '\2212';
+}
+
+header .mega-expand-item.expanded .mega-expand-btn {
+  font-weight: 800;
+}
+
+header .mega-expand-panel {
+  display: none;
+  padding: 0 0 16px 32px;
+}
+
+header .mega-expand-item.expanded .mega-expand-panel {
+  display: block;
+}
+
+header .mega-expand-goto {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-blue);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  font-family: var(--header-font);
+  margin-bottom: 12px;
+}
+
+header .mega-expand-goto:hover {
+  text-decoration: none;
+  color: var(--header-navy);
+}
+
+header .mega-expand-goto svg {
+  color: var(--header-blue);
+}
+
+header .mega-expand-link {
+  display: block;
+  padding: 8px 0;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--header-navy);
+  text-decoration: none;
+  font-family: var(--header-font);
+}
+
+header .mega-expand-link:hover {
+  color: var(--header-blue);
+  text-decoration: none;
+}
+
 /* ============================
    TABLET (600px - 899px)
    ============================ */
@@ -476,6 +591,13 @@ header .mega-go-to-page:hover {
   /* --- Hamburger hidden on desktop --- */
   header .nav-hamburger {
     display: none;
+  }
+
+  /* --- Utility Nav visible on desktop --- */
+  header .nav-utility {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   /* --- Nav Sections inline on desktop --- */
@@ -603,6 +725,33 @@ header .mega-go-to-page:hover {
 
   header .mega-link:hover {
     color: var(--header-blue);
+  }
+
+  /* --- Desktop Expandable Items --- */
+  header .mega-expand-item {
+    border-bottom: none;
+  }
+
+  header .mega-expand-btn {
+    padding: 0;
+    font-size: 26px;
+  }
+
+  header .mega-expand-icon::before {
+    font-size: 24px;
+  }
+
+  header .mega-expand-panel {
+    padding: 8px 0 0;
+  }
+
+  header .mega-expand-goto {
+    margin-bottom: 8px;
+  }
+
+  header .mega-expand-link {
+    font-size: 15px;
+    padding: 6px 0;
   }
 
   /* Desktop close button */
