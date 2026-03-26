@@ -268,7 +268,8 @@ function decorateNavSections(navSections, nav, promoMap) {
       subLinksInner.className = 'mega-sub-links-inner';
 
       [...subUl.children].forEach((subLi) => {
-        const a = subLi.querySelector(':scope > a');
+        let a = subLi.querySelector(':scope > a');
+        if (!a) a = subLi.querySelector(':scope > p > a');
         if (!a) return;
         const itemName = a.textContent.trim();
         const nestedUl = subLi.querySelector(':scope > ul');
