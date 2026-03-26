@@ -851,7 +851,8 @@ header .mega-expand-link:hover {
   }
 
   /* --- Nav Sections inline on desktop --- */
-  header .nav-sections {
+  /* stylelint-disable-next-line no-descending-specificity */
+  header nav .nav-sections {
     display: flex;
     position: static;
     overflow: visible;
@@ -913,6 +914,103 @@ header .mega-expand-link:hover {
   /* stylelint-disable-next-line no-descending-specificity */
   header nav .nav-sections .default-content-wrapper > ul > li > ul > li a {
     font-size: 16px;
+  }
+
+  /* --- Desktop Mega Panel --- */
+  header .nav-item.active > .mega-panel {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: var(--header-nav-height);
+    left: 0;
+    right: 0;
+    z-index: 90;
+    background: #fff;
+  }
+
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .mega-sub-links {
+    padding: 48px 55px 88px 343px;
+    position: relative;
+  }
+
+  header .mega-sub-links-inner {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0 32px;
+  }
+
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .mega-close {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: absolute;
+    top: 48px;
+    right: 55px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--header-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.84px;
+    font-family: var(--header-font);
+  }
+
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .mega-promo {
+    order: 0;
+    background: var(--header-promo-bg);
+    padding: 80px 55px 48px 343px;
+    border-radius: 40px 0 0;
+  }
+
+  header .mega-promo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+  }
+
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .mega-promo-card {
+    display: flex;
+  }
+
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .mega-promo-counter {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Desktop font sizes */
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .mega-link {
+    font-size: 26px;
+  }
+
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .mega-expand-btn {
+    font-size: 26px;
+  }
+
+  /* Desktop hover - keep navy, bold */
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .mega-link:hover {
+    color: var(--header-navy);
+    font-weight: 700;
+  }
+
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .mega-expand-btn:hover {
+    font-weight: 700;
+  }
+
+  /* Hide mobile back button on desktop */
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .nav-back-btn {
+    display: none;
   }
 }
 
