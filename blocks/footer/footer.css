@@ -3,31 +3,63 @@ main .footer-wrapper {
   display: none;
 }
 
-/* Hide footer-related default content that appears after inline footer */
 main .footer-wrapper ~ .default-content-wrapper {
   display: none;
 }
 
-/* Footer base - light blue background with curved top-left matching original AbbVie */
+/* ================================================================
+   FOOTER BASE
+   Background: #FAFAFA, rounded top-left corner, navy text
+   ================================================================ */
 footer {
   background-color: transparent;
-  color: var(--color-navy);
-  font-size: var(--body-font-size-s);
+  position: relative;
 }
 
 footer .footer {
-  background-color: var(--color-light-blue-bg);
-  border-radius: 40px 0 0;
+  position: relative;
+  background-color: var(--color-light-grey);
+  border-radius: 32px 0 0;
   max-width: none;
   margin: 0;
-  padding: 56px 24px 0;
-}
-
-footer .footer p {
-  margin: 0;
+  padding: 32px 35px 0;
   color: var(--color-navy);
 }
 
+/* ================================================================
+   BACK-TO-TOP BUTTON
+   88px lavender circle, overlaps footer top edge
+   ================================================================ */
+footer .footer-back-to-top {
+  position: absolute;
+  top: -44px;
+  right: 35px;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background-color: var(--color-lavender);
+  border: none;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  z-index: 10;
+  transition: background-color var(--transition-speed);
+}
+
+footer .footer-back-to-top:hover {
+  background-color: var(--color-navy);
+}
+
+footer .footer-back-to-top svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* ================================================================
+   GLOBAL FOOTER LINK RESET
+   ================================================================ */
 footer .footer a:any-link {
   color: var(--color-navy);
   text-decoration: none;
@@ -36,6 +68,12 @@ footer .footer a:any-link {
 
 footer .footer a:hover {
   text-decoration: underline;
+  color: var(--color-navy);
+}
+
+footer .footer p {
+  margin: 0;
+  color: var(--color-navy);
 }
 
 footer .footer ul {
@@ -44,143 +82,362 @@ footer .footer ul {
   margin: 0;
 }
 
-footer .footer ul li {
-  padding: 6px 0;
+footer .footer h2 {
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.48px;
+  color: #666b7a;
+  margin: 0 0 20px;
+  line-height: 16px;
 }
 
-/* Section 1: Logo + nav links - large stacked links */
-footer .footer > div:first-child {
-  padding-bottom: 32px;
-}
-
-footer .footer > div:first-child > p {
-  font-size: var(--body-font-size-s);
-  font-weight: 700;
-  margin-bottom: 24px;
-}
-
-footer .footer > div:first-child > p a {
-  font-weight: 700;
-}
-
-footer .footer > div:first-child ul {
-  display: flex;
-  flex-direction: column;
+/* ================================================================
+   FOOTER GRID - Mobile first (single column)
+   ================================================================ */
+footer .footer-grid {
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 0;
 }
 
-footer .footer > div:first-child ul li {
+/* ================================================================
+   LOGO CELL
+   ================================================================ */
+footer .footer-logo {
+  margin-bottom: 24px;
+}
+
+footer .footer-logo p {
+  margin: 0;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+footer .footer-logo a {
+  display: inline-block;
+  line-height: 0;
+}
+
+footer .footer-logo a:hover {
+  text-decoration: none;
+  opacity: 0.8;
+}
+
+footer .footer-logo img {
+  width: 88px;
+  height: auto;
+}
+
+/* ================================================================
+   NAV LINKS - Large bold stacked navigation
+   Original: F37 Lineca Book 40px/650 weight
+   Closest: Roboto 40px/700
+   ================================================================ */
+footer .footer-nav {
+  margin-bottom: 32px;
+}
+
+footer .footer-nav > ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 32px;
+}
+
+footer .footer-nav > ul > li {
   padding: 0;
 }
 
-footer .footer > div:first-child ul li a {
-  font-size: var(--heading-font-size-m);
-  font-weight: 300;
-  line-height: 1.3;
-  display: block;
-  padding: 8px 0;
-}
-
-/* Section 2 & 3: Popular pages + External links */
-footer .footer > div:nth-child(2),
-footer .footer > div:nth-child(3) {
-  padding: 24px 0;
-}
-
-footer .footer h2 {
-  color: var(--color-navy);
-  font-size: var(--body-font-size-xxs);
+/* stylelint-disable-next-line no-descending-specificity */
+footer .footer-nav > ul > li > a {
+  font-size: 32px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin: 0 0 16px;
-}
-
-footer .footer > div:nth-child(2) ul li a,
-footer .footer > div:nth-child(3) ul li a {
-  font-size: var(--body-font-size-s);
-  font-weight: 400;
-}
-
-/* Section 4: Legal disclaimer */
-footer .footer > div:nth-child(4) {
-  padding: 24px 0 16px;
-}
-
-footer .footer > div:nth-child(4) p {
-  font-size: var(--body-font-size-xxs);
-  line-height: 1.6;
+  line-height: 1.1;
   color: var(--color-navy);
+  display: block;
+  padding: 10px 0;
+}
+
+footer .footer-nav > ul > li > a:hover {
+  text-decoration: none;
   opacity: 0.7;
 }
 
-/* Section 5: Bottom links bar */
-footer .footer > div:last-child {
-  border-top: 1px solid #e0e0e0;
-  padding: 16px 0 32px;
-}
-
-footer .footer > div:last-child ul {
+/* ================================================================
+   SOCIAL MEDIA ICONS
+   Horizontal row, navy colored, 32px gap mobile / 40px desktop
+   ================================================================ */
+footer .footer-social ul {
   display: flex;
-  gap: 24px;
+  gap: 32px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
-footer .footer > div:last-child ul li a {
-  font-size: var(--body-font-size-xxs);
-  color: var(--color-navy);
+/* stylelint-disable-next-line no-descending-specificity */
+footer .footer-social li {
+  padding: 0;
+  line-height: 0;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+footer .footer-social a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+footer .footer-social a:hover {
+  text-decoration: none;
   opacity: 0.7;
 }
 
-/* Desktop: 4-column grid layout */
-@media (width >= 900px) {
+footer .footer-social img {
+  width: 24px;
+  height: 24px;
+}
+
+/* ================================================================
+   POPULAR PAGES + EXTERNAL LINKS (standard link lists)
+   18px regular navy links with gray uppercase headers
+   ================================================================ */
+footer .footer-popular,
+footer .footer-external {
+  padding: 32px 0 0;
+}
+
+footer .footer-popular ul li,
+footer .footer-external > ul > li {
+  padding: 0;
+  margin-bottom: 16px;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+footer .footer-popular ul li a,
+/* stylelint-disable-next-line no-descending-specificity */
+footer .footer-external > ul > li > a {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 24px;
+  color: var(--color-navy);
+}
+
+/* External link arrow icon for external links */
+footer .footer-external-link::after {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 6px;
+  vertical-align: middle;
+  /* stylelint-disable-next-line function-url-quotes */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23071d49' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3Cpolyline points='15 3 21 3 21 9'/%3E%3Cline x1='10' y1='14' x2='21' y2='3'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+/* ================================================================
+   SEPARATOR + DISCLAIMER TEXT
+   14px light weight with right-aligned copyright
+   ================================================================ */
+footer .footer-ext-separator {
+  height: 48px;
+}
+
+footer .footer-disclaimer p {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--color-navy);
+  margin: 0 0 24px;
+}
+
+footer .footer-disclaimer p:last-child {
+  text-align: right;
+}
+
+/* ================================================================
+   DIVIDER LINE between main footer and legal bar
+   ================================================================ */
+footer .footer-divider {
+  border: none;
+  border-top: 1px solid #d8d8d8;
+  margin: 32px 0 0;
+}
+
+/* ================================================================
+   LEGAL LINKS BAR
+   12px uppercase with letter spacing, vertical on mobile
+   ================================================================ */
+footer .footer-legal {
+  padding: 24px 0 32px;
+}
+
+footer .footer-legal ul {
+  display: flex;
+  flex-flow: column wrap;
+  gap: 16px;
+}
+
+footer .footer-legal ul li {
+  padding: 0;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+footer .footer-legal ul li a {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: 0.48px;
+  text-transform: uppercase;
+  color: var(--color-navy);
+}
+
+/* Privacy choices item: link + icon inline */
+footer .footer-privacy-choices {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+footer .footer-privacy-icon {
+  width: 30px;
+  height: 14px;
+  vertical-align: middle;
+}
+
+/* ================================================================
+   TABLET (600px+)
+   2-column layout: nav+social | popular pages
+   External + disclaimer stacks below
+   ================================================================ */
+@media (width >= 600px) {
   footer .footer {
-    display: grid;
-    grid-template-columns: 1fr 2fr 1fr 1fr;
+    padding: 48px 35px 0;
+  }
+
+  footer .footer-back-to-top {
+    right: 35px;
+  }
+
+  footer .footer-grid {
+    grid-template-columns: 3fr 2fr;
     gap: 0 40px;
-    padding: 80px 70px 0;
   }
 
-  /* Logo + nav links: columns 1-2 */
-  footer .footer > div:first-child {
-    grid-column: 1 / 3;
+  footer .footer-logo {
+    grid-column: 1;
     grid-row: 1;
-    padding-bottom: 40px;
   }
 
-  footer .footer > div:first-child > p {
-    margin-bottom: 8px;
+  footer .footer-nav {
+    grid-column: 1;
+    grid-row: 2;
   }
 
-  footer .footer > div:first-child ul li a {
-    font-size: var(--heading-font-size-l);
+  footer .footer-popular {
+    grid-column: 2;
+    grid-row: 1 / 4;
+    padding-top: 0;
+  }
+
+  footer .footer-external {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+
+  footer .footer-nav > ul > li > a {
+    font-size: 36px;
+  }
+
+  footer .footer-legal ul {
+    flex-direction: row;
+    gap: 20px;
+  }
+}
+
+/* ================================================================
+   DESKTOP (900px+)
+   4-column grid: logo | nav+social | popular | external+disclaimer
+   Matches original 2:4:2:4 (12-col) proportions
+   ================================================================ */
+@media (width >= 900px) {
+  footer {
+    margin-top: -80px;
+  }
+
+  footer .footer {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: 80px 32px 0;
+    border-radius: 80px 0 0;
+  }
+
+  /* Back-to-top: visible on desktop only */
+  footer .footer-back-to-top {
+    display: flex;
+    right: 0;
+  }
+
+  footer .footer-grid {
+    grid-template-columns: 1fr 2fr 1fr 2fr;
+    gap: 0 20px;
+  }
+
+  /* Logo: column 1 */
+  footer .footer-logo {
+    grid-column: 1;
+    grid-row: 1;
+    margin-bottom: 0;
+    padding-top: 4px;
+  }
+
+  /* Nav + Social: column 2 */
+  footer .footer-nav {
+    grid-column: 2;
+    grid-row: 1;
+    margin-bottom: 0;
+  }
+
+  footer .footer-nav > ul > li > a {
+    font-size: 40px;
   }
 
   /* Popular pages: column 3 */
-  footer .footer > div:nth-child(2) {
+  footer .footer-popular {
     grid-column: 3;
     grid-row: 1;
-    padding: 0;
+    padding-top: 0;
   }
 
-  /* External links: column 4 */
-  footer .footer > div:nth-child(3) {
+  /* External links + disclaimer: column 4 */
+  footer .footer-external {
     grid-column: 4;
     grid-row: 1;
-    padding: 0;
+    padding-top: 0;
   }
 
-  /* Legal disclaimer: under external links */
-  footer .footer > div:nth-child(4) {
-    grid-column: 3 / -1;
-    grid-row: 2;
-    padding: 32px 0 16px;
+  /* Social icons desktop gap */
+  footer .footer-social ul {
+    gap: 40px;
   }
 
-  /* Bottom links bar: full width */
-  footer .footer > div:last-child {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    padding: 16px 0 40px;
+  footer .footer-disclaimer p {
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  footer .footer-divider {
+    margin: 24px 0 0;
+  }
+
+  footer .footer-legal ul {
+    flex-direction: row;
+    gap: 20px;
+  }
+
+  footer .footer-legal {
+    padding: 24px 0 40px;
   }
 }
