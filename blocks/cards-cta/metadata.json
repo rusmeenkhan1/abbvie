@@ -1,0 +1,31 @@
+{
+  "variantName": "cards-cta",
+  "baseBlock": "cards",
+  "version": "1.0.0",
+  "created": "2026-03-16T09:08:00.000Z",
+  "sourceContext": {
+    "originUrl": "https://www.abbvie.com/",
+    "originPage": "AbbVie corporate homepage",
+    "blockPosition": "middle"
+  },
+  "visualCharacteristics": {
+    "colorScheme": "accent",
+    "density": "spacious",
+    "purpose": "cta-banner",
+    "imagePattern": "noimg"
+  },
+  "contentPattern": {
+    "structure": "heading + description + cta-link",
+    "buttonCount": 1,
+    "imageCount": 0
+  },
+  "reuseGuidance": {
+    "suitableFor": ["CTA banner cards", "colored call-to-action sections", "promotional banners"],
+    "notSuitableFor": ["multi-item card grids", "data/stats cards"]
+  },
+  "usage": {
+    "pagesUsing": ["/index"],
+    "reuseCount": 1,
+    "lastUsed": "2026-03-16T09:08:00.000Z"
+  }
+}

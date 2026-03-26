@@ -1,0 +1,31 @@
+{
+  "variantName": "cards-dashboard",
+  "baseBlock": "cards",
+  "version": "1.0.0",
+  "created": "2026-03-16T09:08:00.000Z",
+  "sourceContext": {
+    "originUrl": "https://www.abbvie.com/",
+    "originPage": "AbbVie corporate homepage",
+    "blockPosition": "middle"
+  },
+  "visualCharacteristics": {
+    "colorScheme": "light",
+    "density": "compact",
+    "purpose": "dashboard-stats",
+    "imagePattern": "mixed"
+  },
+  "contentPattern": {
+    "structure": "eyebrow + stat-number + description",
+    "buttonCount": 1,
+    "imageCount": 1
+  },
+  "reuseGuidance": {
+    "suitableFor": ["mixed article and stats cards", "dashboard-style metrics", "key facts sections"],
+    "notSuitableFor": ["simple image cards", "text-only cards"]
+  },
+  "usage": {
+    "pagesUsing": ["/index"],
+    "reuseCount": 1,
+    "lastUsed": "2026-03-16T09:08:00.000Z"
+  }
+}
