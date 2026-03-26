@@ -839,26 +839,33 @@ header .mega-expand-link:hover {
     border-top: 1px solid #b9b4b4;
     overflow-y: auto;
     max-height: calc(100vh - var(--header-nav-height));
-    transform: translateY(-100%);
-    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: center top;
     visibility: hidden;
-    transition: transform 0.3s ease-out, opacity 0.2s ease-out, visibility 0s 0.3s;
+    transition: transform 0.3s ease-out, visibility 0s 0.3s;
     display: flex;
     flex-direction: column;
   }
 
+  header .mega-panel > * {
+    opacity: 0;
+    transition: opacity 0.15s ease-out;
+  }
+
   header .nav-item.active > .mega-panel {
-    transform: translateY(0);
-    opacity: 1;
+    transform: scaleY(1);
     visibility: visible;
-    transition: transform 0.3s ease-out, opacity 0.2s ease-out, visibility 0s 0s;
+    transition: transform 0.3s ease-out, visibility 0s 0s;
+  }
+
+  header .nav-item.active > .mega-panel > * {
+    opacity: 1;
+    transition: opacity 0.5s ease-out 0.3s;
   }
 
   /* Sub-links area */
   header .mega-sub-links {
-    padding: 48px 55px 88px 112px;
-    max-width: none;
-    margin: 0 auto;
+    padding: 48px 55px 88px 154px;
   }
 
   header .mega-sub-links-inner {
@@ -881,6 +888,7 @@ header .mega-expand-link:hover {
 
   header .mega-link:hover {
     color: var(--header-blue);
+    font-weight: 700;
   }
 
   /* --- Desktop Expandable Items --- */
@@ -894,6 +902,10 @@ header .mega-expand-link:hover {
     flex-direction: row;
     justify-content: flex-start;
     gap: 12px;
+  }
+
+  header .mega-expand-btn:hover {
+    font-weight: 700;
   }
 
   header .mega-expand-icon::before {
@@ -940,7 +952,7 @@ header .mega-expand-link:hover {
   /* --- Mega Promo Desktop --- */
   header .mega-promo {
     background: var(--header-promo-bg);
-    padding: 80px 55px 0 112px;
+    padding: 80px 55px 0 154px;
     order: 0;
     border-radius: 40px 0 0;
   }

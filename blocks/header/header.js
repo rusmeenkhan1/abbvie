@@ -116,6 +116,7 @@ function closeAllMenus(nav) {
     if (btn) btn.setAttribute('aria-expanded', 'false');
   });
   nav.classList.remove('mega-open');
+  document.body.style.overflow = '';
 }
 
 function closeMobileMenu(nav) {
@@ -453,6 +454,7 @@ function decorateNavSections(navSections, nav, promoMap) {
             li.classList.add('active');
             btn.setAttribute('aria-expanded', 'true');
             nav.classList.add('mega-open');
+            document.body.style.overflow = 'hidden';
           }
         } else {
           // Mobile: open submenu
