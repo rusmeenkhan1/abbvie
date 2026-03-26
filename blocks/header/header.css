@@ -76,7 +76,13 @@ header .nav-utility-btn img {
 
 /* --- Brand / Logo --- */
 header .nav-brand {
+  grid-area: brand;
+  flex-basis: 110px;
   flex-shrink: 0;
+  font-size: var(--heading-font-size-s);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-navy);
 }
 
 header .nav-brand p {
@@ -172,16 +178,6 @@ header nav[aria-expanded='true'] .nav-hamburger-icon::after {
     display: none;
     visibility: hidden;
   }
-}
-
-/* brand */
-header .nav-brand {
-  grid-area: brand;
-  flex-basis: 110px;
-  font-size: var(--heading-font-size-s);
-  font-weight: 700;
-  line-height: 1;
-  color: var(--color-navy);
 }
 
 header nav .nav-brand a {
@@ -304,6 +300,7 @@ header .search-submit {
 }
 
 /* === MOBILE NAV SECTIONS === */
+/* stylelint-disable-next-line no-descending-specificity */
 header .nav-sections {
   display: none;
   position: fixed;
@@ -869,6 +866,7 @@ header .mega-expand-link:hover {
     width: 100%;
   }
 
+  /* stylelint-disable-next-line no-descending-specificity */
   header .nav-sections .default-content-wrapper > ul {
     display: flex;
     align-items: center;
@@ -1063,6 +1061,7 @@ header nav .nav-tools a:hover {
   line-height: 1.1;
 }
 
+/* stylelint-disable-next-line no-descending-specificity */
 .mega-menu-content-text p {
   font-size: 16px;
   line-height: 1.5;
