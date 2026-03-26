@@ -865,7 +865,7 @@ header .mega-expand-link:hover {
 
   /* Sub-links area */
   header .mega-sub-links {
-    padding: 48px 55px 88px 154px;
+    padding: 48px 55px 88px 343px;
   }
 
   header .mega-sub-links-inner {
@@ -887,7 +887,6 @@ header .mega-expand-link:hover {
   }
 
   header .mega-link:hover {
-    color: var(--header-blue);
     font-weight: 700;
   }
 
@@ -952,7 +951,7 @@ header .mega-expand-link:hover {
   /* --- Mega Promo Desktop --- */
   header .mega-promo {
     background: var(--header-promo-bg);
-    padding: 80px 55px 0 154px;
+    padding: 80px 55px 0 343px;
     order: 0;
     border-radius: 40px 0 0;
   }
