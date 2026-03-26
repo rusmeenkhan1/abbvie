@@ -37,6 +37,7 @@ header .nav-header-bar {
   position: relative;
   z-index: 10;
   background: #fff;
+  border-bottom: 1px solid #e5e5e5;
 }
 
 header .nav-header-right {
@@ -198,6 +199,13 @@ header nav .nav-sections {
   display: none;
 }
 
+/* Default: show hamburger, hide close */
+header .nav-hamburger .icon-close {
+  display: none;
+}
+
+/* Expanded: show close, hide hamburger */
+/* stylelint-disable-next-line no-descending-specificity */
 header nav[aria-expanded='true'] .nav-hamburger .icon-hamburger {
   display: none;
 }
@@ -905,6 +913,21 @@ header .mega-expand-link:hover {
 
   header .nav-item-btn span {
     position: relative;
+  }
+
+  /* Active nav item: bold + blue underline */
+  header .nav-item.active > .nav-item-btn {
+    font-weight: 700;
+  }
+
+  header .nav-item.active > .nav-item-btn span::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--header-blue);
   }
 
   header nav .nav-sections .default-content-wrapper > ul > li > ul > li {
