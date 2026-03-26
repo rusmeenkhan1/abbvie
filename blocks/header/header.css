@@ -1,69 +1,108 @@
-/* header and nav layout */
+/* === AbbVie Header - Mobile First === */
+
+/* --- Variables --- */
+header {
+  --header-nav-height: 72px;
+  --header-navy: #071d49;
+  --header-blue: #0066f5;
+  --header-promo-bg: #f1f3ff;
+  --header-font: 'Roboto', 'Helvetica Neue', helvetica, arial, sans-serif;
+  --header-max-width: 1440px;
+}
+
+/* --- Wrapper --- */
 header .nav-wrapper {
-  background-color: var(--background-color);
+  background-color: #fff;
   width: 100%;
-  z-index: 2;
+  z-index: 100;
   position: fixed;
   border-bottom: none;
   box-shadow: none;
 }
 
 header nav {
-  box-sizing: border-box;
-  display: grid;
-  grid-template:
-    'hamburger brand tools' var(--nav-height)
-    'sections sections sections' 1fr / auto 1fr auto;
+  font-family: var(--header-font);
+  position: relative;
+}
+
+/* --- Header Bar (logo + search + hamburger) --- */
+header .nav-header-bar {
+  display: flex;
   align-items: center;
-  gap: 0 24px;
-  margin: auto;
-  max-width: 1248px;
-  height: var(--nav-height);
-  padding: 0 24px;
-  font-family: var(--body-font-family);
+  justify-content: space-between;
+  height: var(--header-nav-height);
+  padding: 0 35px;
+  max-width: var(--header-max-width);
+  margin: 0 auto;
+  position: relative;
+  z-index: 10;
+  background: #fff;
 }
 
-header nav[aria-expanded='true'] {
-  grid-template:
-    'hamburger brand' var(--nav-height)
-    'sections sections' 1fr
-    'tools tools' var(--nav-height) / auto 1fr;
-  overflow-y: auto;
-  min-height: 100dvh;
+header .nav-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-@media (width >= 900px) {
-  header .nav-wrapper {
-    position: relative;
-  }
-
-  header nav {
-    display: flex;
-    justify-content: space-between;
-    gap: 0 32px;
-    max-width: 1264px;
-    padding: 0 32px;
-  }
-
-  header nav[aria-expanded='true'] {
-    min-height: 0;
-    overflow: visible;
-  }
+/* --- Utility Nav (MORE + GLOBAL) --- */
+header .nav-utility {
+  display: none;
 }
 
-header nav p {
+header .nav-utility-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  font-family: var(--header-font);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--header-navy);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+
+header .nav-utility-btn img {
+  width: 20px;
+  height: 20px;
+}
+
+/* GLOBAL hidden by default, shown on desktop via .nav-utility flex */
+
+/* --- Brand / Logo --- */
+header .nav-brand {
+  grid-area: brand;
+  flex-basis: 110px;
+  flex-shrink: 0;
+  font-size: var(--heading-font-size-s);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-navy);
+}
+
+header .nav-brand p {
   margin: 0;
   line-height: 1;
 }
 
-header nav a:any-link {
-  color: currentcolor;
+header .nav-brand-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
 }
 
-/* hamburger */
-header nav .nav-hamburger {
-  grid-area: hamburger;
-  height: 22px;
+header .nav-brand img {
+  width: 110px;
+  height: auto;
+}
+
+/* --- Hamburger --- */
+header .nav-hamburger {
   display: flex;
   align-items: center;
 }
@@ -141,16 +180,6 @@ header nav[aria-expanded='true'] .nav-hamburger-icon::after {
   }
 }
 
-/* brand */
-header .nav-brand {
-  grid-area: brand;
-  flex-basis: 110px;
-  font-size: var(--heading-font-size-s);
-  font-weight: 700;
-  line-height: 1;
-  color: var(--color-navy);
-}
-
 header nav .nav-brand a {
   color: var(--color-navy);
   text-decoration: none;
@@ -167,16 +196,130 @@ header nav .nav-sections {
   grid-area: sections;
   flex: 1 1 auto;
   display: none;
-  visibility: hidden;
+}
+
+header nav[aria-expanded='true'] .nav-hamburger .icon-hamburger {
+  display: none;
+}
+
+header nav[aria-expanded='true'] .nav-hamburger .icon-close {
+  display: block;
+}
+
+/* --- Search Button --- */
+header .nav-search {
+  position: relative;
+}
+
+header .nav-search-btn {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--header-navy);
+}
+
+header .nav-search-close {
+  display: none;
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--header-navy);
+  align-items: center;
+  justify-content: center;
+}
+
+header nav.search-open .nav-search-close {
+  display: flex;
+}
+
+header nav.search-open .nav-search-btn {
+  display: none;
+}
+
+/* --- Search Panel --- */
+header .nav-search-panel {
+  display: none;
+  position: fixed;
+  top: var(--header-nav-height);
+  left: 0;
+  right: 0;
+  background: #fff;
+  z-index: 90;
+  padding: 40px 35px 60px;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 10%);
+}
+
+header nav.search-open .nav-search-panel {
+  display: block;
+}
+
+header .search-panel-inner {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+header .search-label {
+  display: block;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--header-navy);
+  margin-bottom: 16px;
+  font-family: var(--header-font);
+}
+
+header .search-input-wrap {
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid var(--header-navy);
+  padding-bottom: 8px;
+}
+
+header .search-input-wrap input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 18px;
+  font-family: var(--header-font);
+  color: var(--header-navy);
+  background: transparent;
+  padding: 4px 0;
+}
+
+header .search-submit {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--header-navy);
+  display: flex;
+}
+
+/* === MOBILE NAV SECTIONS === */
+/* stylelint-disable-next-line no-descending-specificity */
+header .nav-sections {
+  display: none;
+  position: fixed;
+  inset: var(--header-nav-height) 0 0 0;
+  background: #fff;
+  overflow-y: auto;
+  z-index: 80;
+  padding: 0;
 }
 
 header nav[aria-expanded='true'] .nav-sections {
   display: block;
-  visibility: visible;
-  align-self: start;
 }
 
-header nav .nav-sections ul {
+header .nav-sections .default-content-wrapper {
+  padding: 0 35px;
+}
+
+header .nav-sections .default-content-wrapper > ul {
   list-style: none;
   padding-left: 0;
   font-size: 18px;
@@ -197,23 +340,481 @@ header nav .nav-sections ul > li > a:hover {
   opacity: 0.7;
 }
 
-header nav .nav-sections ul > li > ul {
-  margin-top: 0;
-}
-
-header nav .nav-sections ul > li > ul > li {
+header .nav-item-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 24px 0;
+  background: none;
+  border: none;
+  font-size: 32px;
   font-weight: 400;
+  color: var(--header-navy);
+  cursor: pointer;
+  font-family: var(--header-font);
+  text-align: left;
+  line-height: 1.25;
 }
 
-@media (width >= 900px) {
-  header nav .nav-sections {
-    display: block;
-    visibility: visible;
-    white-space: nowrap;
+header .nav-item-btn::after {
+  content: '→';
+  display: inline-block;
+  font-size: 20px;
+  border: none;
+  transform: none;
+  width: auto;
+  height: auto;
+  flex-shrink: 0;
+  margin-left: 16px;
+  color: var(--header-navy);
+}
+
+header .nav-item-link {
+  display: block;
+  padding: 24px 0;
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--header-navy);
+  text-decoration: none;
+}
+
+/* --- Mega Panel (hidden on mobile by default) --- */
+header .mega-panel {
+  display: none;
+  flex-direction: column;
+}
+
+/* --- Mobile Back Button --- */
+header .nav-back-btn {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 0 35px;
+  height: var(--header-nav-height);
+  background: #fff;
+  border: none;
+  border-bottom: none;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--header-navy);
+  cursor: pointer;
+  font-family: var(--header-font);
+  text-transform: uppercase;
+  letter-spacing: 0.96px;
+  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+header .nav-back-btn svg {
+  color: var(--header-navy);
+}
+
+header .nav-sections.submenu-active .nav-back-btn {
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 200;
+  width: auto;
+}
+
+/* Hide logo when submenu is active */
+header .nav-header-bar:has(.nav-sections.submenu-active) .nav-brand {
+  visibility: hidden;
+}
+
+/* --- Mobile Submenu Open State --- */
+header .nav-sections.submenu-active .default-content-wrapper > ul > .nav-item {
+  display: none;
+}
+
+header .nav-sections.submenu-active .default-content-wrapper > ul > .nav-item.mobile-submenu-open {
+  display: block;
+  border-bottom: none;
+}
+
+header .nav-sections.submenu-active .nav-item.mobile-submenu-open > .nav-item-btn {
+  display: none;
+}
+
+header .nav-sections.submenu-active .nav-item.mobile-submenu-open > .mega-panel {
+  display: flex;
+}
+
+header .mega-promo {
+  order: -1;
+  background: var(--header-promo-bg);
+  padding: 32px 35px;
+}
+
+header .mega-promo-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+header .mega-sub-links {
+  padding: 0 35px;
+}
+
+header .mega-sub-links-inner {
+  display: flex;
+  flex-direction: column;
+}
+
+header .mega-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 0;
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--header-navy);
+  text-decoration: none;
+  border-bottom: 1px solid #b9b4b4;
+  font-family: var(--header-font);
+}
+
+header .mega-link:hover {
+  color: var(--header-navy);
+  text-decoration: none;
+}
+
+header .mega-close {
+  display: none;
+}
+
+/* --- Promo Info Column --- */
+header .mega-promo-info h4 {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--header-navy);
+  margin: 0 0 12px;
+  font-family: var(--header-font);
+}
+
+header .mega-promo-info p {
+  font-size: 14px;
+  color: var(--header-navy);
+  margin: 0 0 20px;
+  line-height: 1.5;
+  font-family: var(--header-font);
+}
+
+header .mega-go-to-page {
+  display: inline-flex;
+  align-items: center;
+  padding: 16px 40px;
+  border: 1px solid var(--header-blue);
+  color: var(--header-blue);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  font-family: var(--header-font);
+  transition: background 0.2s, color 0.2s;
+}
+
+header .mega-go-to-page:hover {
+  background: var(--header-blue);
+  color: #fff;
+  text-decoration: none;
+}
+
+/* --- Quick Links --- */
+header .mega-quick-links {
+  margin-top: 20px;
+}
+
+header .mega-quick-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--header-navy);
+  text-decoration: none;
+  font-family: var(--header-font);
+  border-top: 1px solid #a6b5e0;
+}
+
+header .mega-quick-link:last-child {
+  border-bottom: 1px solid #a6b5e0;
+}
+
+header .mega-quick-link:hover {
+  color: var(--header-navy);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+header .mega-quick-link svg {
+  flex-shrink: 0;
+  color: var(--header-navy);
+}
+
+/* --- Promo Featured Card --- */
+header .mega-promo-card {
+  display: none;
+  flex-direction: column;
+  border: 1px solid #a6b5e0;
+  text-decoration: none;
+  color: var(--header-navy);
+  overflow: hidden;
+}
+
+header .mega-promo-card:hover {
+  text-decoration: none;
+  color: var(--header-navy);
+}
+
+header .mega-promo-card-content {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+header .mega-promo-card-tag {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-navy);
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  margin-bottom: 16px;
+  font-family: var(--header-font);
+}
+
+header .mega-promo-card-title {
+  font-size: 24px;
+  font-weight: 650;
+  color: var(--header-navy);
+  margin: 0 0 auto;
+  line-height: 1.2;
+  font-family: var(--header-font);
+}
+
+header .mega-promo-card-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  margin-top: 20px;
+  font-family: var(--header-font);
+}
+
+header .mega-promo-card-cta svg {
+  color: var(--header-blue);
+}
+
+/* --- Promo Stats Counter --- */
+header .mega-promo-counter {
+  display: none;
+  padding: 24px;
+  border: 1px solid #a6b5e0;
+}
+
+header .mega-counter-eyebrow {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-navy);
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  margin-bottom: 12px;
+  font-family: var(--header-font);
+}
+
+header .mega-counter-number {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+header .mega-counter-value {
+  font-size: 56px;
+  font-weight: 650;
+  color: var(--header-blue);
+  line-height: 1;
+  font-family: var(--header-font);
+}
+
+header .mega-counter-suffix {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--header-blue);
+  font-family: var(--header-font);
+}
+
+header .mega-counter-desc {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--header-navy);
+  line-height: 1.4;
+  margin: 0;
+  font-family: var(--header-font);
+}
+
+/* --- Expandable Sub-Items (mobile base) --- */
+header .mega-expand-item {
+  border-bottom: 1px solid #b9b4b4;
+}
+
+header .mega-expand-btn {
+  display: flex;
+  align-items: center;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  width: 100%;
+  padding: 24px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--header-navy);
+  font-family: var(--header-font);
+  text-align: left;
+}
+
+header .mega-expand-icon::before {
+  content: '+';
+  display: inline-block;
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--header-navy);
+  width: 20px;
+  text-align: center;
+}
+
+header .mega-expand-item.expanded .mega-expand-icon::before {
+  content: '\2212';
+}
+
+header .mega-expand-item.expanded .mega-expand-btn {
+  font-weight: 800;
+}
+
+header .mega-expand-panel {
+  display: none;
+  padding: 0 0 16px 32px;
+}
+
+header .mega-expand-item.expanded .mega-expand-panel {
+  display: block;
+}
+
+header .mega-expand-goto {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-blue);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  font-family: var(--header-font);
+  margin-bottom: 12px;
+}
+
+header .mega-expand-goto:hover {
+  text-decoration: none;
+  color: var(--header-navy);
+}
+
+header .mega-expand-goto svg {
+  color: var(--header-blue);
+}
+
+header .mega-expand-link {
+  display: block;
+  padding: 8px 0;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--header-navy);
+  text-decoration: none;
+  font-family: var(--header-font);
+}
+
+header .mega-expand-link:hover {
+  color: var(--header-navy);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* ============================
+   TABLET (600px - 899px)
+   ============================ */
+@media (width >= 600px) {
+  header .nav-header-bar {
+    padding: 0 70px;
   }
 
-  header nav[aria-expanded='true'] .nav-sections {
-    align-self: unset;
+  header .nav-search-panel {
+    padding: 48px 70px 72px;
+  }
+
+  header .search-label {
+    font-size: 32px;
+  }
+
+  header .nav-sections .default-content-wrapper {
+    padding: 0 70px;
+  }
+
+  header .nav-item-btn {
+    padding: 24px 0;
+    font-size: 14px;
+  }
+
+  header .nav-item-link {
+    padding: 24px 0;
+    font-size: 14px;
+  }
+
+  header .mega-link {
+    padding: 20px 0;
+    font-size: 14px;
+  }
+
+  header .mega-sub-links {
+    padding: 0 70px;
+  }
+
+  header .mega-promo {
+    padding: 40px 70px;
+  }
+
+  header .nav-back-btn {
+    padding: 0 70px;
+  }
+
+}
+
+/* ============================
+   DESKTOP (900px+)
+   ============================ */
+@media (width >= 900px) {
+  header {
+    --header-nav-height: 88px;
+
+    height: auto;
+  }
+
+  header .nav-wrapper {
+    position: sticky;
+    top: 0;
+    box-shadow: none;
   }
 
   header nav .nav-sections .nav-drop {
@@ -233,14 +834,75 @@ header nav .nav-sections ul > li > ul > li {
     margin: 0;
   }
 
-  header nav .nav-sections .default-content-wrapper > ul > li {
-    flex: 0 1 auto;
-    position: relative;
+  header .nav-brand img {
+    width: 110px;
   }
 
   /* Hide the old small dropdown on desktop - mega-menu replaces it */
   header nav .nav-sections .default-content-wrapper > ul > li > ul {
     display: none;
+  }
+
+  /* --- Utility Nav visible on desktop --- */
+  header .nav-utility {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* --- Nav Sections inline on desktop --- */
+  header .nav-sections {
+    display: flex;
+    position: static;
+    overflow: visible;
+    background: transparent;
+    padding: 0;
+    flex: 1;
+    height: auto;
+    align-items: center;
+  }
+
+  header .nav-sections .default-content-wrapper {
+    width: 100%;
+  }
+
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .nav-sections .default-content-wrapper > ul {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 0;
+    padding-left: 108px;
+  }
+
+  header .nav-item {
+    border-bottom: none;
+    position: relative;
+    margin-right: 32px;
+  }
+
+  header .nav-item:last-child {
+    margin-right: 0;
+  }
+
+  header .nav-item-btn {
+    padding: 0;
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--header-navy);
+    white-space: nowrap;
+    position: relative;
+    font-family: var(--header-font);
+    height: var(--header-nav-height);
+    display: flex;
+    align-items: center;
+  }
+
+  header .nav-item-btn::after {
+    display: none;
+  }
+
+  header .nav-item-btn span {
     position: relative;
   }
 
@@ -254,9 +916,13 @@ header nav .nav-sections ul > li > ul > li {
   }
 }
 
-/* tools */
-header nav .nav-tools {
-  grid-area: tools;
+/* ============================
+   LARGE DESKTOP (1200px+)
+   ============================ */
+@media (width >= 1200px) {
+  header .nav-brand img {
+    width: 110px;
+  }
 }
 
 /* stylelint-disable-next-line no-descending-specificity */
@@ -395,6 +1061,7 @@ header nav .nav-tools a:hover {
   line-height: 1.1;
 }
 
+/* stylelint-disable-next-line no-descending-specificity */
 .mega-menu-content-text p {
   font-size: 16px;
   line-height: 1.5;
