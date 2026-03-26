@@ -773,7 +773,7 @@ header .mega-expand-link:hover {
   header .nav-item {
     border-bottom: none;
     position: relative;
-    margin-right: 48px;
+    margin-right: 32px;
   }
 
   header .nav-item:last-child {
@@ -828,7 +828,6 @@ header .mega-expand-link:hover {
 
   /* --- Mega Panel Desktop --- */
   header .mega-panel {
-    display: none;
     position: fixed;
     top: var(--header-nav-height);
     left: 0;
@@ -837,10 +836,22 @@ header .mega-expand-link:hover {
     background: #fff;
     z-index: 100;
     box-shadow: none;
+    border-top: 1px solid #b9b4b4;
+    overflow-y: auto;
+    max-height: calc(100vh - var(--header-nav-height));
+    transform: translateY(-100%);
+    opacity: 0;
+    visibility: hidden;
+    transition: transform 0.3s ease-out, opacity 0.2s ease-out, visibility 0s 0.3s;
+    display: flex;
+    flex-direction: column;
   }
 
   header .nav-item.active > .mega-panel {
-    display: block;
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+    transition: transform 0.3s ease-out, opacity 0.2s ease-out, visibility 0s 0s;
   }
 
   /* Sub-links area */
@@ -848,12 +859,11 @@ header .mega-expand-link:hover {
     padding: 48px 55px 88px 112px;
     max-width: none;
     margin: 0 auto;
-    position: relative;
   }
 
   header .mega-sub-links-inner {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 278px));
     gap: 40px 20px;
   }
 
