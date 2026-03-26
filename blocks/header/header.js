@@ -448,7 +448,31 @@ function decorateNavSections(navSections, nav, promoMap) {
       btn.addEventListener('click', () => {
         if (isDesktop.matches) {
           const isActive = li.classList.contains('active');
-          closeAllMenus(nav);
+          const wasOpen = nav.classList.contains('mega-open');
+
+          // When switching menus, skip close animation on old panel
+          if (wasOpen && !isActive) {
+            const oldPanel = nav.querySelector('.nav-item.active .mega-panel');
+            if (oldPanel) {
+              oldPanel.style.transition = 'none';
+              oldPanel.querySelectorAll(':scope > *').forEach((child) => {
+                child.style.transition = 'none';
+              });
+            }
+            closeAllMenus(nav);
+            if (oldPanel) {
+              /* eslint-disable no-unused-expressions */
+              oldPanel.offsetHeight; // force reflow
+              /* eslint-enable no-unused-expressions */
+              oldPanel.style.transition = '';
+              oldPanel.querySelectorAll(':scope > *').forEach((child) => {
+                child.style.transition = '';
+              });
+            }
+          } else {
+            closeAllMenus(nav);
+          }
+
           nav.classList.remove('search-open');
           if (!isActive) {
             li.classList.add('active');

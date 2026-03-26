@@ -386,7 +386,7 @@ header .mega-link {
 }
 
 header .mega-link:hover {
-  color: var(--header-blue);
+  color: var(--header-navy);
   text-decoration: none;
 }
 
@@ -455,7 +455,8 @@ header .mega-quick-link:last-child {
 }
 
 header .mega-quick-link:hover {
-  color: var(--header-blue);
+  color: var(--header-navy);
+  font-weight: 700;
   text-decoration: none;
 }
 
@@ -653,7 +654,8 @@ header .mega-expand-link {
 }
 
 header .mega-expand-link:hover {
-  color: var(--header-blue);
+  color: var(--header-navy);
+  font-weight: 700;
   text-decoration: none;
 }
 
@@ -887,6 +889,7 @@ header .mega-expand-link:hover {
   }
 
   header .mega-link:hover {
+    color: var(--header-navy);
     font-weight: 700;
   }
 
