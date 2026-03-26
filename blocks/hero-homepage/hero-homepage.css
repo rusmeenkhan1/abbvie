@@ -7,7 +7,8 @@
 .hero-homepage {
   position: relative;
   isolation: isolate;
-  padding: 60px 24px 80px;
+  box-sizing: border-box;
+  padding: 60px 24px 200px;
   min-height: 520px;
   display: flex;
   flex-direction: column;
@@ -116,8 +117,8 @@
 
 @media (width >= 900px) {
   .hero-homepage {
-    padding: 80px 32px 100px;
-    min-height: 640px;
+    padding: 80px 55px 280px;
+    min-height: 720px;
   }
 
   .hero-homepage h1 {
@@ -127,9 +128,14 @@
 }
 
 @media (width >= 1200px) {
+  .hero-homepage {
+    min-height: 810px;
+    padding: 80px 55px 310px;
+  }
+
   .hero-homepage h1 {
     font-size: 64px;
     line-height: 68px;
-    max-width: 700px;
+    max-width: none;
   }
 }

@@ -1,58 +1,56 @@
 .columns-info-wrapper {
   background-color: var(--background-color);
-  padding: 48px 0;
-}
-
-/* Hide empty columns-info blocks */
-.columns-info:not(:has(> div > div)) {
-  display: none;
-}
-
-/* stylelint-disable-next-line no-descending-specificity */
-.columns-info-wrapper:has(.columns-info:not(:has(> div > div))) {
-  display: none;
+  padding: 0;
 }
 
 .columns-info > div {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
 }
 
 .columns-info > div > div {
-  order: 1;
-}
-
-.columns-info > div > .columns-info-img-col {
-  order: 0;
-}
-
-.columns-info img {
-  width: 100%;
-  display: block;
-  border-radius: 8px;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  display: flex;
+  flex-direction: column;
 }
 
 /* stylelint-disable-next-line no-descending-specificity */
-.columns-info .columns-info-img-col {
-  margin-bottom: 16px;
+.columns-info > div > div > p:first-child {
+  order: 0;
+  margin: 0;
+  line-height: 0;
 }
 
-.columns-info h5 {
-  font-size: var(--heading-font-size-s);
-  font-weight: 700;
-  color: var(--color-navy);
-  margin-top: 0;
+.columns-info > div > div > p:first-child img,
+.columns-info > div > div > .columns-info-img-col img {
+  width: 100%;
+  display: block;
+  border-radius: 16px;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
 }
 
-.columns-info p {
+.columns-info > div > div > .columns-info-img-col {
+  order: 0;
+  margin: 0;
+  line-height: 0;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+.columns-info > div > div > p:nth-child(2) {
+  order: 1;
   font-size: var(--body-font-size-s);
-  line-height: 1.5;
+  line-height: 1.6;
+  color: var(--text-color);
+  margin: 16px 0 8px;
 }
 
-.columns-info a {
+.columns-info > div > div > p:last-child {
+  order: 2;
+  margin: 8px 0 0;
+}
+
+.columns-info > div > div > p:last-child a {
   font-weight: 700;
   font-size: var(--body-font-size-xs);
   text-transform: uppercase;
@@ -61,13 +59,11 @@
 
 @media (width >= 900px) {
   .columns-info > div {
-    align-items: flex-start;
     flex-direction: row;
-    gap: 48px;
+    gap: 32px;
   }
 
   .columns-info > div > div {
     flex: 1;
-    order: unset;
   }
 }

@@ -362,6 +362,20 @@ main > .section:first-of-type {
   padding-top: 0;
 }
 
+/* Full-width block wrappers need higher specificity to override main > .section > div */
+main > .section > .hero-homepage-wrapper,
+main > .section > .cards-news-wrapper,
+main > .section > .cards-esg-wrapper,
+main > .section > .columns-media-wrapper {
+  max-width: unset;
+  padding: 0;
+}
+
+main > .section > .hero-video-wrapper {
+  max-width: 1330px;
+  padding: 0;
+}
+
 /* section metadata */
 main .section.light,
 main .section.highlight {
@@ -444,7 +458,7 @@ main .section .default-content-wrapper p > img {
 main .section .default-content-wrapper hr {
   border: none;
   border-top: 1px solid var(--color-grey-border);
-  margin: 32px 0;
+  margin: 48px 0;
 }
 
 @media (width >= 900px) {

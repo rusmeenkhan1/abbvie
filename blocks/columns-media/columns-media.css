@@ -6,10 +6,10 @@
 
 .columns-media {
   position: relative;
-  background-color: var(--color-lavender);
+  background: linear-gradient(135deg, var(--color-navy) 0%, var(--color-lavender) 100%);
   border-radius: 40px 0 0;
   padding: 48px 32px;
-  min-height: 200px;
+  min-height: 160px;
   max-width: var(--content-max-width);
   margin: 0 auto;
   overflow: hidden;
@@ -19,6 +19,7 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+  align-items: flex-start;
 }
 
 .columns-media > div > div {
@@ -40,56 +41,51 @@
   display: block;
 }
 
-.columns-media h2 {
-  font-size: var(--body-font-size-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-navy);
-  margin-bottom: 8px;
-}
-
-.columns-media h5 {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--color-navy);
-  margin-top: 0;
-  line-height: 1.14;
-}
-
 .columns-media h4 {
-  font-size: 40px;
-  font-weight: 700;
-  color: var(--color-navy);
-  margin-top: 4px;
-  line-height: 1.1;
+  font-size: var(--heading-font-size-l);
+  font-weight: 800;
+  color: var(--background-color);
+  margin: 0 0 12px;
+  line-height: 1.15;
 }
 
+/* stylelint-disable-next-line no-descending-specificity */
 .columns-media p {
   font-size: var(--body-font-size-s);
   line-height: 1.5;
-  color: var(--color-navy);
+  color: var(--background-color);
+  margin: 0 0 8px;
+  opacity: 0.9;
 }
 
 .columns-media a:any-link {
-  color: var(--background-color);
+  color: var(--color-navy);
   font-weight: 700;
   font-size: var(--body-font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  background-color: var(--color-navy);
-  padding: 16px 40px;
+  background-color: var(--background-color);
+  padding: 14px 36px;
   display: inline-block;
+  text-decoration: none;
+  border: none;
+  transition: opacity var(--transition-speed);
+}
+
+.columns-media a:hover {
+  opacity: 0.9;
+  text-decoration: none;
 }
 
 @media (width >= 900px) {
   .columns-media {
-    padding: 64px 48px;
+    padding: 56px 64px;
+    border-radius: 40px 0 0;
   }
 
-  .columns-media h5 {
-    font-size: 48px;
-    line-height: 1.08;
+  .columns-media h4 {
+    font-size: 36px;
+    line-height: 1.1;
   }
 
   .columns-media > div {
@@ -103,7 +99,8 @@
     order: unset;
   }
 
-  .columns-media > div > .columns-media-img-col {
-    flex: 0 0 45%;
+  .columns-media > div > div:last-child {
+    flex: 0 0 auto;
+    text-align: right;
   }
 }
