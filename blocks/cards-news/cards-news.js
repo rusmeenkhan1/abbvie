@@ -63,9 +63,12 @@ export default function decorate(block) {
       }
     });
     card.querySelectorAll('picture > img').forEach((img) => {
-      const optimizedPic = createOptimizedPicture(img.src, img.alt, false, [{ width: '750' }]);
-      moveInstrumentation(img, optimizedPic.querySelector('img'));
-      img.closest('picture').replaceWith(optimizedPic);
+      const isExternal = img.src.startsWith('http') && !img.src.startsWith(window.location.origin);
+      if (!isExternal) {
+        const optimizedPic = createOptimizedPicture(img.src, img.alt, false, [{ width: '750' }]);
+        moveInstrumentation(img, optimizedPic.querySelector('img'));
+        img.closest('picture').replaceWith(optimizedPic);
+      }
     });
     featCol.append(card);
   });

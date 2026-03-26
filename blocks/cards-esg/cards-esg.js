@@ -10,10 +10,13 @@ export default function decorate(block) {
   if (bgRow) {
     const bgImg = bgRow.querySelector('img');
     if (bgImg) {
-      const optimizedPic = createOptimizedPicture(bgImg.src, bgImg.alt, false, [{ width: '1200' }]);
+      const isExternal = bgImg.src.startsWith('http') && !bgImg.src.startsWith(window.location.origin);
+      const bgPic = isExternal
+        ? bgImg.closest('picture') || bgImg
+        : createOptimizedPicture(bgImg.src, bgImg.alt, false, [{ width: '1200' }]);
       const bgContainer = document.createElement('div');
       bgContainer.className = 'cards-esg-bg';
-      bgContainer.append(optimizedPic);
+      bgContainer.append(bgPic);
       block.textContent = '';
       block.append(bgContainer);
     }
@@ -32,9 +35,12 @@ export default function decorate(block) {
   });
 
   ul.querySelectorAll('picture > img').forEach((img) => {
-    const optimizedPic = createOptimizedPicture(img.src, img.alt, false, [{ width: '750' }]);
-    moveInstrumentation(img, optimizedPic.querySelector('img'));
-    img.closest('picture').replaceWith(optimizedPic);
+    const isExternal = img.src.startsWith('http') && !img.src.startsWith(window.location.origin);
+    if (!isExternal) {
+      const optimizedPic = createOptimizedPicture(img.src, img.alt, false, [{ width: '750' }]);
+      moveInstrumentation(img, optimizedPic.querySelector('img'));
+      img.closest('picture').replaceWith(optimizedPic);
+    }
   });
 
   block.append(ul);
