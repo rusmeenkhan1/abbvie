@@ -357,6 +357,12 @@ header .mega-promo {
   padding: 32px 35px;
 }
 
+header .mega-promo-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
 header .mega-sub-links {
   padding: 0 35px;
 }
@@ -388,6 +394,7 @@ header .mega-close {
   display: none;
 }
 
+/* --- Promo Info Column --- */
 header .mega-promo-info h4 {
   font-size: 24px;
   font-weight: 800;
@@ -407,8 +414,8 @@ header .mega-promo-info p {
 header .mega-go-to-page {
   display: inline-flex;
   align-items: center;
-  padding: 14px 28px;
-  border: 2px solid var(--header-blue);
+  padding: 16px 40px;
+  border: 1px solid var(--header-blue);
   color: var(--header-blue);
   font-size: 14px;
   font-weight: 700;
@@ -425,6 +432,144 @@ header .mega-go-to-page:hover {
   text-decoration: none;
 }
 
+/* --- Quick Links --- */
+header .mega-quick-links {
+  margin-top: 20px;
+}
+
+header .mega-quick-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--header-navy);
+  text-decoration: none;
+  font-family: var(--header-font);
+  border-top: 1px solid #a6b5e0;
+}
+
+header .mega-quick-link:last-child {
+  border-bottom: 1px solid #a6b5e0;
+}
+
+header .mega-quick-link:hover {
+  color: var(--header-blue);
+  text-decoration: none;
+}
+
+header .mega-quick-link svg {
+  flex-shrink: 0;
+  color: var(--header-navy);
+}
+
+/* --- Promo Featured Card --- */
+header .mega-promo-card {
+  display: none;
+  flex-direction: column;
+  border: 1px solid #a6b5e0;
+  text-decoration: none;
+  color: var(--header-navy);
+  overflow: hidden;
+}
+
+header .mega-promo-card:hover {
+  text-decoration: none;
+  color: var(--header-navy);
+}
+
+header .mega-promo-card-content {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+header .mega-promo-card-tag {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-navy);
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  margin-bottom: 16px;
+  font-family: var(--header-font);
+}
+
+header .mega-promo-card-title {
+  font-size: 24px;
+  font-weight: 650;
+  color: var(--header-navy);
+  margin: 0 0 auto;
+  line-height: 1.2;
+  font-family: var(--header-font);
+}
+
+header .mega-promo-card-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  margin-top: 20px;
+  font-family: var(--header-font);
+}
+
+header .mega-promo-card-cta svg {
+  color: var(--header-blue);
+}
+
+/* --- Promo Stats Counter --- */
+header .mega-promo-counter {
+  display: none;
+  padding: 24px;
+  border: 1px solid #a6b5e0;
+}
+
+header .mega-counter-eyebrow {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-navy);
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  margin-bottom: 12px;
+  font-family: var(--header-font);
+}
+
+header .mega-counter-number {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+header .mega-counter-value {
+  font-size: 56px;
+  font-weight: 650;
+  color: var(--header-blue);
+  line-height: 1;
+  font-family: var(--header-font);
+}
+
+header .mega-counter-suffix {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--header-blue);
+  font-family: var(--header-font);
+}
+
+header .mega-counter-desc {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--header-navy);
+  line-height: 1.4;
+  margin: 0;
+  font-family: var(--header-font);
+}
+
 /* --- Expandable Sub-Items (mobile base) --- */
 header .mega-expand-item {
   border-bottom: 1px solid #b9b4b4;
@@ -433,7 +578,8 @@ header .mega-expand-item {
 header .mega-expand-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-direction: row-reverse;
+  justify-content: space-between;
   width: 100%;
   padding: 24px 0;
   background: none;
@@ -735,6 +881,9 @@ header .mega-expand-link:hover {
   header .mega-expand-btn {
     padding: 0;
     font-size: 26px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
   }
 
   header .mega-expand-icon::before {
@@ -781,12 +930,20 @@ header .mega-expand-link:hover {
   /* --- Mega Promo Desktop --- */
   header .mega-promo {
     background: var(--header-promo-bg);
-    padding: 80px 55px 60px 112px;
+    padding: 80px 55px 0 112px;
+    order: 0;
+    border-radius: 40px 0 0;
+  }
+
+  header .mega-promo-grid {
+    display: grid;
+    grid-template-columns: 4fr 3fr 4fr;
+    gap: 20px;
+    max-width: var(--header-max-width);
+    align-items: start;
   }
 
   header .mega-promo-info {
-    max-width: var(--header-max-width);
-    margin: 0 auto;
     display: block;
   }
 
@@ -795,27 +952,62 @@ header .mega-expand-link:hover {
     font-weight: 800;
     width: 100%;
     margin: 0 0 12px;
+    line-height: 1.1;
   }
 
   header .mega-promo-info p {
-    font-size: 15px;
+    font-size: 18px;
     max-width: 420px;
     margin: 0 0 24px;
-    line-height: 1.6;
+    line-height: 1.35;
   }
 
   header .mega-go-to-page {
-    display: inline-flex;
-    align-items: center;
-    padding: 14px 28px;
-    border: 2px solid var(--header-blue);
-    color: var(--header-blue);
-    font-size: 14px;
-    font-weight: 700;
-    text-decoration: none;
-    text-transform: uppercase;
-    letter-spacing: 0.84px;
-    font-family: var(--header-font);
+    padding: 16px 40px;
+    border: 1px solid var(--header-blue);
+    margin-bottom: 0;
+  }
+
+  header .mega-quick-links {
+    margin-top: 24px;
+  }
+
+  /* --- Desktop Featured Card --- */
+  header .mega-promo-card {
+    display: flex;
+    border: 1px solid #a6b5e0;
+    min-height: 200px;
+  }
+
+  header .mega-promo-card-content {
+    padding: 28px 24px;
+  }
+
+  header .mega-promo-card-title {
+    font-size: 32px;
+    font-weight: 650;
+    line-height: 1.12;
+  }
+
+  /* --- Desktop Stats Counter --- */
+  header .mega-promo-counter {
+    display: block;
+    border: 1px solid #a6b5e0;
+    padding: 28px 24px;
+  }
+
+  header .mega-counter-value {
+    font-size: 80px;
+    line-height: 1.05;
+  }
+
+  header .mega-counter-suffix {
+    font-size: 40px;
+  }
+
+  header .mega-counter-desc {
+    font-size: 16px;
+    line-height: 1.25;
   }
 
   /* --- Search & Tools desktop --- */

@@ -1,86 +1,111 @@
-import { getMetadata } from '../../scripts/aem.js';
+import { getMetadata, toClassName } from '../../scripts/aem.js';
 import { loadFragment } from '../fragment/fragment.js';
 
 const isDesktop = window.matchMedia('(min-width: 900px)');
 
-/* Nested sub-navigation data - third-level items not supported by EDS content model */
-const NESTED_NAV = {
-  'Our Principles': [
-    { text: 'Positions & Views', href: '/who-we-are/our-principles/positions-views' },
-    { text: 'Equity, Equality, Diversity & Inclusion', href: '/who-we-are/our-principles/equity-equality-inclusion-diversity' },
-  ],
-  'Operating with Integrity': [
-    { text: 'Protecting Human Rights and Workplace Safety', href: '/who-we-are/operating-with-integrity/protecting-human-rights-and-workplace-safety' },
-    { text: 'Transparency in Payments', href: '/who-we-are/operating-with-integrity/transparency-in-payment' },
-    { text: 'Responsible Supply Chain', href: '/who-we-are/operating-with-integrity/responsible-supply-chain' },
-    { text: "AbbVie's Code of Conduct", href: '/who-we-are/operating-with-integrity/abbvies-code-of-conduct' },
-  ],
-  'Our Stories': [
-    { text: 'Podcasts', href: '/who-we-are/our-stories/the-persistence-lab-podcasts' },
-  ],
-  'Brand Partnerships': [
-    { text: 'Chicago Cubs', href: '/who-we-are/brand-partnerships/cubs' },
-    { text: 'Major League Baseball', href: '/who-we-are/brand-partnerships/major-league-baseball' },
-  ],
-  'Areas of Focus': [
-    { text: 'Immunology', href: '/science/areas-of-focus/immunology' },
-    { text: 'Oncology', href: '/science/areas-of-focus/oncology' },
-    { text: 'Neuroscience', href: '/science/areas-of-focus/neuroscience' },
-    { text: 'Eye Care', href: '/science/areas-of-focus/eye-care' },
-    { text: 'Aesthetics', href: '/science/areas-of-focus/aesthetics' },
-    { text: 'Other Specialties', href: '/science/areas-of-focus/other-specialties' },
-  ],
-  'Areas of Innovation': [
-    { text: 'AI & Data Convergence', href: '/science/areas-of-innovation/ai-and-data-convergence' },
-    { text: 'Genomics', href: '/science/areas-of-innovation/genomics' },
-    { text: 'Patient-Focused Drug Development', href: '/science/areas-of-innovation/patient-focused-drug-development' },
-    { text: 'Precision Medicine', href: '/science/areas-of-innovation/precision-medicine' },
-    { text: 'Therapeutic Modalities & Platforms', href: '/science/areas-of-innovation/therapeutic-modalities-and-platforms' },
-  ],
-  'Our People': [
-    { text: 'Community of Science', href: '/science/our-people/community-of-science' },
-    { text: 'Our R&D Leaders', href: '/science/our-people/our-rd-leaders' },
-  ],
-  'Partner with Us': [
-    { text: 'Partnering Days', href: '/science/partner-with-us/partnering-days' },
-    { text: 'AbbVie Ventures', href: '/science/partner-with-us/abbvie-ventures' },
-  ],
-  'Clinical Trials': [
-    { text: 'Investigator-Initiated Studies', href: '/science/clinical-trials/investigator-initiated-studies' },
-  ],
-  'Independent Educational Grants': [
-    { text: 'How to Apply', href: '/science/independent-educational-grants/how-to-apply' },
-    { text: 'Request Types', href: '/science/independent-educational-grants/request-types' },
-    { text: 'Requestor Training Guide', href: '/science/independent-educational-grants/requestor-training-guide' },
-    { text: 'Grants and Contribution Disclosures', href: '/science/independent-educational-grants/grants-and-contribution-disclosures' },
-  ],
-  'Patient Support': [
-    { text: 'Patient Assistance', href: '/patients/patient-support/patient-assistance' },
-  ],
-  Opportunities: [
-    { text: 'Research & Development', href: '/join-us/opportunities/research-and-development' },
-    { text: 'Commercial', href: '/join-us/opportunities/commercial' },
-    { text: 'Corporate', href: '/join-us/opportunities/corporate' },
-    { text: 'Operations', href: '/join-us/opportunities/operations' },
-    { text: 'Allergan Aesthetics', href: '/join-us/opportunities/allergan-aesthetics' },
-  ],
-  'Life at AbbVie': [
-    { text: 'Benefits', href: '/join-us/life-at-abbvie/benefits' },
-    { text: 'Learning & Development', href: '/join-us/life-at-abbvie/learning-and-development' },
-    { text: 'Well-Being in the Workplace', href: '/join-us/life-at-abbvie/well-being-in-the-workplace' },
-    { text: 'Employee Resource Groups', href: '/join-us/life-at-abbvie/employee-resource-groups' },
-  ],
-  'Students & New Graduates': [
-    { text: 'New Graduates & Entry-Level positions', href: '/join-us/student-and-new-graduates/new-graduates-and-entry-level-positions' },
-  ],
-  'AbbVie Foundation': [
-    { text: 'Addressing Systemic Barriers', href: '/sustainability/abbvie-foundation/addressing-systemic-barriers' },
-    { text: 'Innovative Impact', href: '/sustainability/abbvie-foundation/innovative-impact' },
-  ],
-  'Environmental, Social & Governance': [
-    { text: 'Resources', href: '/sustainability/environmental-social-and-governance/resources' },
-  ],
-};
+/**
+ * Determines if a link should open externally.
+ * External: absolute URLs to different domains, PDF files.
+ * @param {string} href The link href
+ * @returns {boolean}
+ */
+function isExternalLink(href) {
+  if (!href) return false;
+  try {
+    const url = new URL(href, window.location.origin);
+    if (url.origin !== window.location.origin) return true;
+    if (url.pathname.toLowerCase().endsWith('.pdf')) return true;
+  } catch { /* treat as internal */ }
+  return false;
+}
+
+/**
+ * Parses mega-promo blocks from the nav fragment into a lookup map.
+ * Each block's variant class identifies which nav section it belongs to.
+ * Removes the promo section(s) from the DOM after parsing.
+ *
+ * Block row structure (5 rows):
+ *   Row 0: quick-link-1 | quick-link-2
+ *   Row 1: card-tag      | card-title
+ *   Row 2: card-cta-link | (empty)
+ *   Row 3: counter-eyebrow | counter-number+suffix
+ *   Row 4: counter-description | (empty)
+ *
+ * @param {HTMLElement} nav The nav element
+ * @returns {Map<string, object>} kebab-case section name -> promo data
+ */
+function parseMegaPromos(nav) {
+  const promos = new Map();
+  const promoSections = nav.querySelectorAll('.section.mega-promo-container');
+
+  promoSections.forEach((section) => {
+    section.querySelectorAll('.mega-promo.block').forEach((block) => {
+      const variantClass = [...block.classList].find(
+        (c) => c !== 'mega-promo' && c !== 'block',
+      );
+      if (!variantClass) return;
+
+      const rows = [...block.querySelectorAll(':scope > div')];
+      if (rows.length < 5) return;
+
+      const cellText = (rowIdx, colIdx) => {
+        const cell = rows[rowIdx]?.children[colIdx];
+        return cell?.textContent?.trim() || '';
+      };
+
+      // Row 0: Quick links
+      const quickLinks = [];
+      [...(rows[0]?.children || [])].forEach((cell) => {
+        const a = cell.querySelector('a');
+        if (a) {
+          const linkHref = a.getAttribute('href');
+          const ql = { text: a.textContent.trim(), href: linkHref };
+          if (isExternalLink(linkHref)) ql.external = true;
+          quickLinks.push(ql);
+        }
+      });
+
+      // Row 1: Card tag (col 0) + card title (col 1)
+      const cardTag = cellText(1, 0);
+      const cardTitle = cellText(1, 1);
+
+      // Row 2: Card CTA link (col 0)
+      const ctaLink = rows[2]?.children[0]?.querySelector('a');
+      const cardCta = ctaLink?.textContent?.trim() || '';
+      const cardHref = ctaLink?.getAttribute('href') || '';
+
+      // Row 3: Counter eyebrow (col 0) + number+suffix (col 1)
+      const counterEyebrow = cellText(3, 0);
+      const counterRaw = cellText(3, 1);
+      const match = counterRaw.match(/^(\d+)(.*)$/);
+      const counterNumber = match ? match[1] : counterRaw;
+      const counterSuffix = match ? match[2] : '';
+
+      // Row 4: Counter description (col 0)
+      const counterDescription = cellText(4, 0);
+
+      promos.set(variantClass, {
+        quickLinks,
+        card: {
+          ...(cardTag && { tag: cardTag }),
+          title: cardTitle,
+          cta: cardCta,
+          href: cardHref,
+        },
+        counter: {
+          eyebrow: counterEyebrow,
+          number: counterNumber,
+          suffix: counterSuffix,
+          description: counterDescription,
+        },
+      });
+    });
+
+    section.remove();
+  });
+
+  return promos;
+}
 
 function closeAllMenus(nav) {
   const navSections = nav.querySelector('.nav-sections');
@@ -198,7 +223,7 @@ function buildSearch(nav, searchLink) {
   return searchWrapper;
 }
 
-function decorateNavSections(navSections, nav) {
+function decorateNavSections(navSections, nav, promoMap) {
   const ul = navSections.querySelector(':scope .default-content-wrapper > ul');
   if (!ul) return;
 
@@ -243,13 +268,13 @@ function decorateNavSections(navSections, nav) {
       subLinksInner.className = 'mega-sub-links-inner';
 
       [...subUl.children].forEach((subLi) => {
-        const a = subLi.querySelector('a');
+        const a = subLi.querySelector(':scope > a');
         if (!a) return;
         const itemName = a.textContent.trim();
-        const nestedChildren = NESTED_NAV[itemName];
+        const nestedUl = subLi.querySelector(':scope > ul');
 
-        if (nestedChildren) {
-          // Expandable item with sub-children from NESTED_NAV
+        if (nestedUl) {
+          // Expandable item with sub-children from authored content
           const expandItem = document.createElement('div');
           expandItem.className = 'mega-expand-item';
 
@@ -267,11 +292,13 @@ function decorateNavSections(navSections, nav) {
           goToLink.innerHTML = 'GO TO PAGE <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>';
           expandPanel.append(goToLink);
 
-          nestedChildren.forEach((child) => {
+          [...nestedUl.children].forEach((nestedLi) => {
+            const nestedA = nestedLi.querySelector('a');
+            if (!nestedA) return;
             const childLink = document.createElement('a');
-            childLink.href = child.href;
+            childLink.href = nestedA.href;
             childLink.className = 'mega-expand-link';
-            childLink.textContent = child.text;
+            childLink.textContent = nestedA.textContent.trim();
             expandPanel.append(childLink);
           });
 
@@ -310,15 +337,21 @@ function decorateNavSections(navSections, nav) {
       closeBtn.innerHTML = '<span>CLOSE</span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
       subLinksDiv.append(closeBtn);
 
-      // Promo section (light blue)
+      // Promo section (light blue) - 3-column: info + card + counter
+      const sectionName = btn.textContent.trim();
+      const promoData = promoMap.get(toClassName(sectionName));
       const promoDiv = document.createElement('div');
       promoDiv.className = 'mega-promo';
 
+      const promoGrid = document.createElement('div');
+      promoGrid.className = 'mega-promo-grid';
+
+      // Column 1: Info section
       const promoInfo = document.createElement('div');
       promoInfo.className = 'mega-promo-info';
 
       const promoTitle = document.createElement('h4');
-      promoTitle.textContent = btn.textContent.trim();
+      promoTitle.textContent = sectionName;
       promoInfo.append(promoTitle);
 
       if (desc) {
@@ -334,7 +367,77 @@ function decorateNavSections(navSections, nav) {
       goToPage.textContent = 'GO TO PAGE';
       promoInfo.append(goToPage);
 
-      promoDiv.append(promoInfo);
+      // Quick links
+      if (promoData?.quickLinks) {
+        const quickLinksDiv = document.createElement('div');
+        quickLinksDiv.className = 'mega-quick-links';
+        promoData.quickLinks.forEach((ql) => {
+          const qlLink = document.createElement('a');
+          qlLink.href = ql.href;
+          qlLink.className = 'mega-quick-link';
+          if (ql.external) qlLink.target = '_blank';
+          qlLink.innerHTML = `<span>${ql.text}</span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ql.external ? '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>' : '<polyline points="9 6 15 12 9 18"/>'}</svg>`;
+          quickLinksDiv.append(qlLink);
+        });
+        promoInfo.append(quickLinksDiv);
+      }
+
+      promoGrid.append(promoInfo);
+
+      // Column 2: Featured card
+      if (promoData?.card) {
+        const cardDiv = document.createElement('a');
+        cardDiv.href = promoData.card.href;
+        cardDiv.className = 'mega-promo-card';
+
+        const cardContent = document.createElement('div');
+        cardContent.className = 'mega-promo-card-content';
+
+        if (promoData.card.tag) {
+          const cardTag = document.createElement('span');
+          cardTag.className = 'mega-promo-card-tag';
+          cardTag.textContent = promoData.card.tag;
+          cardContent.append(cardTag);
+        }
+
+        const cardTitle = document.createElement('h4');
+        cardTitle.className = 'mega-promo-card-title';
+        cardTitle.textContent = promoData.card.title;
+        cardContent.append(cardTitle);
+
+        const cardCta = document.createElement('span');
+        cardCta.className = 'mega-promo-card-cta';
+        cardCta.innerHTML = `${promoData.card.cta} <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>`;
+        cardContent.append(cardCta);
+
+        cardDiv.append(cardContent);
+        promoGrid.append(cardDiv);
+      }
+
+      // Column 3: Stats counter
+      if (promoData?.counter) {
+        const counterDiv = document.createElement('div');
+        counterDiv.className = 'mega-promo-counter';
+
+        const counterEyebrow = document.createElement('span');
+        counterEyebrow.className = 'mega-counter-eyebrow';
+        counterEyebrow.textContent = promoData.counter.eyebrow;
+        counterDiv.append(counterEyebrow);
+
+        const counterNumber = document.createElement('div');
+        counterNumber.className = 'mega-counter-number';
+        counterNumber.innerHTML = `<span class="mega-counter-value">${promoData.counter.number}</span><span class="mega-counter-suffix">${promoData.counter.suffix}</span>`;
+        counterDiv.append(counterNumber);
+
+        const counterDesc = document.createElement('p');
+        counterDesc.className = 'mega-counter-desc';
+        counterDesc.textContent = promoData.counter.description;
+        counterDiv.append(counterDesc);
+
+        promoGrid.append(counterDiv);
+      }
+
+      promoDiv.append(promoGrid);
       megaPanel.append(subLinksDiv, promoDiv);
       subUl.remove();
       li.append(megaPanel);
@@ -428,10 +531,13 @@ export default async function decorate(block) {
     }
   }
 
+  // Parse and remove mega-promo blocks before processing nav sections
+  const promoMap = parseMegaPromos(nav);
+
   // Sections / Nav items
   const navSections = nav.querySelector('.nav-sections');
   if (navSections) {
-    decorateNavSections(navSections, nav);
+    decorateNavSections(navSections, nav, promoMap);
     buildMobileBackButton(navSections);
   }
 
