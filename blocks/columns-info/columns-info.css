@@ -21,8 +21,8 @@
   line-height: 0;
 }
 
-.columns-info > div > div > p:first-child img,
-.columns-info > div > div > .columns-info-img-col img {
+.columns-info > div > div > .columns-info-img-col img,
+.columns-info > div > div > p:first-child img {
   width: 100%;
   display: block;
   border-radius: 16px;
