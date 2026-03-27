@@ -10,14 +10,16 @@ main .footer-wrapper ~ .default-content-wrapper {
 
 /* Footer base - light blue background with curved top-left matching original AbbVie */
 footer {
-  background-color: transparent;
+  background-color: var(--color-light-grey);
   color: var(--color-navy);
   font-size: var(--body-font-size-s);
+  border-radius: 80px 0 0;
+  margin-top: -80px;
+  position: relative;
 }
 
 footer .footer {
-  background-color: var(--color-light-blue-bg);
-  border-radius: 40px 0 0;
+  background-color: var(--color-light-grey);
   box-sizing: border-box;
   max-width: 1330px;
   margin: 0 auto;

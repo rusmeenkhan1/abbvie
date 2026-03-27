@@ -461,6 +461,7 @@ main .section.dark-overlay {
   position: relative;
   overflow: hidden;
   padding: 0;
+  border-radius: 80px 0 0;
 }
 
 main .section.dark-overlay > .default-content-wrapper {
@@ -820,7 +821,12 @@ main .section.cards-news-container > .default-content-wrapper > p:first-child {
   }
 }
 
-/* Related Content section - heading above cards */
+/* Related Content section - light grey background (connects with footer below) */
+main .section.cards-related-container {
+  max-width: 100%;
+  background-color: #f4f4f4;
+}
+
 main .section.cards-related-container > .default-content-wrapper {
   max-width: 1330px;
   padding: 0 35px;
