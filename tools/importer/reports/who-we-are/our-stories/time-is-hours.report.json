@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/time-is-hours.html",
+  "path": "who-we-are/our-stories/time-is-hours",
+  "timestamp": "2026-03-27T11:20:47.023Z",
+  "title": "Time is Hours | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

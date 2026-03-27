@@ -1,0 +1,18 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/immunologys-next-frontier.html",
+  "path": "who-we-are/our-stories/immunologys-next-frontier",
+  "timestamp": "2026-03-27T11:15:36.344Z",
+  "title": "Immunology’s Next Frontier  | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

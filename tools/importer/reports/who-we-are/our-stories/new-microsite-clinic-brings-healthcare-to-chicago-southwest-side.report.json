@@ -1,0 +1,19 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/new-microsite-clinic-brings-healthcare-to-chicago-southwest-side.html",
+  "path": "who-we-are/our-stories/new-microsite-clinic-brings-healthcare-to-chicago-southwest-side",
+  "timestamp": "2026-03-27T11:18:10.410Z",
+  "title": "AbbVie Foundation Supports New Chicago Healthcare Clinic for Underserved Communities | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

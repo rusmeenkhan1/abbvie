@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/life-after-stroke-living-with-and-researching-spasticity.html",
+  "path": "who-we-are/our-stories/life-after-stroke-living-with-and-researching-spasticity",
+  "timestamp": "2026-03-27T11:16:04.253Z",
+  "title": "Life after stroke: Living with and researching spasticity | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

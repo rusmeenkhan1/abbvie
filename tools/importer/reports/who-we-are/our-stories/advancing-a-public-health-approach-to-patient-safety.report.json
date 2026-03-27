@@ -1,0 +1,18 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/advancing-a-public-health-approach-to-patient-safety.html",
+  "path": "who-we-are/our-stories/advancing-a-public-health-approach-to-patient-safety",
+  "timestamp": "2026-03-27T11:11:48.493Z",
+  "title": "Advancing a public health approach to patient safety | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

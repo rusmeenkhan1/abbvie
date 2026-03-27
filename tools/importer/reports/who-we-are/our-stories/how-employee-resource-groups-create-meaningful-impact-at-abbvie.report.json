@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/how-employee-resource-groups-create-meaningful-impact-at-abbvie.html",
+  "path": "who-we-are/our-stories/how-employee-resource-groups-create-meaningful-impact-at-abbvie",
+  "timestamp": "2026-03-27T11:15:00.449Z",
+  "title": "Employee Resource Groups Drive Inclusion and Change at AbbVie | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}
