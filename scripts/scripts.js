@@ -21,8 +21,9 @@ function buildHeroBlock(main) {
   const picture = main.querySelector('picture');
   // eslint-disable-next-line no-bitwise
   if (h1 && picture && (h1.compareDocumentPosition(picture) & Node.DOCUMENT_POSITION_PRECEDING)) {
-    // Check if h1 or picture is already inside a hero block
-    if (h1.closest('.hero') || picture.closest('.hero')) {
+    // Check if h1 or picture is already inside a hero or hero-interior block
+    if (h1.closest('.hero') || picture.closest('.hero')
+      || h1.closest('.hero-interior') || picture.closest('.hero-interior')) {
       return; // Don't create a duplicate hero block
     }
     const section = document.createElement('div');

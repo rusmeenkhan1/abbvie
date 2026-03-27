@@ -1,0 +1,111 @@
+/* Hero Interior - full-width image with overlapping content box */
+.hero-interior-container .hero-interior-wrapper {
+  max-width: unset;
+  padding: 0;
+}
+
+.hero-interior {
+  position: relative;
+  margin-bottom: 0;
+}
+
+/* Hide empty hero-interior blocks */
+.hero-interior[style*="display: none"] {
+  display: none !important;
+}
+
+.hero-interior-wrapper:has(.hero-interior[style*="display: none"]) {
+  display: none;
+}
+
+.hero-interior .hero-interior-image {
+  width: 100%;
+  overflow: hidden;
+}
+
+.hero-interior .hero-interior-image picture,
+.hero-interior .hero-interior-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 250px;
+  object-fit: cover;
+}
+
+.hero-interior .hero-interior-content {
+  background-color: var(--background-color);
+  padding: 32px 40px 40px;
+  margin: -40px 0 0;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-interior .hero-interior-heading h1 {
+  margin: 0 0 16px;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 34px;
+  letter-spacing: -0.02em;
+  color: var(--color-navy);
+}
+
+.hero-interior .hero-interior-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-navy);
+}
+
+@media (width >= 600px) {
+  .hero-interior .hero-interior-image img {
+    min-height: 350px;
+  }
+
+  .hero-interior .hero-interior-content {
+    margin: -80px 70px 0;
+    padding: 56px 70px 0;
+    border-radius: 40px 0 0;
+  }
+
+  .hero-interior .hero-interior-heading h1 {
+    font-size: 40px;
+    line-height: 44px;
+    letter-spacing: -0.8px;
+  }
+}
+
+@media (width >= 900px) {
+  .hero-interior .hero-interior-image img {
+    min-height: 400px;
+    max-height: 448px;
+  }
+
+  .hero-interior .hero-interior-content {
+    margin: -112px 55px 0;
+    padding: 80px 204px 24px;
+    border-radius: 40px 0 0;
+    max-width: 1330px;
+  }
+
+  .hero-interior .hero-interior-heading h1 {
+    font-size: 64px;
+    line-height: 68px;
+    letter-spacing: -1.28px;
+    max-width: 920px;
+  }
+
+  .hero-interior .hero-interior-subtitle {
+    font-size: 18px;
+    line-height: 24px;
+    max-width: 920px;
+    margin-top: 24px;
+  }
+}
+
+/* On very wide screens, keep the content box within 1330px centered */
+@media (width >= 1440px) {
+  .hero-interior .hero-interior-content {
+    margin-left: calc((100% - 1330px) / 2);
+    margin-right: calc((100% - 1330px) / 2);
+  }
+}

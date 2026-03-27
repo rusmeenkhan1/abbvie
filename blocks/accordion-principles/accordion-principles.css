@@ -1,0 +1,160 @@
+/* Accordion Principles */
+.accordion-principles-wrapper {
+  max-width: 1330px;
+  padding: 0 35px;
+}
+
+.accordion-principles {
+  margin: 24px 0 0;
+}
+
+.accordion-principles .accordion-principles-container {
+  max-width: 466px;
+  margin: 0 auto;
+}
+
+.accordion-principles .accordion-principles-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.accordion-principles .accordion-principles-label {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  color: rgb(102 107 122);
+  font-family: var(--body-font-family);
+}
+
+.accordion-principles .accordion-principles-expand-all {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.84px;
+  text-transform: uppercase;
+  color: var(--link-color);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--body-font-family);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.accordion-principles .accordion-principles-expand-all:hover {
+  color: var(--link-hover-color);
+}
+
+.accordion-principles .accordion-principles-item {
+  border-top: 1px solid #d8d8d8;
+}
+
+.accordion-principles .accordion-principles-item:last-child {
+  border-bottom: 1px solid #d8d8d8;
+}
+
+.accordion-principles .accordion-principles-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 24px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  gap: 16px;
+}
+
+.accordion-principles .accordion-principles-title {
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 28px;
+  color: var(--color-navy);
+  font-family: var(--body-font-family);
+}
+
+.accordion-principles .accordion-principles-icon {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.accordion-principles .accordion-principles-icon::before,
+.accordion-principles .accordion-principles-icon::after {
+  content: '';
+  position: absolute;
+  background-color: var(--color-navy);
+  transition: transform 0.3s ease;
+}
+
+/* Horizontal bar */
+.accordion-principles .accordion-principles-icon::before {
+  top: 50%;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+/* Vertical bar */
+.accordion-principles .accordion-principles-icon::after {
+  left: 50%;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+/* When expanded, rotate the vertical bar to form minus */
+.accordion-principles .accordion-principles-button[aria-expanded="true"] .accordion-principles-icon::after {
+  transform: translateX(-50%) rotate(90deg);
+}
+
+.accordion-principles .accordion-principles-panel {
+  padding: 0 0 24px;
+  font-size: 18px;
+  line-height: 24px;
+  color: var(--color-navy);
+}
+
+.accordion-principles .accordion-principles-panel[hidden] {
+  display: none;
+}
+
+@media (width >= 600px) {
+  .accordion-principles .accordion-principles-title {
+    font-size: 26px;
+    line-height: 1.2;
+  }
+}
+
+@media (width >= 900px) {
+  .accordion-principles-wrapper {
+    padding: 0 55px;
+  }
+
+  .accordion-principles .accordion-principles-container {
+    max-width: 655px;
+  }
+
+  .accordion-principles .accordion-principles-title {
+    font-size: 40px;
+    line-height: 44px;
+    font-weight: 650;
+  }
+
+  .accordion-principles .accordion-principles-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .accordion-principles .accordion-principles-button {
+    padding: 28px 0;
+  }
+}
