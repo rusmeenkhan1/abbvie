@@ -7,7 +7,7 @@ header {
   --header-blue: #0066f5;
   --header-promo-bg: #f1f3ff;
   --header-font: 'Roboto', 'Helvetica Neue', helvetica, arial, sans-serif;
-  --header-max-width: 1440px;
+  --header-max-width: 1330px;
 }
 
 /* --- Wrapper --- */
@@ -823,6 +823,10 @@ header .mega-expand-link:hover {
     position: sticky;
     top: 0;
     box-shadow: none;
+  }
+
+  header .nav-header-bar {
+    padding: 0;
   }
 
   header nav .nav-sections .nav-drop {
