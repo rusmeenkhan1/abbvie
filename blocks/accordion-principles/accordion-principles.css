@@ -72,7 +72,7 @@
 
 .accordion-principles .accordion-principles-title {
   font-size: 24px;
-  font-weight: 650;
+  font-weight: 500;
   line-height: 28px;
   color: var(--color-navy);
   font-family: var(--body-font-family);
@@ -146,7 +146,7 @@
   .accordion-principles .accordion-principles-title {
     font-size: 40px;
     line-height: 44px;
-    font-weight: 650;
+    font-weight: 500;
   }
 
   .accordion-principles .accordion-principles-icon {

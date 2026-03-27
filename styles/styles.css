@@ -870,5 +870,6 @@ main .section.cards-related-container > .default-content-wrapper h3 {
   main .section.cards-related-container > .default-content-wrapper h3 {
     font-size: 32px;
     line-height: 36px;
+    max-width: 655px;
   }
 }
