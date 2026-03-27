@@ -1,16 +1,6 @@
 .cards-dashboard-wrapper {
   background-color: var(--background-color);
-  padding: 24px 0;
-}
-
-/* Hide empty cards-dashboard blocks (no content rows) */
-.cards-dashboard:not(:has(> div)) {
-  display: none;
-}
-
-/* stylelint-disable-next-line no-descending-specificity */
-.cards-dashboard-wrapper:has(.cards-dashboard:not(:has(> div))) {
-  display: none;
+  padding: 0;
 }
 
 .cards-dashboard > ul {
@@ -22,43 +12,147 @@
   gap: 16px;
 }
 
-.cards-dashboard > ul > li {
+/* First card: image + text overlay, blue bg */
+.cards-dashboard > ul > li:first-child {
   background-color: var(--color-light-blue-bg);
   overflow: hidden;
-  padding: 32px;
   border-radius: 0;
+  position: relative;
 }
 
-.cards-dashboard .cards-dashboard-card-body {
-  margin: 0;
-}
-
-.cards-dashboard .cards-dashboard-card-body h4 {
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--color-navy);
-  margin-top: 8px;
-  line-height: 1.125;
-}
-
-.cards-dashboard .cards-dashboard-card-body p {
-  font-size: var(--body-font-size-s);
-  color: var(--text-color);
-  line-height: 1.5;
-}
-
-.cards-dashboard .cards-dashboard-card-image {
+.cards-dashboard > ul > li:first-child .cards-dashboard-card-image {
   line-height: 0;
 }
 
-.cards-dashboard > ul > li img {
+.cards-dashboard > ul > li:first-child img {
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
+  display: block;
+}
+
+.cards-dashboard > ul > li:first-child .cards-dashboard-card-body {
+  padding: 24px 32px;
+}
+
+.cards-dashboard > ul > li:first-child .cards-dashboard-card-body p:first-child {
+  font-size: var(--body-font-size-xxs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--link-color);
+  margin: 0 0 8px;
+}
+
+.cards-dashboard > ul > li:first-child .cards-dashboard-card-body h4 {
+  font-size: var(--heading-font-size-m);
+  font-weight: 700;
+  color: var(--color-navy);
+  margin: 0 0 12px;
+  line-height: 1.2;
+}
+
+.cards-dashboard > ul > li:first-child .cards-dashboard-card-body p:last-child a {
+  font-size: var(--body-font-size-xxs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Stats cards (2nd and 3rd) */
+.cards-dashboard > ul > li:nth-child(n+2) {
+  background-color: var(--color-light-blue-bg);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body p:first-child {
+  font-size: var(--body-font-size-xxs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-color);
+  opacity: 0.6;
+  margin: 0 0 4px;
+}
+
+.cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body h4 {
+  font-size: 72px;
+  font-weight: 800;
+  color: var(--color-navy);
+  margin: 0 0 8px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body p:last-child {
+  font-size: var(--body-font-size-s);
+  color: var(--text-color);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Hide empty image containers in stats cards */
+.cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-image:empty {
+  display: none;
+}
+
+/* Third card: dark navy background with white/blue text */
+.cards-dashboard > ul > li:nth-child(3) {
+  background-color: var(--color-navy);
+}
+
+.cards-dashboard > ul > li:nth-child(3) .cards-dashboard-card-body p:first-child {
+  color: var(--background-color);
+  opacity: 0.7;
+}
+
+.cards-dashboard > ul > li:nth-child(3) .cards-dashboard-card-body h4 {
+  color: var(--link-color);
+}
+
+.cards-dashboard > ul > li:nth-child(3) .cards-dashboard-card-body p:last-child {
+  color: var(--background-color);
 }
 
 @media (width >= 900px) {
   .cards-dashboard > ul {
     grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+  }
+
+  .cards-dashboard > ul > li:first-child {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .cards-dashboard > ul > li:first-child .cards-dashboard-card-image {
+    flex: 0 0 50%;
+    overflow: hidden;
+  }
+
+  .cards-dashboard > ul > li:first-child img {
+    aspect-ratio: auto;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .cards-dashboard > ul > li:first-child .cards-dashboard-card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 32px;
+  }
+
+  .cards-dashboard > ul > li:nth-child(n+2) {
+    padding: 40px;
+  }
+
+  .cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body h4 {
+    font-size: 80px;
   }
 }

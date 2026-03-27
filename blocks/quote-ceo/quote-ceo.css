@@ -1,0 +1,88 @@
+/* Quote CEO - dark overlay section with background image and quote */
+.quote-ceo-wrapper {
+  max-width: unset;
+  padding: 0;
+}
+
+.quote-ceo {
+  position: relative;
+  padding: 60px 35px;
+  color: #fff;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* The section background image + dark overlay is handled by the section */
+
+.quote-ceo .quote-ceo-text-wrapper {
+  max-width: 710px;
+  position: relative;
+  z-index: 2;
+}
+
+.quote-ceo .quote-ceo-mark {
+  display: block;
+  font-size: 80px;
+  line-height: 1;
+  color: var(--link-color);
+  font-family: Georgia, serif;
+  margin-bottom: 8px;
+}
+
+.quote-ceo .quote-ceo-text {
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 24px;
+  color: #fff;
+  margin: 0;
+}
+
+.quote-ceo .quote-ceo-author {
+  margin-top: 32px;
+  position: relative;
+  z-index: 2;
+}
+
+.quote-ceo .quote-ceo-name {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.quote-ceo .quote-ceo-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 400;
+  color: #fff;
+}
+
+@media (width >= 600px) {
+  .quote-ceo {
+    padding: 60px 70px;
+  }
+
+  .quote-ceo .quote-ceo-text {
+    font-size: 28px;
+    line-height: 32px;
+  }
+}
+
+@media (width >= 900px) {
+  .quote-ceo {
+    padding: 80px 112px;
+    min-height: 468px;
+  }
+
+  .quote-ceo .quote-ceo-mark {
+    font-size: 100px;
+  }
+
+  .quote-ceo .quote-ceo-text {
+    font-size: 32px;
+    line-height: 36px;
+  }
+}

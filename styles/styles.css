@@ -48,7 +48,7 @@
 
   /* spacing */
   --section-padding: 48px 0;
-  --content-max-width: 1200px;
+  --content-max-width: 1330px;
   --content-padding: 0 24px;
 
   /* nav height */
@@ -348,7 +348,8 @@ main img {
 
 /* sections */
 main > .section {
-  margin: 0;
+  max-width: 1330px;
+  margin: 0 auto;
   padding: var(--section-padding);
 }
 
@@ -360,6 +361,46 @@ main > .section > div {
 
 main > .section:first-of-type {
   padding-top: 0;
+}
+
+main > .section.hero-interior-container {
+  padding-top: 0;
+}
+
+/* Block wrappers that fill the section width (no inner padding) */
+main > .section > .hero-homepage-wrapper,
+main > .section > .cards-news-wrapper,
+main > .section > .cards-esg-wrapper,
+main > .section > .columns-media-wrapper {
+  max-width: 1330px;
+  padding: 0;
+}
+
+/* Hero and video wrappers - same width as footer (1330px centered) */
+main > .section > .hero-interior-wrapper,
+main > .section > .embed-video-wrapper {
+  max-width: 1330px;
+  padding: 0;
+}
+
+main > .section > .quote-ceo-wrapper {
+  max-width: 1330px;
+  padding: 0;
+}
+
+main > .section > .cards-related-wrapper {
+  max-width: 1330px;
+  padding: 0 35px;
+}
+
+main > .section > .accordion-principles-wrapper {
+  max-width: 1330px;
+  padding: 0 35px;
+}
+
+main > .section > .hero-video-wrapper {
+  max-width: 1330px;
+  padding: 0;
 }
 
 /* section metadata */
@@ -408,6 +449,65 @@ main .section.light-blue {
   background-color: var(--color-light-blue-bg);
 }
 
+/* Default content images in sections should be full-width and rounded */
+main .section .default-content-wrapper p > img {
+  width: 100%;
+  border-radius: 16px;
+  display: block;
+}
+
+/* Dark overlay section - background image with semi-transparent dark overlay */
+main .section.dark-overlay {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 80px 0 0;
+}
+
+main .section.dark-overlay > .default-content-wrapper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  max-width: unset;
+  padding: 0;
+  margin: 0;
+}
+
+main .section.dark-overlay > .default-content-wrapper > p {
+  margin: 0;
+  height: 100%;
+}
+
+main .section.dark-overlay > .default-content-wrapper > p > img,
+main .section.dark-overlay > .default-content-wrapper > p > picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+}
+
+main .section.dark-overlay > .default-content-wrapper > p > picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+}
+
+main .section.dark-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(7 29 73 / 65%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+main .section.dark-overlay > .quote-ceo-wrapper {
+  position: relative;
+  z-index: 2;
+}
+
 /* When blocks with their own backgrounds are in a dark section,
    the default content wrappers between them also need white backgrounds */
 main .section.dark .default-content-wrapper {
@@ -433,23 +533,69 @@ main .section.dark .default-content-wrapper a:any-link {
   color: var(--link-color);
 }
 
-/* Default content images in sections should be full-width and rounded */
-main .section .default-content-wrapper p > img {
-  width: 100%;
-  border-radius: 16px;
-  display: block;
-}
-
 /* Section separators between content areas */
 main .section .default-content-wrapper hr {
   border: none;
   border-top: 1px solid var(--color-grey-border);
-  margin: 32px 0;
+  margin: 48px 0;
 }
 
 @media (width >= 900px) {
   main .section.dark .default-content-wrapper {
     padding: 48px 32px;
+  }
+}
+
+/* Interior pages - default content between blocks */
+main .section.hero-interior-container > .default-content-wrapper {
+  max-width: 807px;
+  margin-left: 0;
+  margin-right: auto;
+  padding: 0 20px;
+  color: var(--color-navy);
+}
+
+main .section.hero-interior-container > .default-content-wrapper h2 {
+  font-size: 26px;
+  margin-top: 32px;
+  margin-bottom: 16px;
+}
+
+main .section.hero-interior-container > .default-content-wrapper p {
+  font-size: var(--body-font-size-m);
+  line-height: 24px;
+  margin-bottom: 30px;
+}
+
+main .section.hero-interior-container > .default-content-wrapper p:last-child {
+  margin-bottom: 0;
+}
+
+@media (width >= 600px) {
+  main .section.hero-interior-container > .default-content-wrapper {
+    margin-left: 70px;
+    margin-right: 70px;
+    max-width: none;
+    padding: 0;
+  }
+
+  main .section.hero-interior-container > .default-content-wrapper h2 {
+    font-size: 32px;
+  }
+}
+
+@media (width >= 900px) {
+  main .section.hero-interior-container > .default-content-wrapper {
+    max-width: 807px;
+    margin-left: 225px;
+    margin-right: auto;
+    padding: 0;
+  }
+
+  main .section.hero-interior-container > .default-content-wrapper h2 {
+    font-size: 48px;
+    line-height: 52px;
+    letter-spacing: -0.96px;
   }
 }
 
@@ -672,5 +818,93 @@ main .section.cards-news-container > .default-content-wrapper > p:first-child {
   main .section.cards-news-container > .default-content-wrapper > p:nth-child(2),
   main .section.cards-news-container > .default-content-wrapper > p:nth-child(3) {
     grid-column: 2;
+  }
+}
+
+/* Related Content section - light grey background (connects with footer below) */
+main .section.cards-related-container {
+  max-width: 100%;
+  background-color: #f4f4f4;
+}
+
+main .section.cards-related-container > .default-content-wrapper {
+  max-width: 1330px;
+  padding: 0 35px;
+}
+
+main .section.cards-related-container > .default-content-wrapper h3 {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--color-navy);
+  margin-bottom: 24px;
+}
+
+@media (width >= 600px) {
+  main .section.cards-related-container > .default-content-wrapper {
+    max-width: 466px;
+    margin-left: 70px;
+    margin-right: auto;
+    padding: 0;
+  }
+
+  main > .section > .cards-related-wrapper {
+    max-width: 466px;
+    margin-left: 70px;
+    margin-right: auto;
+    padding: 0;
+  }
+
+  main .section.cards-related-container > .default-content-wrapper h3 {
+    font-size: 28px;
+  }
+}
+
+@media (width >= 900px) {
+  main > .section.cards-related-container {
+    padding-top: 80px;
+  }
+
+  main > .section > .cards-related-wrapper {
+    max-width: 1330px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0;
+  }
+
+  main > .section > .accordion-principles-wrapper {
+    padding: 0 55px;
+  }
+
+  main .section.cards-related-container > .default-content-wrapper {
+    max-width: 1330px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0;
+  }
+
+  main .section.cards-related-container > .default-content-wrapper h3 {
+    font-size: 32px;
+    line-height: 36px;
+    max-width: 655px;
+  }
+}
+
+/* Ultra-wide screen constraints (>1440px) */
+@media (width > 1440px) {
+  main > .section {
+    max-width: 133rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Accordion - include padding in max-width to keep total at 1330px */
+  main > .section > .accordion-principles-wrapper {
+    box-sizing: border-box;
+  }
+
+  /* Text content wrappers - position relative to the centered 1330px content area */
+  main .section.hero-interior-container > .default-content-wrapper {
+    margin-left: calc((100% - 1330px) / 2 + 225px);
   }
 }
