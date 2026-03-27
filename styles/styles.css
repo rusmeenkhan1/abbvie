@@ -48,7 +48,7 @@
 
   /* spacing */
   --section-padding: 48px 0;
-  --content-max-width: 1200px;
+  --content-max-width: 1330px;
   --content-padding: 0 24px;
 
   /* nav height */
@@ -87,6 +87,7 @@
 body {
   display: none;
   margin: 0;
+  overflow-x: hidden;
   background-color: var(--background-color);
   color: var(--text-color);
   font-family: var(--body-font-family);
@@ -348,7 +349,8 @@ main img {
 
 /* sections */
 main > .section {
-  margin: 0;
+  max-width: 1330px;
+  margin: 0 auto;
   padding: var(--section-padding);
 }
 
@@ -366,14 +368,21 @@ main > .section.hero-interior-container {
   padding-top: 0;
 }
 
-/* Full-width block wrappers need higher specificity to override main > .section > div */
+/* Block wrappers that fill the section width (no inner padding) */
 main > .section > .hero-homepage-wrapper,
-main > .section > .hero-interior-wrapper,
 main > .section > .cards-news-wrapper,
 main > .section > .cards-esg-wrapper,
-main > .section > .columns-media-wrapper,
+main > .section > .columns-media-wrapper {
+  max-width: 1330px;
+  padding: 0;
+}
+
+/* Full-bleed wrappers - break out of constrained section to fill viewport */
+main > .section > .hero-interior-wrapper,
 main > .section > .embed-video-wrapper {
-  max-width: unset;
+  width: 100vw;
+  max-width: none;
+  margin-left: calc(-50vw + 50%);
   padding: 0;
 }
 
@@ -582,7 +591,7 @@ main .section.hero-interior-container > .default-content-wrapper p:last-child {
     max-width: 807px;
     margin-left: 225px;
     margin-right: auto;
-    padding: 0 55px;
+    padding: 0;
   }
 
   main .section.hero-interior-container > .default-content-wrapper h2 {
@@ -849,6 +858,10 @@ main .section.cards-related-container > .default-content-wrapper h3 {
 }
 
 @media (width >= 900px) {
+  main > .section.cards-related-container {
+    padding-top: 80px;
+  }
+
   main > .section > .cards-related-wrapper {
     max-width: 1330px;
     margin-left: auto;
@@ -871,5 +884,21 @@ main .section.cards-related-container > .default-content-wrapper h3 {
     font-size: 32px;
     line-height: 36px;
     max-width: 655px;
+  }
+}
+
+/* Ultra-wide screen constraints (>1440px) */
+@media (width > 1440px) {
+  main > .section {
+    max-width: 133rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  main > .section > .hero-interior-wrapper,
+  main > .section > .embed-video-wrapper {
+    width: min(100vw, 144rem);
+    max-width: 144rem;
+    margin-left: calc((100% - min(100vw, 144rem)) / 2);
   }
 }

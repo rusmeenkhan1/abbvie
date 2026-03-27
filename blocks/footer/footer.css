@@ -18,8 +18,9 @@ footer {
 footer .footer {
   background-color: var(--color-light-blue-bg);
   border-radius: 40px 0 0;
-  max-width: none;
-  margin: 0;
+  box-sizing: border-box;
+  max-width: 1330px;
+  margin: 0 auto;
   padding: 56px 24px 0;
 }
 
