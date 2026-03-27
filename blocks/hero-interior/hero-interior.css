@@ -102,10 +102,3 @@
   }
 }
 
-/* On very wide screens, keep the content box within 1330px centered */
-@media (width >= 1440px) {
-  .hero-interior .hero-interior-content {
-    margin-left: calc((100% - 1330px) / 2);
-    margin-right: calc((100% - 1330px) / 2);
-  }
-}

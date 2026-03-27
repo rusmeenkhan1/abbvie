@@ -87,7 +87,6 @@
 body {
   display: none;
   margin: 0;
-  overflow-x: hidden;
   background-color: var(--background-color);
   color: var(--text-color);
   font-family: var(--body-font-family);
@@ -377,12 +376,10 @@ main > .section > .columns-media-wrapper {
   padding: 0;
 }
 
-/* Full-bleed wrappers - break out of constrained section to fill viewport */
+/* Hero and video wrappers - same width as footer (1330px centered) */
 main > .section > .hero-interior-wrapper,
 main > .section > .embed-video-wrapper {
-  width: 100vw;
-  max-width: none;
-  margin-left: calc(-50vw + 50%);
+  max-width: 1330px;
   padding: 0;
 }
 
@@ -895,10 +892,13 @@ main .section.cards-related-container > .default-content-wrapper h3 {
     margin-right: auto;
   }
 
-  main > .section > .hero-interior-wrapper,
-  main > .section > .embed-video-wrapper {
-    width: min(100vw, 144rem);
-    max-width: 144rem;
-    margin-left: calc((100% - min(100vw, 144rem)) / 2);
+  /* Accordion - include padding in max-width to keep total at 1330px */
+  main > .section > .accordion-principles-wrapper {
+    box-sizing: border-box;
+  }
+
+  /* Text content wrappers - position relative to the centered 1330px content area */
+  main .section.hero-interior-container > .default-content-wrapper {
+    margin-left: calc((100% - 1330px) / 2 + 225px);
   }
 }
