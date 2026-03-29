@@ -11,7 +11,7 @@ const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
 const existingImages = new Set(fs.readdirSync(IMAGES_DIR));
 
 const files = fs.readdirSync(CONTENT_DIR)
-  .filter(f => f.endsWith('.plain.html'))
+  .filter((f) => f.endsWith('.plain.html'))
   .sort()
   .slice(0, 25);
 
@@ -87,7 +87,7 @@ for (const file of files) {
   } else {
     failedPages.push({ slug, issues });
     console.log(`✗ ${slug}`);
-    issues.forEach(i => console.log(`    - ${i}`));
+    issues.forEach((i) => console.log(`    - ${i}`));
   }
 }
 

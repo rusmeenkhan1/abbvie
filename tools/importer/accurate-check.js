@@ -12,7 +12,7 @@ const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
 const existingImages = new Set(fs.readdirSync(IMAGES_DIR));
 
 const files = fs.readdirSync(CONTENT_DIR)
-  .filter(f => f.endsWith('.plain.html'))
+  .filter((f) => f.endsWith('.plain.html'))
   .sort()
   .slice(0, 25);
 
@@ -20,7 +20,7 @@ function fetchOriginalHTML(slug) {
   try {
     return execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" --max-time 30 "https://www.abbvie.com/who-we-are/our-stories/${slug}.html"`,
-      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' },
     );
   } catch (e) {
     return null;
@@ -35,9 +35,12 @@ function normalize(text) {
     .replace(/[""]/g, '"')
     .replace(/[–—]/g, '-')
     .replace(/\u00a0/g, ' ')
-    .replace(/&amp;/g, '&').replace(/&#x26;/g, '&')
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#\d+;/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&#x26;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#\d+;/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -64,11 +67,11 @@ const SKIP_PATTERNS = [
 ];
 
 function shouldSkip(text) {
-  return SKIP_PATTERNS.some(p => text.includes(p));
+  return SKIP_PATTERNS.some((p) => text.includes(p));
 }
 
 function getOrigArticleParagraphs(html) {
-  let clean = html
+  const clean = html
     .replace(/<header[\s\S]*?<\/header>/gi, '')
     .replace(/<footer[\s\S]*?<\/footer>/gi, '')
     .replace(/<nav[\s\S]*?<\/nav>/gi, '')
@@ -90,7 +93,7 @@ function getOrigArticleParagraphs(html) {
 }
 
 function getOrigHeadings(html) {
-  let clean = html
+  const clean = html
     .replace(/<header[\s\S]*?<\/header>/gi, '')
     .replace(/<footer[\s\S]*?<\/footer>/gi, '')
     .replace(/<nav[\s\S]*?<\/nav>/gi, '');
@@ -178,7 +181,7 @@ async function main() {
 
   for (let i = 0; i < files.length; i++) {
     const slug = files[i].replace('.plain.html', '');
-    process.stdout.write(`[${i+1}/${files.length}] ${slug}... `);
+    process.stdout.write(`[${i + 1}/${files.length}] ${slug}... `);
     const issues = checkPage(slug);
 
     if (issues.length === 0) {
@@ -186,7 +189,7 @@ async function main() {
       passCount++;
     } else {
       console.log(`✗ (${issues.length})`);
-      issues.forEach(iss => console.log(`    [${iss.type}] ${iss.detail}`));
+      issues.forEach((iss) => console.log(`    [${iss.type}] ${iss.detail}`));
       allIssues.push({ slug, issues });
     }
   }

@@ -14,7 +14,7 @@ const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
 const existingImages = new Set(fs.readdirSync(IMAGES_DIR));
 
 const files = fs.readdirSync(CONTENT_DIR)
-  .filter(f => f.endsWith('.plain.html'))
+  .filter((f) => f.endsWith('.plain.html'))
   .sort()
   .slice(0, 25);
 
@@ -23,7 +23,7 @@ function fetchOriginalHTML(slug) {
   try {
     return execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" --max-time 30 "${url}"`,
-      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' },
     );
   } catch (e) {
     return null;
@@ -36,9 +36,12 @@ function normalizeText(t) {
     .replace(/[""]/g, '"')
     .replace(/[–—]/g, '-')
     .replace(/\u00a0/g, ' ')
-    .replace(/&amp;/g, '&').replace(/&#x26;/g, '&')
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#\d+;/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&#x26;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#\d+;/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -128,8 +131,8 @@ function getOrigArticleImages(html) {
     const src = m[1];
     const alt = (m[2] || '').trim();
     // Skip icons, tracking pixels, SVGs, and tiny images
-    if (src.includes('1x1') || src.includes('pixel') || src.includes('.svg') ||
-        src.includes('data:image') || src.includes('spacer') || src.includes('logo')) continue;
+    if (src.includes('1x1') || src.includes('pixel') || src.includes('.svg')
+        || src.includes('data:image') || src.includes('spacer') || src.includes('logo')) continue;
     if (src.includes('scene7') || alt.length > 5) {
       images.push({ src, alt: normalizeText(alt) });
     }
@@ -163,11 +166,11 @@ async function checkPage(slug) {
   // 2. Check headings
   const origHeadings = getOrigHeadings(articleHTML);
   const migHeadings = getMigratedHeadings(migratedHTML);
-  const migHeadingTexts = migHeadings.map(h => h.text.replace(/['"]/g, ''));
+  const migHeadingTexts = migHeadings.map((h) => h.text.replace(/['"]/g, ''));
 
   for (const h of origHeadings) {
     const searchText = h.text.substring(0, Math.min(40, h.text.length)).replace(/['"]/g, '');
-    const found = migHeadingTexts.some(mt => mt.includes(searchText));
+    const found = migHeadingTexts.some((mt) => mt.includes(searchText));
     if (!found) {
       issues.push({ type: 'MISSING_HEADING', detail: `${h.level}: ${h.text.substring(0, 80)}` });
     }
@@ -221,7 +224,7 @@ async function main() {
 
   for (let i = 0; i < files.length; i++) {
     const slug = files[i].replace('.plain.html', '');
-    process.stdout.write(`[${i+1}/${files.length}] ${slug}... `);
+    process.stdout.write(`[${i + 1}/${files.length}] ${slug}... `);
 
     const issues = await checkPage(slug);
 
@@ -230,7 +233,7 @@ async function main() {
       perfectCount++;
     } else {
       console.log(`${issues.length} issue(s) ✗`);
-      issues.forEach(iss => console.log(`    [${iss.type}] ${iss.detail}`));
+      issues.forEach((iss) => console.log(`    [${iss.type}] ${iss.detail}`));
       allIssues.push({ slug, issues });
     }
   }

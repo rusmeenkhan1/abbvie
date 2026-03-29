@@ -8,7 +8,7 @@ const path = require('path');
 
 const CONTENT_DIR = path.resolve(__dirname, '../../content/who-we-are/our-stories');
 
-const files = fs.readdirSync(CONTENT_DIR).filter(f => f.endsWith('.plain.html'));
+const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
 
 let fixed = 0;
 let failed = 0;
@@ -62,7 +62,7 @@ for (const file of files) {
 
   // Truncate to reasonable length
   if (subtitle.length > 200) {
-    subtitle = subtitle.substring(0, 197) + '...';
+    subtitle = `${subtitle.substring(0, 197)}...`;
   }
 
   // Add Description row after Title row in metadata
@@ -90,7 +90,7 @@ for (const file of files) {
   fixed++;
 }
 
-console.log(`\n=== SUMMARY ===`);
+console.log('\n=== SUMMARY ===');
 console.log(`Fixed: ${fixed}`);
 console.log(`Failed: ${failed}`);
 

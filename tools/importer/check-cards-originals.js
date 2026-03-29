@@ -7,7 +7,7 @@ for (const slug of slugs) {
   const url = `https://www.abbvie.com/who-we-are/our-stories/${slug}.html`;
   const html = execSync(
     `curl -sL -H "User-Agent: Mozilla/5.0" --max-time 30 "${url}"`,
-    { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' }
+    { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' },
   );
 
   const hasCards = html.includes('card-title') || html.includes('card-container');

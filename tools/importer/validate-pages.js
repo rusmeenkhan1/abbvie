@@ -10,7 +10,7 @@ const CONTENT_DIR = path.resolve(__dirname, '../../content/who-we-are/our-storie
 const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
 
 const files = fs.readdirSync(CONTENT_DIR)
-  .filter(f => f.endsWith('.plain.html'))
+  .filter((f) => f.endsWith('.plain.html'))
   .sort();
 
 console.log(`Validating ${files.length} pages...\n`);
@@ -111,7 +111,7 @@ for (const file of files) {
 
   // Check body content section has content
   // The body section is the 2nd top-level div
-  const sections = content.split(/(?=<div>)/g).filter(s => s.startsWith('<div>'));
+  const sections = content.split(/(?=<div>)/g).filter((s) => s.startsWith('<div>'));
   if (sections.length >= 2) {
     const bodySection = sections[1];
     // Body should have at least some text content
@@ -164,12 +164,12 @@ if (issues.length === 0) {
   console.log('Issues by type:');
   for (const [type, pages] of Object.entries(issueTypes).sort()) {
     console.log(`\n  ${type}: ${pages.length} pages`);
-    pages.forEach(p => console.log(`    - ${p}`));
+    pages.forEach((p) => console.log(`    - ${p}`));
   }
 
   console.log('\n\nDetailed per-page issues:');
   for (const page of issues) {
     console.log(`\n  ${page.slug}:`);
-    page.issues.forEach(i => console.log(`    - ${i}`));
+    page.issues.forEach((i) => console.log(`    - ${i}`));
   }
 }

@@ -14,7 +14,7 @@ const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
 const existingImages = new Set(fs.readdirSync(IMAGES_DIR));
 
 const files = fs.readdirSync(CONTENT_DIR)
-  .filter(f => f.endsWith('.plain.html'))
+  .filter((f) => f.endsWith('.plain.html'))
   .sort()
   .slice(0, 25);
 
@@ -23,7 +23,7 @@ function fetchOriginalHTML(slug) {
   try {
     return execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" --max-time 30 "${url}"`,
-      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' },
     );
   } catch (e) {
     return null;
@@ -32,22 +32,25 @@ function fetchOriginalHTML(slug) {
 
 function normalizeForSearch(text) {
   return text.toLowerCase()
-    .replace(/<[^>]+>/g, '')      // strip HTML tags
-    .replace(/[''ʼ]/g, "'")      // normalize apostrophes
-    .replace(/[""]/g, '"')        // normalize quotes
-    .replace(/[–—]/g, '-')        // normalize dashes
-    .replace(/\u00a0/g, ' ')      // non-breaking space
-    .replace(/&amp;/g, '&').replace(/&#x26;/g, '&')
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#\d+;/g, '')
-    .replace(/\s+/g, ' ')         // collapse whitespace
+    .replace(/<[^>]+>/g, '') // strip HTML tags
+    .replace(/[''ʼ]/g, "'") // normalize apostrophes
+    .replace(/[""]/g, '"') // normalize quotes
+    .replace(/[–—]/g, '-') // normalize dashes
+    .replace(/\u00a0/g, ' ') // non-breaking space
+    .replace(/&amp;/g, '&')
+    .replace(/&#x26;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#\d+;/g, '')
+    .replace(/\s+/g, ' ') // collapse whitespace
     .trim();
 }
 
 // Extract only article body paragraphs from original HTML, excluding non-content areas
 function getOrigArticleParagraphs(html) {
   // Find content between article markers, excluding header/footer/nav/modal
-  let clean = html
+  const clean = html
     .replace(/<header[\s\S]*?<\/header>/gi, '')
     .replace(/<footer[\s\S]*?<\/footer>/gi, '')
     .replace(/<nav[\s\S]*?<\/nav>/gi, '')
@@ -93,7 +96,7 @@ function checkPage(slug) {
   const origParas = getOrigArticleParagraphs(originalHTML);
   for (const para of origParas) {
     // Use a generous word-based search: take first 6 significant words
-    const words = para.split(/\s+/).filter(w => w.length > 2).slice(0, 6);
+    const words = para.split(/\s+/).filter((w) => w.length > 2).slice(0, 6);
     if (words.length < 3) continue;
     const searchPhrase = words.join(' ').replace(/[^\w\s]/g, '');
 
@@ -124,7 +127,7 @@ function checkPage(slug) {
   }
   const migHeadingText = migratedSearchable;
   for (const h of origH2s) {
-    const words = h.split(/\s+/).filter(w => w.length > 2).slice(0, 4);
+    const words = h.split(/\s+/).filter((w) => w.length > 2).slice(0, 4);
     const searchPhrase = words.join(' ').replace(/[^\w\s]/g, '');
     if (searchPhrase.length > 5 && !migHeadingText.replace(/[^\w\s]/g, '').includes(searchPhrase)) {
       issues.push({ type: 'MISSING_HEADING', detail: h.substring(0, 80) });
@@ -171,7 +174,7 @@ async function main() {
 
   for (let i = 0; i < files.length; i++) {
     const slug = files[i].replace('.plain.html', '');
-    process.stdout.write(`[${i+1}/${files.length}] ${slug}... `);
+    process.stdout.write(`[${i + 1}/${files.length}] ${slug}... `);
     const issues = checkPage(slug);
 
     if (issues.length === 0) {
@@ -179,7 +182,7 @@ async function main() {
       passCount++;
     } else {
       console.log(`✗ FAIL (${issues.length})`);
-      issues.forEach(iss => console.log(`    [${iss.type}] ${iss.detail}`));
+      issues.forEach((iss) => console.log(`    [${iss.type}] ${iss.detail}`));
       allIssues.push({ slug, issues });
     }
   }

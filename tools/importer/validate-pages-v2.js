@@ -10,7 +10,7 @@ const CONTENT_DIR = path.resolve(__dirname, '../../content/who-we-are/our-storie
 const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
 
 const files = fs.readdirSync(CONTENT_DIR)
-  .filter(f => f.endsWith('.plain.html'))
+  .filter((f) => f.endsWith('.plain.html'))
   .sort();
 
 console.log(`Validating ${files.length} pages...\n`);
@@ -108,15 +108,15 @@ if (realIssues.length > 0) {
   for (const [type, pages] of Object.entries(issueTypes).sort()) {
     console.log(`\n  "${type}": ${pages.length} pages`);
     if (pages.length <= 10) {
-      pages.forEach(p => console.log(`    - ${p}`));
+      pages.forEach((p) => console.log(`    - ${p}`));
     } else {
-      pages.slice(0, 5).forEach(p => console.log(`    - ${p}`));
+      pages.slice(0, 5).forEach((p) => console.log(`    - ${p}`));
       console.log(`    ... and ${pages.length - 5} more`);
     }
   }
 }
 
-console.log(`\n=== SUMMARY ===`);
+console.log('\n=== SUMMARY ===');
 console.log(`Total pages: ${files.length}`);
 console.log(`Clean pages: ${passCount}`);
 console.log(`Pages with issues: ${realIssues.length}`);

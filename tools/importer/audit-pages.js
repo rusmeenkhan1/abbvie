@@ -11,7 +11,7 @@ const CONTENT_DIR = path.resolve(__dirname, '../../content/who-we-are/our-storie
 const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
 
 const files = fs.readdirSync(CONTENT_DIR)
-  .filter(f => f.endsWith('.plain.html'))
+  .filter((f) => f.endsWith('.plain.html'))
   .sort();
 
 console.log(`Auditing ${files.length} pages...\n`);
@@ -106,45 +106,45 @@ for (const file of files) {
 console.log('=== AUDIT REPORT ===\n');
 
 console.log(`1. MISSING HERO-ARTICLE BLOCK: ${issues.missingHeroArticle.length} pages`);
-issues.missingHeroArticle.forEach(s => console.log(`   - ${s}`));
+issues.missingHeroArticle.forEach((s) => console.log(`   - ${s}`));
 
 console.log(`\n2. MISSING CARDS-RELATED BLOCK: ${issues.missingCardsRelated.length} pages`);
-issues.missingCardsRelated.forEach(s => console.log(`   - ${s}`));
+issues.missingCardsRelated.forEach((s) => console.log(`   - ${s}`));
 
 console.log(`\n3. MISSING METADATA: ${issues.missingMetadata.length} pages`);
-issues.missingMetadata.forEach(s => console.log(`   - ${s}`));
+issues.missingMetadata.forEach((s) => console.log(`   - ${s}`));
 
 console.log(`\n4. EMPTY SECTIONS: ${issues.emptySections.length} pages`);
-issues.emptySections.forEach(s => console.log(`   - ${s.slug} (${s.count} empty sections)`));
+issues.emptySections.forEach((s) => console.log(`   - ${s.slug} (${s.count} empty sections)`));
 
 console.log(`\n5. BROKEN IMAGE REFS: ${issues.brokenImageRefs.length}`);
-issues.brokenImageRefs.forEach(s => console.log(`   - ${s.slug}: ${s.src}`));
+issues.brokenImageRefs.forEach((s) => console.log(`   - ${s.slug}: ${s.src}`));
 
 console.log(`\n6. EXTERNAL IMAGES: ${issues.externalImages.length}`);
-issues.externalImages.forEach(s => console.log(`   - ${s.slug}: ${s.src}`));
+issues.externalImages.forEach((s) => console.log(`   - ${s.slug}: ${s.src}`));
 
 console.log(`\n7. EMPTY SRC IMAGES: ${issues.emptyImages.length}`);
-issues.emptyImages.forEach(s => console.log(`   - ${s.slug}`));
+issues.emptyImages.forEach((s) => console.log(`   - ${s.slug}`));
 
 console.log(`\n8. EMPTY HREFS: ${issues.emptyHrefs.length}`);
-issues.emptyHrefs.forEach(s => console.log(`   - ${s.slug}: ...${s.context}...`));
+issues.emptyHrefs.forEach((s) => console.log(`   - ${s.slug}: ...${s.context}...`));
 
 console.log(`\n9. MISSING H1: ${issues.missingH1.length} pages`);
-issues.missingH1.forEach(s => console.log(`   - ${s}`));
+issues.missingH1.forEach((s) => console.log(`   - ${s}`));
 
 console.log(`\n10. MULTIPLE H1s: ${issues.multipleH1.length} pages`);
-issues.multipleH1.forEach(s => console.log(`   - ${s.slug} (${s.count} h1s)`));
+issues.multipleH1.forEach((s) => console.log(`   - ${s.slug} (${s.count} h1s)`));
 
 console.log(`\n11. EMPTY ALT ON IMAGES: ${issues.emptyAltOnImages.length} pages`);
-issues.emptyAltOnImages.forEach(s => console.log(`   - ${s.slug} (${s.count} images)`));
+issues.emptyAltOnImages.forEach((s) => console.log(`   - ${s.slug} (${s.count} images)`));
 
 // Summary
-const totalIssues = issues.missingHeroArticle.length + issues.missingCardsRelated.length +
-  issues.missingMetadata.length + issues.emptySections.length + issues.brokenImageRefs.length +
-  issues.externalImages.length + issues.emptyImages.length + issues.emptyHrefs.length +
-  issues.missingH1.length + issues.multipleH1.length + issues.emptyAltOnImages.length;
+const totalIssues = issues.missingHeroArticle.length + issues.missingCardsRelated.length
+  + issues.missingMetadata.length + issues.emptySections.length + issues.brokenImageRefs.length
+  + issues.externalImages.length + issues.emptyImages.length + issues.emptyHrefs.length
+  + issues.missingH1.length + issues.multipleH1.length + issues.emptyAltOnImages.length;
 
-console.log(`\n=== SUMMARY ===`);
+console.log('\n=== SUMMARY ===');
 console.log(`Total pages: ${files.length}`);
 console.log(`Total issues: ${totalIssues}`);
 console.log(`Pages with missing hero-article: ${issues.missingHeroArticle.length}`);

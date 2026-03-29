@@ -15,7 +15,7 @@ function fetchOriginal(slug) {
   try {
     return execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0" --max-time 30 "${url}"`,
-      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' },
     );
   } catch (e) {
     return null;
@@ -42,7 +42,7 @@ function downloadImage(url, filename) {
 }
 
 // Process each affected page
-const files = fs.readdirSync(CONTENT_DIR).filter(f => f.endsWith('.plain.html'));
+const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
 
 for (const file of files) {
   const filePath = path.join(CONTENT_DIR, file);
@@ -80,12 +80,12 @@ for (const file of files) {
   // Also check srcset and data-srcset
   const srcsetMatches = [...body.matchAll(/(?:srcset|data-srcset)=["']([^"']+)["']/gi)];
   for (const m of srcsetMatches) {
-    const urls = m[1].split(',').map(s => s.trim().split(/\s+/)[0]);
+    const urls = m[1].split(',').map((s) => s.trim().split(/\s+/)[0]);
     for (const url of urls) {
       const scene7Match = url.match(/abbvie\.scene7\.com\/is\/(?:image|content)\/abbviecorp\/([^?"'\s]+)/);
       if (scene7Match) {
         const name = scene7Match[1];
-        if (!originalImages.find(i => i.name === name)) {
+        if (!originalImages.find((i) => i.name === name)) {
           originalImages.push({ fullUrl: url, name, alt: '' });
         }
       }
@@ -117,9 +117,7 @@ for (const file of files) {
     let matchedImage = null;
 
     if (alt && alt.length > 3) {
-      matchedImage = originalImages.find(oi =>
-        oi.alt && oi.alt.toLowerCase() === alt.toLowerCase()
-      );
+      matchedImage = originalImages.find((oi) => oi.alt && oi.alt.toLowerCase() === alt.toLowerCase());
     }
 
     if (!matchedImage) {
@@ -163,7 +161,7 @@ for (const file of files) {
         console.log(`  -> Download failed for ${filename}`);
       }
     } else {
-      console.log(`  -> No matching image found`);
+      console.log('  -> No matching image found');
     }
   }
 

@@ -12,7 +12,7 @@ const CONTENT_DIR = path.resolve(__dirname, '../../content/who-we-are/our-storie
 const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
 
 const files = fs.readdirSync(CONTENT_DIR)
-  .filter(f => f.endsWith('.plain.html'))
+  .filter((f) => f.endsWith('.plain.html'))
   .sort()
   .slice(0, 25);
 
@@ -21,7 +21,7 @@ function fetchOriginalHTML(slug) {
   try {
     const html = execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" --max-time 30 "${url}"`,
-      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' },
     );
     return html;
   } catch (e) {
@@ -31,7 +31,7 @@ function fetchOriginalHTML(slug) {
 
 function extractArticleContent(html) {
   // Remove header, footer, nav, modals, scripts, styles
-  let clean = html
+  const clean = html
     .replace(/<header[\s\S]*?<\/header>/gi, '')
     .replace(/<footer[\s\S]*?<\/footer>/gi, '')
     .replace(/<nav[\s\S]*?<\/nav>/gi, '')
@@ -136,16 +136,16 @@ function normalizeText(t) {
 function compareTexts(originals, migrated, label) {
   const issues = [];
 
-  const normOrig = originals.map(normalizeText).filter(t => t.length > 5);
-  const normMig = migrated.map(normalizeText).filter(t => t.length > 5);
+  const normOrig = originals.map(normalizeText).filter((t) => t.length > 5);
+  const normMig = migrated.map(normalizeText).filter((t) => t.length > 5);
 
   // Check for content in original not in migrated
   for (const orig of normOrig) {
     // Skip known exclusions
     if (orig.includes('you are about to leave')) continue;
     if (orig.includes('subscribe to our')) continue;
-    if (orig.includes('all stories')) continue;  // Back link text
-    if (orig.includes('minute read')) continue;  // Read time
+    if (orig.includes('all stories')) continue; // Back link text
+    if (orig.includes('minute read')) continue; // Read time
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(orig)) continue; // Dates
     if (orig.includes('share this')) continue;
     if (orig.includes('cookie')) continue;
@@ -154,7 +154,7 @@ function compareTexts(originals, migrated, label) {
     if (orig.includes('terms of use')) continue;
     if (orig.length < 15) continue; // Skip very short text
 
-    const found = normMig.some(m => {
+    const found = normMig.some((m) => {
       // Exact match
       if (m === orig) return true;
       // Substring match (for truncated content)
@@ -215,16 +215,14 @@ async function comparePage(slug) {
   issues.push(...compareTexts(origElements.blockquotes, migElements.blockquotes, 'blockquote'));
 
   // Compare images (count article images excluding icons/logos)
-  const origArticleImages = origElements.images.filter(i =>
-    i.src.includes('scene7') || i.src.includes('abbvie') || i.alt.length > 5
-  );
+  const origArticleImages = origElements.images.filter((i) => i.src.includes('scene7') || i.src.includes('abbvie') || i.alt.length > 5);
   const migArticleImages = migElements.images;
 
   if (origArticleImages.length > migArticleImages.length + 1) {
     issues.push({
       type: 'IMAGE_COUNT_LOW',
       element: 'images',
-      text: `Original has ${origArticleImages.length} article images, migrated has ${migArticleImages.length}`
+      text: `Original has ${origArticleImages.length} article images, migrated has ${migArticleImages.length}`,
     });
   }
 
@@ -273,7 +271,7 @@ async function main() {
 
   for (let i = 0; i < files.length; i++) {
     const slug = files[i].replace('.plain.html', '');
-    process.stdout.write(`[${i+1}/${files.length}] ${slug}... `);
+    process.stdout.write(`[${i + 1}/${files.length}] ${slug}... `);
 
     const issues = await comparePage(slug);
 
@@ -282,7 +280,7 @@ async function main() {
       perfectCount++;
     } else {
       console.log(`✗ ${issues.length} issue(s)`);
-      issues.forEach(iss => console.log(`    - [${iss.type}] ${iss.element}: ${iss.text}`));
+      issues.forEach((iss) => console.log(`    - [${iss.type}] ${iss.element}: ${iss.text}`));
       allIssues.push({ slug, issues });
     }
   }

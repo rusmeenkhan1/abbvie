@@ -19,7 +19,7 @@ function fetchOriginalHTML(slug) {
   try {
     return execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" --max-time 30 "https://www.abbvie.com/who-we-are/our-stories/${slug}.html"`,
-      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' },
     );
   } catch (e) {
     return null;
@@ -61,7 +61,9 @@ function extractCards(html) {
     const imgAlt = altMatch ? altMatch[1] : '';
 
     if (title) {
-      cards.push({ date, category, title, description, link, imgSrc, imgAlt });
+      cards.push({
+        date, category, title, description, link, imgSrc, imgAlt,
+      });
     }
   }
   return cards;
@@ -75,13 +77,13 @@ function downloadImage(url, filename) {
   }
   try {
     execSync(`curl -sL -o "${destPath}" "${url}"`, { timeout: 30000 });
-    const size = fs.statSync(destPath).size;
+    const { size } = fs.statSync(destPath);
     if (size < 500) {
       fs.unlinkSync(destPath);
       console.log(`  Image too small, removed: ${filename}`);
       return false;
     }
-    console.log(`  Downloaded: ${filename} (${(size/1024).toFixed(1)}KB)`);
+    console.log(`  Downloaded: ${filename} (${(size / 1024).toFixed(1)}KB)`);
     return true;
   } catch (e) {
     console.log(`  Failed to download: ${filename}`);
@@ -90,7 +92,7 @@ function downloadImage(url, filename) {
 }
 
 function buildCardsRelatedHTML(cards) {
-  const cardRows = cards.map(card => {
+  const cardRows = cards.map((card) => {
     const parts = [];
 
     // Image
@@ -138,9 +140,7 @@ for (const slug of pages) {
   }
 
   // Take the first card that has an article link (skip site-wide promo cards)
-  const articleCards = cards.filter(c =>
-    c.link && c.link.includes('/who-we-are/our-stories/')
-  );
+  const articleCards = cards.filter((c) => c.link && c.link.includes('/who-we-are/our-stories/'));
 
   console.log(`Article-related cards: ${articleCards.length}`);
 
@@ -172,8 +172,8 @@ for (const slug of pages) {
   // Find the end of the outer wrapping div for the cards section
   // Structure: <div><div class="cards-related">...</div></div></div>
   // Need to find the section-level closing divs
-  let depth = 0;
-  let pos = cardsStart;
+  const depth = 0;
+  const pos = cardsStart;
   // Find the cards-related closing
   const searchFrom = content.indexOf('cards-related');
   // The cards block ends with </div></div></div> then the next section starts
@@ -193,7 +193,7 @@ for (const slug of pages) {
   const cardsBlockMatch = content.match(/<div class="cards-related">[\s\S]*?<\/div><\/div><\/div>\s*\n/);
   if (cardsBlockMatch) {
     const oldBlock = cardsBlockMatch[0];
-    const newBlock = newCardsHTML + '</div>\n';
+    const newBlock = `${newCardsHTML}</div>\n`;
     content = content.replace(oldBlock, newBlock);
     fs.writeFileSync(filePath, content, 'utf8');
     console.log(`Replaced cards-related block with ${cardsToUse.length} card(s)`);

@@ -43,7 +43,7 @@ function fetchOriginal(slug) {
   try {
     return execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)" --max-time 30 "${url}"`,
-      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' },
     );
   } catch (e) {
     return null;
@@ -77,9 +77,9 @@ function extractOriginalArticle(html) {
     h1: '',
     h2s: [],
     h5s: [],
-    bodyParagraphs: [],  // Key body text paragraphs
-    bodyImages: [],      // Image alt texts in body
-    bodyLinks: [],       // Editorial links in body
+    bodyParagraphs: [], // Key body text paragraphs
+    bodyImages: [], // Image alt texts in body
+    bodyLinks: [], // Editorial links in body
     metaTitle: '',
     metaDescription: '',
     metaOgTitle: '',
@@ -131,7 +131,7 @@ function extractOriginalArticle(html) {
   // Extract paragraphs from body - get all text content
   const pMatches = [...body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)];
   for (const m of pMatches) {
-    let text = m[1].replace(/<[^>]+>/g, '').trim();
+    const text = m[1].replace(/<[^>]+>/g, '').trim();
     // Skip very short, navigation-like, or metadata paragraphs
     if (text.length > 30 && !text.match(/^\d+ Minute Read$/) && !text.match(/^All Stories$/)) {
       result.bodyParagraphs.push(text);
@@ -228,7 +228,7 @@ function extractMigrated(html) {
   // Extract body paragraphs (from all sections, not just hero)
   const pMatches = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)];
   for (const m of pMatches) {
-    let text = m[1].replace(/<[^>]+>/g, '').trim();
+    const text = m[1].replace(/<[^>]+>/g, '').trim();
     if (text.length > 30) {
       result.bodyParagraphs.push(text);
     }
@@ -289,7 +289,7 @@ function comparePage(slug) {
   // 2. H2 comparison
   for (const oh2 of original.h2s) {
     const normO = normalizeText(oh2);
-    if (!migrated.h2s.some(mh2 => normalizeText(mh2) === normO)) {
+    if (!migrated.h2s.some((mh2) => normalizeText(mh2) === normO)) {
       issues.push({ type: 'MISSING_H2', text: oh2 });
     }
   }
@@ -297,7 +297,7 @@ function comparePage(slug) {
   // 3. H5 comparison (sub-headings)
   for (const oh5 of original.h5s) {
     const normO = normalizeText(oh5);
-    if (!migrated.h5s.some(mh5 => normalizeText(mh5) === normO)) {
+    if (!migrated.h5s.some((mh5) => normalizeText(mh5) === normO)) {
       issues.push({ type: 'MISSING_H5', text: oh5 });
     }
   }
@@ -311,7 +311,7 @@ function comparePage(slug) {
     const normO = normalizeText(op);
     if (normO.length < 30) continue;
 
-    const found = migrNormParas.some(mp => {
+    const found = migrNormParas.some((mp) => {
       if (mp === normO) return true;
       // Fuzzy: check 40-char substring match
       const sub = normO.substring(0, 40);
@@ -342,7 +342,7 @@ function comparePage(slug) {
   }
 
   // 6. Editorial link comparison
-  const migrLinkTexts = migrated.bodyLinks.map(l => normalizeText(l.text));
+  const migrLinkTexts = migrated.bodyLinks.map((l) => normalizeText(l.text));
   const missingLinks = [];
   for (const ol of original.bodyLinks) {
     const normText = normalizeText(ol.text);
@@ -352,7 +352,7 @@ function comparePage(slug) {
     // Skip email/phone links
     if (ol.href.startsWith('mailto:') || ol.href.startsWith('tel:')) continue;
 
-    if (!migrLinkTexts.some(mt => mt === normText || mt.includes(normText) || normText.includes(mt))) {
+    if (!migrLinkTexts.some((mt) => mt === normText || mt.includes(normText) || normText.includes(mt))) {
       missingLinks.push({ text: ol.text, href: ol.href });
     }
   }
@@ -390,8 +390,8 @@ async function main() {
         const summary = issue.type === 'MISSING_BODY_TEXT'
           ? `${issue.count} paras - ${issue.samples[0]?.substring(0, 80)}`
           : issue.type === 'MISSING_EDITORIAL_LINKS'
-          ? `${issue.count} links - ${issue.links[0]?.text}`
-          : issue.text || issue.value || `orig=${issue.orig}, migr=${issue.migr}`;
+            ? `${issue.count} links - ${issue.links[0]?.text}`
+            : issue.text || issue.value || `orig=${issue.orig}, migr=${issue.migr}`;
         console.log(`  - ${issue.type}: ${summary}`);
         issueSummary[issue.type] = (issueSummary[issue.type] || 0) + 1;
       }
@@ -400,7 +400,7 @@ async function main() {
     }
   }
 
-  console.log(`\n=== SUMMARY ===`);
+  console.log('\n=== SUMMARY ===');
   console.log(`Pages: ${SLUGS.length}, Clean: ${SLUGS.length - totalIssuePages}, With issues: ${totalIssuePages}`);
   console.log(`Total issue instances: ${totalIssueCount}`);
   console.log('\nBreakdown:');

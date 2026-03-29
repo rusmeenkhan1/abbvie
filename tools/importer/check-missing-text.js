@@ -23,7 +23,7 @@ function fetchOriginal(slug) {
   try {
     return execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0" --max-time 30 "${url}"`,
-      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' },
     );
   } catch (e) {
     return null;
@@ -70,13 +70,13 @@ for (const slug of SLUGS) {
 
   // Extract paragraphs from body
   const origParas = [...body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
-    .map(m => m[1].replace(/<[^>]+>/g, '').trim())
-    .filter(t => t.length > 30);
+    .map((m) => m[1].replace(/<[^>]+>/g, '').trim())
+    .filter((t) => t.length > 30);
 
   // Extract paragraphs from migrated
   const migrParas = [...migratedHtml.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
-    .map(m => m[1].replace(/<[^>]+>/g, '').trim())
-    .filter(t => t.length > 30);
+    .map((m) => m[1].replace(/<[^>]+>/g, '').trim())
+    .filter((t) => t.length > 30);
 
   const migrNorm = migrParas.map(normalizeText);
 
@@ -84,7 +84,7 @@ for (const slug of SLUGS) {
   const missing = [];
   for (const op of origParas) {
     const normO = normalizeText(op);
-    const found = migrNorm.some(mn => {
+    const found = migrNorm.some((mn) => {
       if (mn === normO) return true;
       if (normO.length > 40 && mn.includes(normO.substring(0, 40))) return true;
       if (mn.length > 40 && normO.includes(mn.substring(0, 40))) return true;
@@ -103,7 +103,7 @@ for (const slug of SLUGS) {
     console.log('\nMISSING PARAGRAPHS:');
     for (const m of missing) {
       // Truncate and show
-      const short = m.length > 120 ? m.substring(0, 120) + '...' : m;
+      const short = m.length > 120 ? `${m.substring(0, 120)}...` : m;
       console.log(`  - "${short}"`);
     }
   }

@@ -11,7 +11,7 @@ const CONTENT_DIR = path.resolve(__dirname, '../../content/who-we-are/our-storie
 
 // Find pages missing Description in metadata
 function findPagesWithoutDescription() {
-  const files = fs.readdirSync(CONTENT_DIR).filter(f => f.endsWith('.plain.html'));
+  const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
   const affected = [];
 
   for (const file of files) {
@@ -35,7 +35,7 @@ function fetchMetaDescription(url) {
   try {
     const html = execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0" --max-time 30 "${url}"`,
-      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' },
     );
 
     // Try meta description tag
@@ -70,12 +70,12 @@ async function main() {
 
   for (let i = 0; i < affected.length; i++) {
     const page = affected[i];
-    console.log(`[${i+1}/${affected.length}] ${page.slug}`);
+    console.log(`[${i + 1}/${affected.length}] ${page.slug}`);
 
     const description = fetchMetaDescription(page.originalUrl);
 
     if (!description) {
-      console.log(`  FAILED: Could not find description`);
+      console.log('  FAILED: Could not find description');
       failed++;
       continue;
     }
@@ -88,7 +88,7 @@ async function main() {
     const titleIdx = content.indexOf(titlePattern);
 
     if (titleIdx === -1) {
-      console.log(`  FAILED: Could not find Title in metadata`);
+      console.log('  FAILED: Could not find Title in metadata');
       failed++;
       continue;
     }
@@ -96,7 +96,7 @@ async function main() {
     // Find the end of the Title row
     const afterTitle = content.indexOf('</div></div>', titleIdx + titlePattern.length);
     if (afterTitle === -1) {
-      console.log(`  FAILED: Could not parse Title row end`);
+      console.log('  FAILED: Could not parse Title row end');
       failed++;
       continue;
     }
@@ -111,13 +111,13 @@ async function main() {
     fixed++;
   }
 
-  console.log(`\n=== SUMMARY ===`);
+  console.log('\n=== SUMMARY ===');
   console.log(`Fixed: ${fixed}`);
   console.log(`Failed: ${failed}`);
 
   // Verify
   let remaining = 0;
-  const files = fs.readdirSync(CONTENT_DIR).filter(f => f.endsWith('.plain.html'));
+  const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
   for (const file of files) {
     const content = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
     if (content.includes('class="metadata"') && !content.includes('<div>Description</div>')) {

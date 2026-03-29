@@ -23,7 +23,7 @@ function fetchOriginal(slug) {
   try {
     return execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0" --max-time 30 "${url}"`,
-      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' },
     );
   } catch (e) {
     return null;
@@ -55,8 +55,8 @@ function extractAllImages(html, label) {
     const src = m[1];
     const altMatch = m[0].match(/\balt=["']([^"']*)["']/i);
     const alt = altMatch ? altMatch[1] : '';
-    if (!images.find(i => i.src === src.substring(0, 120))) {
-      images.push({ src: src.substring(0, 120) + ' [data-src]', alt: alt.substring(0, 60) });
+    if (!images.find((i) => i.src === src.substring(0, 120))) {
+      images.push({ src: `${src.substring(0, 120)} [data-src]`, alt: alt.substring(0, 60) });
     }
   }
 

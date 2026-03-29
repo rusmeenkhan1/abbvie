@@ -14,7 +14,7 @@ const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
 
 // Find all pages with empty src="" attributes
 function findPagesWithEmptySrc() {
-  const files = fs.readdirSync(CONTENT_DIR).filter(f => f.endsWith('.plain.html'));
+  const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
   const affected = [];
 
   for (const file of files) {
@@ -28,7 +28,7 @@ function findPagesWithEmptySrc() {
         file: filePath,
         slug,
         originalUrl: `https://www.abbvie.com/who-we-are/our-stories/${slug}.html`,
-        emptyImages: matches.map(m => ({
+        emptyImages: matches.map((m) => ({
           fullMatch: m[0],
           alt: m[1],
         })),
@@ -47,7 +47,7 @@ function downloadFile(url, destPath) {
     const request = protocol.get(cleanUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+        Accept: 'image/webp,image/apng,image/*,*/*;q=0.8',
       },
       timeout: 30000,
     }, (response) => {
@@ -75,7 +75,7 @@ function urlToFilename(url) {
     const u = new URL(url.replace(/&#x26;/g, '&'));
     const scene7Match = u.pathname.match(/\/is\/(?:image|content)\/abbviecorp\/(.+)/);
     if (scene7Match) {
-      let name = scene7Match[1].replace(/\//g, '-');
+      const name = scene7Match[1].replace(/\//g, '-');
       const fmt = u.searchParams.get('fmt');
       if (fmt) return `${name}.${fmt}`;
       if (u.pathname.includes('/is/content/')) return `${name}.svg`;
@@ -103,7 +103,7 @@ function fetchPageImages(url) {
   try {
     const html = execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0" --max-time 30 "${url}"`,
-      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' },
     );
 
     // Extract all img tags with src and alt
@@ -121,28 +121,34 @@ function fetchPageImages(url) {
     const images = new Map(); // alt -> src
 
     for (const m of imgMatches) {
-      const src = m[1], alt = m[2];
+      const src = m[1]; const
+        alt = m[2];
       if (src && !src.startsWith('data:')) images.set(alt, src);
     }
     for (const m of imgMatchesReverse) {
-      const alt = m[1], src = m[2];
+      const alt = m[1]; const
+        src = m[2];
       if (src && !src.startsWith('data:') && !images.has(alt)) images.set(alt, src);
     }
     for (const m of dataSrcMatches) {
-      const src = m[1], alt = m[2];
+      const src = m[1]; const
+        alt = m[2];
       if (src && !src.startsWith('data:') && !images.has(alt)) images.set(alt, src);
     }
     for (const m of dataSrcMatchesReverse) {
-      const alt = m[1], src = m[2];
+      const alt = m[1]; const
+        src = m[2];
       if (src && !src.startsWith('data:') && !images.has(alt)) images.set(alt, src);
     }
     for (const m of srcsetMatches) {
-      const srcset = m[1], alt = m[2];
+      const srcset = m[1]; const
+        alt = m[2];
       const firstSrc = srcset.split(',')[0].trim().split(/\s+/)[0];
       if (firstSrc && !firstSrc.startsWith('data:') && !images.has(alt)) images.set(alt, firstSrc);
     }
     for (const m of srcsetMatchesReverse) {
-      const alt = m[1], srcset = m[2];
+      const alt = m[1]; const
+        srcset = m[2];
       const firstSrc = srcset.split(',')[0].trim().split(/\s+/)[0];
       if (firstSrc && !firstSrc.startsWith('data:') && !images.has(alt)) images.set(alt, firstSrc);
     }
@@ -165,7 +171,7 @@ async function main() {
 
   for (let i = 0; i < affected.length; i++) {
     const page = affected[i];
-    console.log(`\n[${i+1}/${affected.length}] Processing ${page.slug} (${page.emptyImages.length} empty images)`);
+    console.log(`\n[${i + 1}/${affected.length}] Processing ${page.slug} (${page.emptyImages.length} empty images)`);
 
     // Fetch original page images
     const pageImages = fetchPageImages(page.originalUrl);
@@ -210,7 +216,7 @@ async function main() {
       }
 
       // Generate local filename and download
-      let localFilename = sanitizeFilename(urlToFilename(imgSrc));
+      const localFilename = sanitizeFilename(urlToFilename(imgSrc));
 
       // Avoid collisions
       if (existingFiles.has(localFilename)) {
@@ -233,7 +239,9 @@ async function main() {
         } catch (e) {
           console.error(`  FAILED to download: ${localFilename} - ${e.message}`);
           totalFailed++;
-          allFailed.push({ page: page.slug, alt: emptyImg.alt, url: imgSrc, error: e.message });
+          allFailed.push({
+            page: page.slug, alt: emptyImg.alt, url: imgSrc, error: e.message,
+          });
           continue;
         }
       }
@@ -254,18 +262,18 @@ async function main() {
     }
   }
 
-  console.log(`\n=== SUMMARY ===`);
+  console.log('\n=== SUMMARY ===');
   console.log(`Fixed: ${totalFixed}`);
   console.log(`Failed: ${totalFailed}`);
 
   if (allFailed.length > 0) {
-    console.log(`\nFailed images:`);
-    allFailed.forEach(f => console.log(`  ${f.page}: alt="${f.alt}" ${f.url || ''} ${f.error || '(no match found)'}`));
+    console.log('\nFailed images:');
+    allFailed.forEach((f) => console.log(`  ${f.page}: alt="${f.alt}" ${f.url || ''} ${f.error || '(no match found)'}`));
   }
 
   // Final count of remaining empty src
   let remaining = 0;
-  const files = fs.readdirSync(CONTENT_DIR).filter(f => f.endsWith('.plain.html'));
+  const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
   for (const file of files) {
     const c = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
     const m = c.match(/<img src="" /g);

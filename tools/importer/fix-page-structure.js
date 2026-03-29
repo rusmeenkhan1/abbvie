@@ -53,7 +53,8 @@ function fixHeroArticle(slug) {
 
   // Extract date + category line
   const dateCatMatch = firstSection.match(/<p>([A-Z][a-z]+ \d{1,2}, \d{4})\s*(<a href="[^"]*">([^<]+)<\/a>)?<\/p>/);
-  let date = '', category = '';
+  let date = ''; let
+    category = '';
   if (dateCatMatch) {
     date = dateCatMatch[1];
     category = dateCatMatch[3] || '';
@@ -123,7 +124,7 @@ function fixEmptyHrefs(slug) {
 // ====== MAIN ======
 function main() {
   const files = fs.readdirSync(CONTENT_DIR)
-    .filter(f => f.endsWith('.plain.html'))
+    .filter((f) => f.endsWith('.plain.html'))
     .sort();
 
   console.log(`Processing ${files.length} pages...\n`);

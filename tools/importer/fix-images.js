@@ -18,8 +18,8 @@ if (!fs.existsSync(IMAGES_DIR)) {
 
 // Collect all .plain.html files
 const htmlFiles = fs.readdirSync(CONTENT_DIR)
-  .filter(f => f.endsWith('.plain.html'))
-  .map(f => path.join(CONTENT_DIR, f));
+  .filter((f) => f.endsWith('.plain.html'))
+  .map((f) => path.join(CONTENT_DIR, f));
 
 console.log(`Found ${htmlFiles.length} HTML files to process`);
 
@@ -45,7 +45,7 @@ console.log(`Found ${allExternalUrls.size} unique external image URLs`);
 function urlToFilename(url) {
   try {
     const u = new URL(url.replace(/&#x26;/g, '&'));
-    let pathname = u.pathname;
+    const { pathname } = u;
 
     // For scene7 URLs like /is/image/abbviecorp/NAME or /is/content/abbviecorp/NAME
     const scene7Match = pathname.match(/\/is\/(?:image|content)\/abbviecorp\/(.+)/);
@@ -103,7 +103,7 @@ function downloadFile(url, destPath) {
     const request = protocol.get(cleanUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+        Accept: 'image/webp,image/apng,image/*,*/*;q=0.8',
       },
       timeout: 30000,
     }, (response) => {
@@ -197,7 +197,7 @@ async function main() {
 
   if (failedUrls.length > 0) {
     console.log('\nFailed URLs:');
-    failedUrls.forEach(f => console.log(`  ${f.url} -> ${f.error}`));
+    failedUrls.forEach((f) => console.log(`  ${f.url} -> ${f.error}`));
   }
 
   // Now replace URLs in all HTML files

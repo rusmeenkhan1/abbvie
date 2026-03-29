@@ -11,7 +11,7 @@ const CONTENT_DIR = path.resolve(__dirname, '../../content/who-we-are/our-storie
 const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
 
 // Find all pages with icon-search.svg references
-const files = fs.readdirSync(CONTENT_DIR).filter(f => f.endsWith('.plain.html'));
+const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
 const affected = [];
 
 for (const file of files) {
@@ -34,7 +34,7 @@ function fetchOriginal(slug) {
   try {
     return execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0" --max-time 30 "${url}"`,
-      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' },
     );
   } catch (e) {
     return null;
@@ -46,7 +46,7 @@ function downloadImage(url, filename) {
   try {
     execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0" --max-time 30 -o "${outPath}" "${url}"`,
-      { timeout: 60000 }
+      { timeout: 60000 },
     );
     const stats = fs.statSync(outPath);
     if (stats.size < 100) {
@@ -137,7 +137,7 @@ for (const page of affected) {
         if (downloadImage(downloadUrl, filename)) {
           content = content.replace(
             rep.fullMatch,
-            `<img src="./images/${filename}" alt="${rep.alt}">`
+            `<img src="./images/${filename}" alt="${rep.alt}">`,
           );
           found = true;
           break;
@@ -149,8 +149,8 @@ for (const page of affected) {
       // Try direct Scene7 URL construction based on known patterns
       // Many of these are photo carousel images with sequential numbering
       const carouselPatterns = scene7Images
-        .filter(s7 => s7.name.includes('photo_carousel') || s7.name.includes('_photo_'))
-        .map(s7 => s7.name);
+        .filter((s7) => s7.name.includes('photo_carousel') || s7.name.includes('_photo_'))
+        .map((s7) => s7.name);
 
       for (const name of carouselPatterns) {
         const filename = `${name}.webp`;
@@ -160,7 +160,7 @@ for (const page of affected) {
         if (downloadImage(downloadUrl, filename)) {
           content = content.replace(
             rep.fullMatch,
-            `<img src="./images/${filename}" alt="${rep.alt}">`
+            `<img src="./images/${filename}" alt="${rep.alt}">`,
           );
           found = true;
           break;
@@ -169,7 +169,7 @@ for (const page of affected) {
     }
 
     if (!found) {
-      console.log(`  Could not find replacement image`);
+      console.log('  Could not find replacement image');
     }
   }
 

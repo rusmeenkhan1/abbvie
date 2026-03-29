@@ -47,7 +47,7 @@ function fetchOriginal(slug) {
   try {
     return execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)" --max-time 30 "${url}"`,
-      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' },
     );
   } catch (e) {
     return null;
@@ -116,7 +116,7 @@ function extractElements(html) {
     const alt = altMatch ? altMatch[1] : '';
     // Only add if not already captured via src
     const src = m[1];
-    if (!elements.images.find(img => img.src === src)) {
+    if (!elements.images.find((img) => img.src === src)) {
       elements.images.push({ src, alt });
     }
   }
@@ -239,8 +239,8 @@ function comparePages(slug) {
   const original = extractElements(bodyHtml);
 
   // 1. Compare headings
-  const origH1 = original.headings.filter(h => h.level === 1);
-  const migrH1 = migrated.headings.filter(h => h.level === 1);
+  const origH1 = original.headings.filter((h) => h.level === 1);
+  const migrH1 = migrated.headings.filter((h) => h.level === 1);
 
   if (origH1.length > 0 && migrH1.length > 0) {
     const origText = normalizeText(origH1[0].text);
@@ -251,11 +251,11 @@ function comparePages(slug) {
   }
 
   // Compare H2s
-  const origH2 = original.headings.filter(h => h.level === 2).map(h => normalizeText(h.text));
-  const migrH2 = migrated.headings.filter(h => h.level === 2).map(h => normalizeText(h.text));
+  const origH2 = original.headings.filter((h) => h.level === 2).map((h) => normalizeText(h.text));
+  const migrH2 = migrated.headings.filter((h) => h.level === 2).map((h) => normalizeText(h.text));
 
   for (const oh2 of origH2) {
-    if (!migrH2.find(mh2 => mh2 === oh2)) {
+    if (!migrH2.find((mh2) => mh2 === oh2)) {
       issues.push({ type: 'MISSING_H2', detail: oh2 });
     }
   }
@@ -273,7 +273,7 @@ function comparePages(slug) {
 
   // 3. Compare image count (body only, excluding nav/footer)
   // Filter original images to only body content images
-  const origBodyImages = original.images.filter(img => {
+  const origBodyImages = original.images.filter((img) => {
     const src = img.src.toLowerCase();
     // Skip common nav/footer/icon images
     return !src.includes('/icons/') && !src.includes('logo') && !src.includes('favicon')
@@ -299,7 +299,7 @@ function comparePages(slug) {
   for (const op of origParaTexts) {
     if (op.length < 20) continue; // skip very short paras
     // Check if any migrated paragraph contains this text (fuzzy match)
-    const found = migrParaTexts.some(mp => {
+    const found = migrParaTexts.some((mp) => {
       if (mp === op) return true;
       // Check for 80%+ substring match
       if (op.length > 50 && mp.includes(op.substring(0, 50))) return true;
@@ -320,7 +320,7 @@ function comparePages(slug) {
   }
 
   // 5. Check for missing links (important editorial links)
-  const origBodyLinks = original.links.filter(l => {
+  const origBodyLinks = original.links.filter((l) => {
     const href = l.href.toLowerCase();
     // Skip nav links, social, and generic links
     return !href.includes('/who-we-are/our-stories.html') // back link
@@ -333,7 +333,7 @@ function comparePages(slug) {
   const missingLinks = [];
 
   for (const ol of origBodyLinks) {
-    const found = migrBodyLinks.some(ml => {
+    const found = migrBodyLinks.some((ml) => {
       const normOText = normalizeText(ol.text);
       const normMText = normalizeText(ml.text);
       return normOText === normMText || ml.href.includes(ol.href) || ol.href.includes(ml.href);
@@ -367,16 +367,16 @@ async function main() {
     allResults[slug] = issues;
 
     if (issues.length === 0) {
-      console.log(`  ✓ PASS - no differences`);
+      console.log('  ✓ PASS - no differences');
     } else {
       console.log(`  ✗ ${issues.length} issue(s):`);
       for (const issue of issues) {
         console.log(`    - ${issue.type}: ${issue.detail || issue.original || issue.count || ''}`);
         if (issue.samples) {
-          issue.samples.slice(0, 2).forEach(s => console.log(`      "${s.substring(0, 80)}..."`));
+          issue.samples.slice(0, 2).forEach((s) => console.log(`      "${s.substring(0, 80)}..."`));
         }
         if (issue.links) {
-          issue.links.slice(0, 2).forEach(l => console.log(`      "${l.text}" -> ${l.href}`));
+          issue.links.slice(0, 2).forEach((l) => console.log(`      "${l.text}" -> ${l.href}`));
         }
       }
       totalIssues += issues.length;
@@ -387,9 +387,9 @@ async function main() {
   const reportPath = path.join(REPORT_DIR, 'comparison-report.json');
   fs.writeFileSync(reportPath, JSON.stringify(allResults, null, 2));
 
-  console.log(`\n=== SUMMARY ===`);
+  console.log('\n=== SUMMARY ===');
   console.log(`Pages compared: ${SLUGS.length}`);
-  console.log(`Pages with issues: ${Object.values(allResults).filter(v => v.length > 0).length}`);
+  console.log(`Pages with issues: ${Object.values(allResults).filter((v) => v.length > 0).length}`);
   console.log(`Total issues: ${totalIssues}`);
   console.log(`Report saved: ${reportPath}`);
 

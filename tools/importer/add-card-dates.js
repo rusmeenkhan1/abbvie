@@ -10,7 +10,7 @@ const { execSync } = require('child_process');
 const CONTENT_DIR = path.resolve(__dirname, '../../content/who-we-are/our-stories');
 
 const files = fs.readdirSync(CONTENT_DIR)
-  .filter(f => f.endsWith('.plain.html'))
+  .filter((f) => f.endsWith('.plain.html'))
   .sort()
   .slice(0, 25);
 
@@ -18,7 +18,7 @@ function fetchOriginalHTML(slug) {
   try {
     return execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" --max-time 30 "https://www.abbvie.com/who-we-are/our-stories/${slug}.html"`,
-      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' },
     );
   } catch (e) {
     return null;
@@ -64,7 +64,7 @@ function addDateToCard(cardHTML, date) {
   }
 
   // Insert date paragraph before first <p>
-  return cardHTML.substring(0, contentStart + 5) + `<p>${date}</p>` + cardHTML.substring(contentStart + 5);
+  return `${cardHTML.substring(0, contentStart + 5)}<p>${date}</p>${cardHTML.substring(contentStart + 5)}`;
 }
 
 let fixedCount = 0;
@@ -73,7 +73,7 @@ let skippedCount = 0;
 for (const file of files) {
   const slug = file.replace('.plain.html', '');
   const filePath = path.join(CONTENT_DIR, file);
-  let content = fs.readFileSync(filePath, 'utf8');
+  const content = fs.readFileSync(filePath, 'utf8');
 
   if (!content.includes('cards-related')) {
     continue;
@@ -127,13 +127,13 @@ for (const file of files) {
     continue;
   }
 
-  let cardsBlock = content.substring(cardsBlockStart, cardsBlockEnd + 18);
+  const cardsBlock = content.substring(cardsBlockStart, cardsBlockEnd + 18);
 
   // For each card in our block, add the corresponding date
   // Cards are: <div><div><img...></div><div><p>Category</p>...
   // Split by card boundaries
   const cardPattern = /<div><div><img[^>]*><\/div><div>/g;
-  let matches = [];
+  const matches = [];
   let cm;
   while ((cm = cardPattern.exec(cardsBlock)) !== null) {
     matches.push(cm.index);
@@ -160,9 +160,9 @@ for (const file of files) {
     const existingText = newCardsBlock.substring(insertPoint, insertPoint + 50);
     if (/^<p>\w+ \d{1,2}, \d{4}<\/p>/.test(existingText)) continue;
 
-    newCardsBlock = newCardsBlock.substring(0, insertPoint) +
-      `<p>${dates[i]}</p>` +
-      newCardsBlock.substring(insertPoint);
+    newCardsBlock = `${newCardsBlock.substring(0, insertPoint)
+    }<p>${dates[i]}</p>${
+      newCardsBlock.substring(insertPoint)}`;
     modified = true;
   }
 
@@ -176,6 +176,6 @@ for (const file of files) {
   }
 }
 
-console.log(`\n=== SUMMARY ===`);
+console.log('\n=== SUMMARY ===');
 console.log(`Fixed: ${fixedCount} pages`);
 console.log(`Skipped (already had dates): ${skippedCount}`);

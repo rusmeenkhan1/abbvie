@@ -11,14 +11,14 @@ const { execSync } = require('child_process');
 const CONTENT_DIR = path.resolve(__dirname, '../../content/who-we-are/our-stories');
 
 // All 99 pages
-const files = fs.readdirSync(CONTENT_DIR).filter(f => f.endsWith('.plain.html'));
+const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
 
 function fetchMeta(slug) {
   const url = `https://www.abbvie.com/who-we-are/our-stories/${slug}.html`;
   try {
     const html = execSync(
       `curl -sL -H "User-Agent: Mozilla/5.0" --max-time 30 "${url}"`,
-      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' }
+      { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' },
     );
 
     const meta = {};
@@ -59,7 +59,7 @@ function escapeHtml(text) {
 function main() {
   let descAdded = 0;
   let descSkipped = 0;
-  let ogTitleFixed = 0;
+  const ogTitleFixed = 0;
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -145,7 +145,7 @@ function main() {
     }
   }
 
-  console.log(`\n=== SUMMARY ===`);
+  console.log('\n=== SUMMARY ===');
   console.log(`Descriptions added: ${descAdded}`);
   console.log(`Descriptions skipped: ${descSkipped}`);
 

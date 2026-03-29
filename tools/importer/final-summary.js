@@ -7,7 +7,7 @@ const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
 const existingImages = new Set(fs.readdirSync(IMAGES_DIR));
 
 const files = fs.readdirSync(CONTENT_DIR)
-  .filter(f => f.endsWith('.plain.html'))
+  .filter((f) => f.endsWith('.plain.html'))
   .sort()
   .slice(0, 25);
 
@@ -28,11 +28,19 @@ console.log(`\nPages with cards-related: ${pagesWithCards.length}/25`);
 
 // Final quality metrics
 console.log('\n=== QUALITY METRICS (25 pages) ===');
-let stats = {
-  hero: 0, metadata: 0, title: 0, desc: 0, og: 0,
-  noEmptySrc: 0, noEmptyHref: 0, noExternal: 0,
-  noPlaceholder: 0, singleH1: 0, noBrokenImg: 0,
-  substantial: 0
+const stats = {
+  hero: 0,
+  metadata: 0,
+  title: 0,
+  desc: 0,
+  og: 0,
+  noEmptySrc: 0,
+  noEmptyHref: 0,
+  noExternal: 0,
+  noPlaceholder: 0,
+  singleH1: 0,
+  noBrokenImg: 0,
+  substantial: 0,
 };
 
 for (const file of files) {
@@ -74,7 +82,7 @@ console.log(`  Single H1:             ${stats.singleH1}/25`);
 console.log(`  No broken images:      ${stats.noBrokenImg}/25`);
 console.log(`  Substantial content:   ${stats.substantial}/25`);
 
-const allPerfect = Object.values(stats).every(v => v === 25);
+const allPerfect = Object.values(stats).every((v) => v === 25);
 console.log(`\n${'='.repeat(60)}`);
 console.log(`ALL CHECKS PASSED: ${allPerfect ? 'YES - 25/25 PERFECT' : 'NO - See above'}`);
 console.log(`${'='.repeat(60)}`);
