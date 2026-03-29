@@ -1,0 +1,257 @@
+#!/usr/bin/env node
+/**
+ * Final deep check of first 25 pages.
+ * Extracts all article body text from originals (excluding header/footer/hero metadata/modals)
+ * and verifies every significant paragraph exists in our migrated pages.
+ * Also checks links, images, and heading structure.
+ */
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+const CONTENT_DIR = path.resolve(__dirname, '../../content/who-we-are/our-stories');
+const IMAGES_DIR = path.join(CONTENT_DIR, 'images');
+const existingImages = new Set(fs.readdirSync(IMAGES_DIR));
+
+const files = fs.readdirSync(CONTENT_DIR)
+  .filter(f => f.endsWith('.plain.html'))
+  .sort()
+  .slice(0, 25);
+
+function fetchOriginalHTML(slug) {
+  const url = `https://www.abbvie.com/who-we-are/our-stories/${slug}.html`;
+  try {
+    return execSync(
+      `curl -sL -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" --max-time 30 "${url}"`,
+      { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' }
+    );
+  } catch (e) {
+    return null;
+  }
+}
+
+function normalizeText(t) {
+  return t.toLowerCase()
+    .replace(/[''ʼ]/g, "'")
+    .replace(/[""]/g, '"')
+    .replace(/[–—]/g, '-')
+    .replace(/\u00a0/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&#x26;/g, '&')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#\d+;/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Extract article body content from original (excluding hero metadata, header, footer, modals)
+function extractOrigBodyContent(html) {
+  // Try to find the main article content area
+  let articleHTML = html;
+
+  // Remove everything before the article
+  const articleStart = html.match(/<article|<main|class="article-body"|class="content-body"|class="story-content"/i);
+  if (articleStart) {
+    articleHTML = html.substring(articleStart.index);
+  }
+
+  // Remove header, footer, nav, scripts, styles, modals
+  articleHTML = articleHTML
+    .replace(/<header[\s\S]*?<\/header>/gi, '')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '');
+
+  return articleHTML;
+}
+
+// Get all meaningful paragraphs from original article body (>30 chars, not metadata)
+function getOrigParagraphs(html) {
+  const paragraphs = [];
+  const pRe = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+  let m;
+  while ((m = pRe.exec(html)) !== null) {
+    const text = normalizeText(m[1].replace(/<[^>]+>/g, ''));
+    if (text.length < 30) continue;
+    // Skip known non-article content
+    if (text.includes('you are about to leave')) continue;
+    if (text.includes('subscribe to our')) continue;
+    if (text.includes('unless otherwise specified, all product names')) continue;
+    if (text.includes('cookie')) continue;
+    if (text.includes('©')) continue;
+    if (text.includes('[emailprotected]') || text.includes('[email protected]')) continue;
+    if (text.includes('media inquir')) continue;
+    // Skip hero metadata lines (date + category)
+    if (/^\w+ \d{1,2}, \d{4}/.test(text)) continue;
+    paragraphs.push(text);
+  }
+  return paragraphs;
+}
+
+// Get migrated page text (all text including hero subtitle and body)
+function getMigratedText(html) {
+  return normalizeText(html.replace(/<[^>]+>/g, ' '));
+}
+
+// Get all H2/H3 headings from original
+function getOrigHeadings(html) {
+  const headings = [];
+  const re = /<(h[23])[^>]*>([\s\S]*?)<\/\1>/gi;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const text = normalizeText(m[2].replace(/<[^>]+>/g, ''));
+    if (text.length > 3 && !text.includes('you are about to leave') && !text.includes('share this')) {
+      headings.push({ level: m[1], text });
+    }
+  }
+  return headings;
+}
+
+function getMigratedHeadings(html) {
+  const headings = [];
+  const re = /<(h[234])[^>]*>([\s\S]*?)<\/\1>/gi;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const text = normalizeText(m[2].replace(/<[^>]+>/g, ''));
+    if (text.length > 3) headings.push({ level: m[1], text });
+  }
+  return headings;
+}
+
+// Check if original article images are in migrated
+function getOrigArticleImages(html) {
+  const images = [];
+  const imgRe = /<img[^>]*src="([^"]*)"[^>]*(?:alt="([^"]*)")?[^>]*>/gi;
+  let m;
+  while ((m = imgRe.exec(html)) !== null) {
+    const src = m[1];
+    const alt = (m[2] || '').trim();
+    // Skip icons, tracking pixels, SVGs, and tiny images
+    if (src.includes('1x1') || src.includes('pixel') || src.includes('.svg') ||
+        src.includes('data:image') || src.includes('spacer') || src.includes('logo')) continue;
+    if (src.includes('scene7') || alt.length > 5) {
+      images.push({ src, alt: normalizeText(alt) });
+    }
+  }
+  return images;
+}
+
+async function checkPage(slug) {
+  const issues = [];
+  const migratedPath = path.join(CONTENT_DIR, `${slug}.plain.html`);
+  const migratedHTML = fs.readFileSync(migratedPath, 'utf8');
+  const migratedFullText = getMigratedText(migratedHTML);
+
+  const originalHTML = fetchOriginalHTML(slug);
+  if (!originalHTML) {
+    return [{ type: 'FETCH_FAILED', detail: 'Could not fetch original' }];
+  }
+
+  const articleHTML = extractOrigBodyContent(originalHTML);
+
+  // 1. Check body paragraphs - use substring matching in full migrated text
+  const origParas = getOrigParagraphs(articleHTML);
+  for (const para of origParas) {
+    // Check first 50 chars (handles truncation, different punctuation, etc.)
+    const searchChunk = para.substring(0, Math.min(50, para.length)).replace(/['"]/g, '');
+    if (!migratedFullText.replace(/['"]/g, '').includes(searchChunk)) {
+      issues.push({ type: 'MISSING_PARAGRAPH', detail: para.substring(0, 120) });
+    }
+  }
+
+  // 2. Check headings
+  const origHeadings = getOrigHeadings(articleHTML);
+  const migHeadings = getMigratedHeadings(migratedHTML);
+  const migHeadingTexts = migHeadings.map(h => h.text.replace(/['"]/g, ''));
+
+  for (const h of origHeadings) {
+    const searchText = h.text.substring(0, Math.min(40, h.text.length)).replace(/['"]/g, '');
+    const found = migHeadingTexts.some(mt => mt.includes(searchText));
+    if (!found) {
+      issues.push({ type: 'MISSING_HEADING', detail: `${h.level}: ${h.text.substring(0, 80)}` });
+    }
+  }
+
+  // 3. Check article images exist locally
+  const localImgs = [...migratedHTML.matchAll(/src="\.\/(images\/[^"]+)"/g)];
+  for (const m of localImgs) {
+    const imgFile = m[1].replace('images/', '');
+    if (!existingImages.has(imgFile)) {
+      issues.push({ type: 'BROKEN_IMAGE', detail: imgFile });
+    }
+  }
+
+  // 4. Check structural requirements
+  if (!migratedHTML.includes('class="hero-article"')) {
+    issues.push({ type: 'MISSING_HERO_BLOCK', detail: 'No hero-article block' });
+  } else {
+    const hero = migratedHTML.match(/class="hero-article">([\s\S]*?)(?=<\/div>\s*<div>|<\/div>\s*<div class)/);
+    if (hero) {
+      if (!hero[1].includes('<img')) issues.push({ type: 'HERO_NO_IMAGE', detail: 'Hero missing image' });
+      if (!hero[1].includes('<h1')) issues.push({ type: 'HERO_NO_H1', detail: 'Hero missing H1' });
+    }
+  }
+
+  if (!migratedHTML.includes('class="metadata"')) {
+    issues.push({ type: 'MISSING_METADATA', detail: 'No metadata block' });
+  } else {
+    if (!migratedHTML.includes('<div>Title</div>')) issues.push({ type: 'META_NO_TITLE', detail: 'Missing Title field' });
+    if (!migratedHTML.includes('<div>Description</div>')) issues.push({ type: 'META_NO_DESC', detail: 'Missing Description field' });
+    if (!migratedHTML.includes('<div>og:title</div>')) issues.push({ type: 'META_NO_OG', detail: 'Missing og:title field' });
+  }
+
+  // 5. Structural integrity
+  if (migratedHTML.match(/src=""/)) issues.push({ type: 'EMPTY_SRC', detail: 'Empty image src attribute' });
+  if (migratedHTML.match(/<a href="">/)) issues.push({ type: 'EMPTY_HREF', detail: 'Empty link href' });
+  if (migratedHTML.includes('icon-search.svg')) issues.push({ type: 'PLACEHOLDER_IMG', detail: 'icon-search.svg still present' });
+  if (migratedHTML.match(/src="https?:\/\//)) issues.push({ type: 'EXTERNAL_IMG', detail: 'External image reference' });
+
+  const h1Count = (migratedHTML.match(/<h1[^>]*>/g) || []).length;
+  if (h1Count !== 1) issues.push({ type: 'H1_COUNT', detail: `Expected 1 H1, found ${h1Count}` });
+
+  return issues;
+}
+
+async function main() {
+  console.log(`Deep content check of ${files.length} pages against originals\n`);
+
+  let perfectCount = 0;
+  const allIssues = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const slug = files[i].replace('.plain.html', '');
+    process.stdout.write(`[${i+1}/${files.length}] ${slug}... `);
+
+    const issues = await checkPage(slug);
+
+    if (issues.length === 0) {
+      console.log('PERFECT ✓');
+      perfectCount++;
+    } else {
+      console.log(`${issues.length} issue(s) ✗`);
+      issues.forEach(iss => console.log(`    [${iss.type}] ${iss.detail}`));
+      allIssues.push({ slug, issues });
+    }
+  }
+
+  console.log(`\n${'='.repeat(70)}`);
+  console.log(`RESULTS: ${perfectCount}/${files.length} PERFECT`);
+
+  if (allIssues.length > 0) {
+    console.log(`\nPages with real issues: ${allIssues.length}`);
+    const typeCounts = {};
+    for (const p of allIssues) {
+      for (const i of p.issues) {
+        typeCounts[i.type] = (typeCounts[i.type] || 0) + 1;
+      }
+    }
+    console.log('\nIssue summary:');
+    for (const [type, count] of Object.entries(typeCounts).sort((a, b) => b[1] - a[1])) {
+      console.log(`  ${type}: ${count}`);
+    }
+  }
+  console.log(`${'='.repeat(70)}`);
+}
+
+main().catch(console.error);
