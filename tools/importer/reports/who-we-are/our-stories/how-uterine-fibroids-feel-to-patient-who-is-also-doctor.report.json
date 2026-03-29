@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/how-uterine-fibroids-feel-to-patient-who-is-also-doctor.html",
+  "path": "who-we-are/our-stories/how-uterine-fibroids-feel-to-patient-who-is-also-doctor",
+  "timestamp": "2026-03-27T11:15:28.247Z",
+  "title": "How uterine fibroids feel to a patient…who’s also a doctor | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

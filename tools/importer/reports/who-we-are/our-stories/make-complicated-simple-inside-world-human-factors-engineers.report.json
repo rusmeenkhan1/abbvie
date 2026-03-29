@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/make-complicated-simple-inside-world-human-factors-engineers.html",
+  "path": "who-we-are/our-stories/make-complicated-simple-inside-world-human-factors-engineers",
+  "timestamp": "2026-03-27T11:17:26.177Z",
+  "title": "Make the complicated simple: Inside the world of Human Factors Engineers | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

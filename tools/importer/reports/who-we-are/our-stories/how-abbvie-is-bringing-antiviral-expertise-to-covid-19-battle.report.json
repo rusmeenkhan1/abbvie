@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/how-abbvie-is-bringing-antiviral-expertise-to-covid-19-battle.html",
+  "path": "who-we-are/our-stories/how-abbvie-is-bringing-antiviral-expertise-to-covid-19-battle",
+  "timestamp": "2026-03-27T11:14:54.831Z",
+  "title": "How AbbVie is bringing antiviral expertise to the COVID-19 battle | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

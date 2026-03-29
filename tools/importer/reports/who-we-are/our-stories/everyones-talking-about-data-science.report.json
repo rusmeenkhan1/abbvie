@@ -1,0 +1,18 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/everyones-talking-about-data-science.html",
+  "path": "who-we-are/our-stories/everyones-talking-about-data-science",
+  "timestamp": "2026-03-27T11:14:09.718Z",
+  "title": "Everyone’s talking about data science and analytics. Here’s how AbbVie approaches it. | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

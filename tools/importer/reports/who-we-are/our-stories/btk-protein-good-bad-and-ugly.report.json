@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/btk-protein-good-bad-and-ugly.html",
+  "path": "who-we-are/our-stories/btk-protein-good-bad-and-ugly",
+  "timestamp": "2026-03-27T11:12:22.872Z",
+  "title": "BTK protein: the good, the bad and the ugly | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

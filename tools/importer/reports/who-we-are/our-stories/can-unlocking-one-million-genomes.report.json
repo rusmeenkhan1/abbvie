@@ -1,0 +1,18 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/can-unlocking-one-million-genomes.html",
+  "path": "who-we-are/our-stories/can-unlocking-one-million-genomes",
+  "timestamp": "2026-03-27T11:12:28.744Z",
+  "title": "Can unlocking one million genomes help us discover medicines faster? | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

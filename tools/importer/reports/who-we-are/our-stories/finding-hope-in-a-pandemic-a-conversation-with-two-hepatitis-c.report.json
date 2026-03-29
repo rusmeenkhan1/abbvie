@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/finding-hope-in-a-pandemic--a-conversation-with-two-hepatitis-c-.html",
+  "path": "who-we-are/our-stories/finding-hope-in-a-pandemic-a-conversation-with-two-hepatitis-c",
+  "timestamp": "2026-03-27T11:21:29.127Z",
+  "title": "Finding hope in a pandemic: A conversation with two hepatitis C experts | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}
