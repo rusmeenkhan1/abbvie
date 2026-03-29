@@ -890,6 +890,41 @@ main .section.cards-related-container > .default-content-wrapper h3 {
   }
 }
 
+/* Hero article section - full viewport width for hero image */
+main > .section.hero-article-container {
+  max-width: 100%;
+  margin: 0;
+  padding-top: 0;
+}
+
+/* Story detail body content - constrained width after hero-article */
+main > .section.hero-article-container + .section > .default-content-wrapper {
+  max-width: 100%;
+  padding: 0 24px;
+}
+
+main > .section.hero-article-container + .section > .default-content-wrapper p > img {
+  border-radius: 16px;
+}
+
+@media (width >= 600px) {
+  main > .section.hero-article-container + .section > .default-content-wrapper {
+    max-width: none;
+    margin-left: 70px;
+    margin-right: 70px;
+    padding: 0;
+  }
+}
+
+@media (width >= 900px) {
+  main > .section.hero-article-container + .section > .default-content-wrapper {
+    max-width: 880px;
+    margin-left: 70px;
+    margin-right: auto;
+    padding: 0;
+  }
+}
+
 /* Ultra-wide screen constraints (>1440px) */
 @media (width > 1440px) {
   main > .section {
