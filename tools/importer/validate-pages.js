@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Validates all imported pages have correct EDS structure.
  * Compares against the reference structure of known-good pages.
@@ -20,7 +21,7 @@ const existingImages = new Set(fs.readdirSync(IMAGES_DIR));
 const issues = [];
 let passCount = 0;
 
-for (const file of files) {
+files.forEach((file) => {
   const slug = file.replace('.plain.html', '');
   const filePath = path.join(CONTENT_DIR, file);
   const content = fs.readFileSync(filePath, 'utf8');
@@ -33,15 +34,14 @@ for (const file of files) {
   // Section 3 (optional): Cards-related section
   // Section 3/4: Metadata section
 
-  // Count top-level sections by splitting on ></div>\n<div> pattern
-  const topDivCount = (content.match(/^<div>/gm) || []).length;
-
   // Check hero-article block exists
   if (!content.includes('class="hero-article"')) {
     pageIssues.push('CRITICAL: Missing hero-article block');
   } else {
     // Validate hero-article internal structure
-    const heroMatch = content.match(/<div class="hero-article">([\s\S]*?)<\/div><\/div>\s*<\/div>/);
+    const heroMatch = content.match(
+      /<div class="hero-article">([\s\S]*?)<\/div><\/div>\s*<\/div>/,
+    );
     if (heroMatch) {
       const heroContent = heroMatch[1];
       // Check for image
@@ -101,23 +101,29 @@ for (const file of files) {
   }
 
   // Check for broken local image references
-  const localImgMatches = [...content.matchAll(/src="\.\/(images\/[^"]+)"/g)];
-  for (const m of localImgMatches) {
+  const localImgMatches = [
+    ...content.matchAll(/src="\.\/(images\/[^"]+)"/g),
+  ];
+  localImgMatches.forEach((m) => {
     const imgFile = m[1].replace('images/', '');
     if (!existingImages.has(imgFile)) {
       pageIssues.push(`Broken image ref: ${imgFile}`);
     }
-  }
+  });
 
   // Check body content section has content
   // The body section is the 2nd top-level div
-  const sections = content.split(/(?=<div>)/g).filter((s) => s.startsWith('<div>'));
+  const sections = content.split(/(?=<div>)/g)
+    .filter((s) => s.startsWith('<div>'));
   if (sections.length >= 2) {
     const bodySection = sections[1];
     // Body should have at least some text content
-    const textContent = bodySection.replace(/<[^>]+>/g, '').trim();
+    const textContent = bodySection
+      .replace(/<[^>]+>/g, '').trim();
     if (textContent.length < 50) {
-      pageIssues.push(`Body content very short (${textContent.length} chars)`);
+      pageIssues.push(
+        `Body content very short (${textContent.length} chars)`,
+      );
     }
   }
 
@@ -136,11 +142,11 @@ for (const file of files) {
   }
 
   if (pageIssues.length === 0) {
-    passCount++;
+    passCount += 1;
   } else {
     issues.push({ slug, issues: pageIssues });
   }
-}
+});
 
 // Print results
 console.log('=== VALIDATION RESULTS ===\n');
@@ -153,23 +159,23 @@ if (issues.length === 0) {
 
   // Group by issue type
   const issueTypes = {};
-  for (const page of issues) {
-    for (const issue of page.issues) {
+  issues.forEach((page) => {
+    page.issues.forEach((issue) => {
       const type = issue.split(':')[0].trim();
       if (!issueTypes[type]) issueTypes[type] = [];
       issueTypes[type].push(page.slug);
-    }
-  }
+    });
+  });
 
   console.log('Issues by type:');
-  for (const [type, pages] of Object.entries(issueTypes).sort()) {
+  Object.entries(issueTypes).sort().forEach(([type, pages]) => {
     console.log(`\n  ${type}: ${pages.length} pages`);
     pages.forEach((p) => console.log(`    - ${p}`));
-  }
+  });
 
   console.log('\n\nDetailed per-page issues:');
-  for (const page of issues) {
+  issues.forEach((page) => {
     console.log(`\n  ${page.slug}:`);
     page.issues.forEach((i) => console.log(`    - ${i}`));
-  }
+  });
 }

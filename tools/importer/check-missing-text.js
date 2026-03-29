@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Check what body text paragraphs are actually missing from migrated pages.
  * Filters out hero subtitle, metadata, and navigation content.
@@ -45,7 +46,7 @@ function normalizeText(text) {
     .toLowerCase();
 }
 
-for (const slug of SLUGS) {
+SLUGS.forEach((slug) => {
   console.log(`\n${'='.repeat(80)}`);
   console.log(`PAGE: ${slug}`);
   console.log(`${'='.repeat(80)}`);
@@ -53,10 +54,13 @@ for (const slug of SLUGS) {
   const originalHtml = fetchOriginal(slug);
   if (!originalHtml) {
     console.log('  FETCH FAILED');
-    continue;
+    return;
   }
 
-  const migratedHtml = fs.readFileSync(path.join(CONTENT_DIR, `${slug}.plain.html`), 'utf8');
+  const migratedHtml = fs.readFileSync(
+    path.join(CONTENT_DIR, `${slug}.plain.html`),
+    'utf8',
+  );
 
   // Extract original body - between </header> and footer
   let body = originalHtml;
@@ -66,7 +70,10 @@ for (const slug of SLUGS) {
   if (footerStart > -1) body = body.substring(0, footerStart);
 
   // Remove experience fragments (additional footer content)
-  body = body.replace(/<div[^>]*class="experiencefragment[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+  body = body.replace(
+    /<div[^>]*class="experiencefragment[^"]*"[^>]*>[\s\S]*?<\/div>/gi,
+    '',
+  );
 
   // Extract paragraphs from body
   const origParas = [...body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
@@ -82,7 +89,7 @@ for (const slug of SLUGS) {
 
   // Find missing
   const missing = [];
-  for (const op of origParas) {
+  origParas.forEach((op) => {
     const normO = normalizeText(op);
     const found = migrNorm.some((mn) => {
       if (mn === normO) return true;
@@ -93,7 +100,7 @@ for (const slug of SLUGS) {
     if (!found) {
       missing.push(op);
     }
-  }
+  });
 
   console.log(`\nOriginal body paragraphs: ${origParas.length}`);
   console.log(`Migrated body paragraphs: ${migrParas.length}`);
@@ -101,10 +108,12 @@ for (const slug of SLUGS) {
 
   if (missing.length > 0) {
     console.log('\nMISSING PARAGRAPHS:');
-    for (const m of missing) {
+    missing.forEach((m) => {
       // Truncate and show
-      const short = m.length > 120 ? `${m.substring(0, 120)}...` : m;
+      const short = m.length > 120
+        ? `${m.substring(0, 120)}...`
+        : m;
       console.log(`  - "${short}"`);
-    }
+    });
   }
-}
+});

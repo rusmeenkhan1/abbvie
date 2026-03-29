@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Final verification of the first 25 pages.
  * Checks all structural, content, and metadata requirements.
@@ -20,7 +21,7 @@ console.log(`Final verification of ${files.length} pages\n`);
 let passCount = 0;
 const failedPages = [];
 
-for (const file of files) {
+files.forEach((file) => {
   const slug = file.replace('.plain.html', '');
   const filePath = path.join(CONTENT_DIR, file);
   const content = fs.readFileSync(filePath, 'utf8');
@@ -30,7 +31,9 @@ for (const file of files) {
   if (!content.includes('class="hero-article"')) {
     issues.push('Missing hero-article block');
   } else {
-    const heroBlock = content.match(/<div class="hero-article">([\s\S]*?)<\/div><\/div><\/div>/);
+    const heroBlock = content.match(
+      /<div class="hero-article">([\s\S]*?)<\/div><\/div><\/div>/,
+    );
     if (heroBlock) {
       if (!heroBlock[1].includes('<img')) issues.push('Hero: no image');
       if (!heroBlock[1].includes('<h1')) issues.push('Hero: no H1');
@@ -62,12 +65,12 @@ for (const file of files) {
 
   // 7. no broken image refs
   const localImgs = [...content.matchAll(/src="\.\/(images\/[^"]+)"/g)];
-  for (const m of localImgs) {
+  localImgs.forEach((m) => {
     const imgFile = m[1].replace('images/', '');
     if (!existingImages.has(imgFile)) {
       issues.push(`Broken image: ${imgFile}`);
     }
-  }
+  });
 
   // 8. no icon-search.svg placeholders
   if (content.includes('icon-search.svg')) issues.push('icon-search.svg placeholder(s)');
@@ -82,14 +85,14 @@ for (const file of files) {
   if (bodyText.length < 200) issues.push('Very short content');
 
   if (issues.length === 0) {
-    passCount++;
+    passCount += 1;
     console.log(`✓ ${slug}`);
   } else {
     failedPages.push({ slug, issues });
     console.log(`✗ ${slug}`);
     issues.forEach((i) => console.log(`    - ${i}`));
   }
-}
+});
 
 console.log(`\n${'='.repeat(60)}`);
 console.log(`FINAL RESULTS: ${passCount}/${files.length} PASSED`);

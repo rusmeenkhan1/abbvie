@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Fix missing metadata by extracting from original AbbVie pages.
  * Adds: Description, og:title where missing.
@@ -59,9 +60,8 @@ function escapeHtml(text) {
 function main() {
   let descAdded = 0;
   let descSkipped = 0;
-  const ogTitleFixed = 0;
 
-  for (let i = 0; i < files.length; i++) {
+  for (let i = 0; i < files.length; i += 1) {
     const file = files[i];
     const slug = file.replace('.plain.html', '');
     const filePath = path.join(CONTENT_DIR, file);
@@ -70,13 +70,17 @@ function main() {
     const needsDesc = !content.includes('<div>Description</div>');
     // Don't check og:title - our extraction earlier showed all pages already have it
 
-    if (!needsDesc) continue;
+    if (!needsDesc) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
 
     process.stdout.write(`[${i + 1}/${files.length}] ${slug} ... `);
 
     const meta = fetchMeta(slug);
     if (!meta) {
       console.log('FETCH FAILED');
+      // eslint-disable-next-line no-continue
       continue;
     }
 
@@ -94,9 +98,10 @@ function main() {
         if (titleRowEnd > -1) {
           const insertPoint = titleRowEnd + '</div></div>'.length;
           const descRow = `<div><div>Description</div><div>${escaped}</div></div>`;
-          content = content.substring(0, insertPoint) + descRow + content.substring(insertPoint);
+          content = content.substring(0, insertPoint)
+            + descRow + content.substring(insertPoint);
           modified = true;
-          descAdded++;
+          descAdded += 1;
           console.log(`DESC added: "${desc.substring(0, 60)}..."`);
         } else {
           // Try inserting after Title row
@@ -107,9 +112,10 @@ function main() {
             if (afterTitle > -1) {
               const insertPoint = afterTitle + '</div></div>'.length;
               const descRow = `<div><div>Description</div><div>${escaped}</div></div>`;
-              content = content.substring(0, insertPoint) + descRow + content.substring(insertPoint);
+              content = content.substring(0, insertPoint)
+                + descRow + content.substring(insertPoint);
               modified = true;
-              descAdded++;
+              descAdded += 1;
               console.log(`DESC added (after Title): "${desc.substring(0, 60)}..."`);
             }
           }
@@ -127,14 +133,15 @@ function main() {
             if (afterTitle > -1) {
               const insertPoint = afterTitle + '</div></div>'.length;
               const descRow = `<div><div>Description</div><div>${escaped}</div></div>`;
-              content = content.substring(0, insertPoint) + descRow + content.substring(insertPoint);
+              content = content.substring(0, insertPoint)
+                + descRow + content.substring(insertPoint);
               modified = true;
-              descAdded++;
+              descAdded += 1;
               console.log(`DESC added (from subtitle): "${subtitle.substring(0, 60)}..."`);
             }
           }
         } else {
-          descSkipped++;
+          descSkipped += 1;
           console.log('NO DESC FOUND');
         }
       }
@@ -151,13 +158,13 @@ function main() {
 
   // Verify
   let remaining = 0;
-  for (const file of files) {
+  files.forEach((file) => {
     const content = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
     if (content.includes('class="metadata"') && !content.includes('<div>Description</div>')) {
-      remaining++;
+      remaining += 1;
       console.log(`  Still missing: ${file.replace('.plain.html', '')}`);
     }
-  }
+  });
   console.log(`Remaining without Description: ${remaining}`);
 }
 

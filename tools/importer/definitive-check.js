@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Definitive accuracy check for first 25 pages.
  * Compares body text content from original pages against migrated pages,
@@ -25,7 +26,7 @@ function fetchOriginalHTML(slug) {
       `curl -sL -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" --max-time 30 "${url}"`,
       { maxBuffer: 10 * 1024 * 1024, encoding: 'utf8' },
     );
-  } catch (e) {
+  } catch (_e) {
     return null;
   }
 }
@@ -47,6 +48,22 @@ function normalizeForSearch(text) {
     .trim();
 }
 
+function isExcludedParagraph(text) {
+  if (text.length < 40) return true;
+  if (text.includes('you are about to leave')) return true;
+  if (text.includes('product-specific site internet site')) return true;
+  if (text.includes('subscribe to our')) return true;
+  if (text.includes('unless otherwise specified, all product names')) return true;
+  if (text.includes('[emailprotected]') || text.includes('[email protected]')) return true;
+  if (text.includes('media inquir')) return true;
+  if (text.includes('cookie')) return true;
+  if (text.includes('©')) return true;
+  if (text.includes('terms of use')) return true;
+  if (text.includes('privacy notice')) return true;
+  if (/^\w+ \d{1,2}, \d{4}\s+\w+$/.test(text)) return true;
+  return false;
+}
+
 // Extract only article body paragraphs from original HTML, excluding non-content areas
 function getOrigArticleParagraphs(html) {
   // Find content between article markers, excluding header/footer/nav/modal
@@ -60,23 +77,13 @@ function getOrigArticleParagraphs(html) {
 
   const paragraphs = [];
   const pRe = /<p[^>]*>([\s\S]*?)<\/p>/gi;
-  let m;
-  while ((m = pRe.exec(clean)) !== null) {
+  let m = pRe.exec(clean);
+  while (m !== null) {
     const text = normalizeForSearch(m[1]);
-    if (text.length < 40) continue;
-    // Exclude known non-article content
-    if (text.includes('you are about to leave')) continue;
-    if (text.includes('product-specific site internet site')) continue;
-    if (text.includes('subscribe to our')) continue;
-    if (text.includes('unless otherwise specified, all product names')) continue;
-    if (text.includes('[emailprotected]') || text.includes('[email protected]')) continue;
-    if (text.includes('media inquir')) continue;
-    if (text.includes('cookie')) continue;
-    if (text.includes('©')) continue;
-    if (text.includes('terms of use')) continue;
-    if (text.includes('privacy notice')) continue;
-    if (/^\w+ \d{1,2}, \d{4}\s+\w+$/.test(text)) continue; // date + category
-    paragraphs.push(text);
+    if (!isExcludedParagraph(text)) {
+      paragraphs.push(text);
+    }
+    m = pRe.exec(clean);
   }
   return paragraphs;
 }
@@ -94,45 +101,53 @@ function checkPage(slug) {
 
   // 1. CONTENT CHECK: Every body paragraph from original should exist in migrated
   const origParas = getOrigArticleParagraphs(originalHTML);
-  for (const para of origParas) {
+  origParas.forEach((para) => {
     // Use a generous word-based search: take first 6 significant words
     const words = para.split(/\s+/).filter((w) => w.length > 2).slice(0, 6);
-    if (words.length < 3) continue;
-    const searchPhrase = words.join(' ').replace(/[^\w\s]/g, '');
+    if (words.length >= 3) {
+      const searchPhrase = words.join(' ').replace(/[^\w\s]/g, '');
 
-    // Search in migrated text with fuzzy matching
-    const migratedWords = migratedSearchable.replace(/[^\w\s]/g, '');
-    if (!migratedWords.includes(searchPhrase)) {
-      // Try even shorter phrase
-      const shortPhrase = words.slice(0, 4).join(' ');
-      if (!migratedWords.includes(shortPhrase)) {
-        issues.push({ type: 'MISSING_CONTENT', detail: para.substring(0, 120) });
+      // Search in migrated text with fuzzy matching
+      const migratedWords = migratedSearchable.replace(/[^\w\s]/g, '');
+      if (!migratedWords.includes(searchPhrase)) {
+        // Try even shorter phrase
+        const shortPhrase = words.slice(0, 4).join(' ');
+        if (!migratedWords.includes(shortPhrase)) {
+          issues.push({
+            type: 'MISSING_CONTENT',
+            detail: para.substring(0, 120),
+          });
+        }
       }
     }
-  }
+  });
 
   // 2. HEADING CHECK: All H2/H3 headings from original
   const origH2s = [];
   const hRe = /<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi;
-  let hm;
   const origClean = originalHTML
     .replace(/<header[\s\S]*?<\/header>/gi, '')
     .replace(/<footer[\s\S]*?<\/footer>/gi, '')
     .replace(/<nav[\s\S]*?<\/nav>/gi, '');
-  while ((hm = hRe.exec(origClean)) !== null) {
+  let hm = hRe.exec(origClean);
+  while (hm !== null) {
     const text = normalizeForSearch(hm[1]);
-    if (text.length > 5 && !text.includes('you are about to leave') && !text.includes('share this')) {
+    if (text.length > 5
+      && !text.includes('you are about to leave')
+      && !text.includes('share this')) {
       origH2s.push(text);
     }
+    hm = hRe.exec(origClean);
   }
   const migHeadingText = migratedSearchable;
-  for (const h of origH2s) {
+  origH2s.forEach((h) => {
     const words = h.split(/\s+/).filter((w) => w.length > 2).slice(0, 4);
     const searchPhrase = words.join(' ').replace(/[^\w\s]/g, '');
-    if (searchPhrase.length > 5 && !migHeadingText.replace(/[^\w\s]/g, '').includes(searchPhrase)) {
+    if (searchPhrase.length > 5
+      && !migHeadingText.replace(/[^\w\s]/g, '').includes(searchPhrase)) {
       issues.push({ type: 'MISSING_HEADING', detail: h.substring(0, 80) });
     }
-  }
+  });
 
   // 3. STRUCTURAL CHECKS
   if (!migratedHTML.includes('class="hero-article"')) {
@@ -141,27 +156,46 @@ function checkPage(slug) {
   if (!migratedHTML.includes('class="metadata"')) {
     issues.push({ type: 'NO_METADATA', detail: 'Missing metadata block' });
   } else {
-    if (!migratedHTML.includes('<div>Title</div>')) issues.push({ type: 'META_FIELD', detail: 'Missing Title' });
-    if (!migratedHTML.includes('<div>Description</div>')) issues.push({ type: 'META_FIELD', detail: 'Missing Description' });
-    if (!migratedHTML.includes('<div>og:title</div>')) issues.push({ type: 'META_FIELD', detail: 'Missing og:title' });
+    if (!migratedHTML.includes('<div>Title</div>')) {
+      issues.push({ type: 'META_FIELD', detail: 'Missing Title' });
+    }
+    if (!migratedHTML.includes('<div>Description</div>')) {
+      issues.push({ type: 'META_FIELD', detail: 'Missing Description' });
+    }
+    if (!migratedHTML.includes('<div>og:title</div>')) {
+      issues.push({ type: 'META_FIELD', detail: 'Missing og:title' });
+    }
   }
 
   // 4. IMAGE INTEGRITY
   const localImgs = [...migratedHTML.matchAll(/src="\.\/(images\/[^"]+)"/g)];
-  for (const m of localImgs) {
-    const imgFile = m[1].replace('images/', '');
+  localImgs.forEach((img) => {
+    const imgFile = img[1].replace('images/', '');
     if (!existingImages.has(imgFile)) {
       issues.push({ type: 'BROKEN_IMG', detail: imgFile });
     }
+  });
+  if (migratedHTML.match(/src=""/)) {
+    issues.push({ type: 'EMPTY_SRC', detail: 'Empty image src' });
   }
-  if (migratedHTML.match(/src=""/)) issues.push({ type: 'EMPTY_SRC', detail: 'Empty image src' });
-  if (migratedHTML.match(/<a href="">/)) issues.push({ type: 'EMPTY_HREF', detail: 'Empty link href' });
-  if (migratedHTML.includes('icon-search.svg')) issues.push({ type: 'PLACEHOLDER', detail: 'icon-search.svg' });
-  if (migratedHTML.match(/src="https?:\/\//)) issues.push({ type: 'EXTERNAL_IMG', detail: 'External image URL' });
+  if (migratedHTML.match(/<a href="">/)) {
+    issues.push({ type: 'EMPTY_HREF', detail: 'Empty link href' });
+  }
+  if (migratedHTML.includes('icon-search.svg')) {
+    issues.push({ type: 'PLACEHOLDER', detail: 'icon-search.svg' });
+  }
+  if (migratedHTML.match(/src="https?:\/\//)) {
+    issues.push({ type: 'EXTERNAL_IMG', detail: 'External image URL' });
+  }
 
   // 5. H1 COUNT
   const h1Count = (migratedHTML.match(/<h1[^>]*>/g) || []).length;
-  if (h1Count !== 1) issues.push({ type: 'H1_COUNT', detail: `Found ${h1Count} H1s, expected 1` });
+  if (h1Count !== 1) {
+    issues.push({
+      type: 'H1_COUNT',
+      detail: `Found ${h1Count} H1s, expected 1`,
+    });
+  }
 
   return issues;
 }
@@ -172,16 +206,16 @@ async function main() {
   let passCount = 0;
   const allIssues = [];
 
-  for (let i = 0; i < files.length; i++) {
+  for (let i = 0; i < files.length; i += 1) {
     const slug = files[i].replace('.plain.html', '');
     process.stdout.write(`[${i + 1}/${files.length}] ${slug}... `);
     const issues = checkPage(slug);
 
     if (issues.length === 0) {
-      console.log('✓ PASS');
-      passCount++;
+      console.log('PASS');
+      passCount += 1;
     } else {
-      console.log(`✗ FAIL (${issues.length})`);
+      console.log(`FAIL (${issues.length})`);
       issues.forEach((iss) => console.log(`    [${iss.type}] ${iss.detail}`));
       allIssues.push({ slug, issues });
     }
@@ -192,11 +226,17 @@ async function main() {
   if (allIssues.length > 0) {
     console.log(`FAILED: ${allIssues.length} pages`);
     const typeCounts = {};
-    for (const p of allIssues) for (const i of p.issues) typeCounts[i.type] = (typeCounts[i.type] || 0) + 1;
+    allIssues.forEach((p) => {
+      p.issues.forEach((iss) => {
+        typeCounts[iss.type] = (typeCounts[iss.type] || 0) + 1;
+      });
+    });
     console.log('\nBreakdown:');
-    for (const [type, count] of Object.entries(typeCounts).sort((a, b) => b[1] - a[1])) {
-      console.log(`  ${type}: ${count}`);
-    }
+    Object.entries(typeCounts)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([type, count]) => {
+        console.log(`  ${type}: ${count}`);
+      });
   }
   console.log(`${'='.repeat(70)}`);
 }

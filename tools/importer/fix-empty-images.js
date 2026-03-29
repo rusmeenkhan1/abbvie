@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Fixes empty src="" image attributes in imported content files.
  * For each affected page, scrapes the original AbbVie page to find
@@ -6,6 +7,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 const https = require('https');
 const { execSync } = require('child_process');
 
@@ -17,7 +19,7 @@ function findPagesWithEmptySrc() {
   const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
   const affected = [];
 
-  for (const file of files) {
+  files.forEach((file) => {
     const filePath = path.join(CONTENT_DIR, file);
     const content = fs.readFileSync(filePath, 'utf8');
     const matches = [...content.matchAll(/<img src="" alt="([^"]*)"/g)];
@@ -34,7 +36,7 @@ function findPagesWithEmptySrc() {
         })),
       });
     }
-  }
+  });
   return affected;
 }
 
@@ -42,7 +44,7 @@ function findPagesWithEmptySrc() {
 function downloadFile(url, destPath) {
   return new Promise((resolve, reject) => {
     const cleanUrl = url.replace(/&#x26;/g, '&').replace(/&amp;/g, '&');
-    const protocol = cleanUrl.startsWith('https') ? https : require('http');
+    const protocol = cleanUrl.startsWith('https') ? https : http;
 
     const request = protocol.get(cleanUrl, {
       headers: {
@@ -95,7 +97,11 @@ function urlToFilename(url) {
 }
 
 function sanitizeFilename(name) {
-  return name.replace(/[^a-zA-Z0-9._-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+  return name
+    .replace(/[^a-zA-Z0-9._-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
 }
 
 // Use curl to fetch page HTML and extract image data
@@ -107,51 +113,67 @@ function fetchPageImages(url) {
     );
 
     // Extract all img tags with src and alt
-    const imgMatches = [...html.matchAll(/<img[^>]*\bsrc=["']([^"']+)["'][^>]*\balt=["']([^"']*)["'][^>]*>/gi)];
-    const imgMatchesReverse = [...html.matchAll(/<img[^>]*\balt=["']([^"']*)["'][^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)];
+    const imgMatches = [
+      ...html.matchAll(/<img[^>]*\bsrc=["']([^"']+)["'][^>]*\balt=["']([^"']*)["'][^>]*>/gi),
+    ];
+    const imgMatchesReverse = [
+      ...html.matchAll(/<img[^>]*\balt=["']([^"']*)["'][^>]*\bsrc=["']([^"']+)["'][^>]*>/gi),
+    ];
 
     // Also look for data-src, srcset, and background images
-    const dataSrcMatches = [...html.matchAll(/<img[^>]*\bdata-src=["']([^"']+)["'][^>]*\balt=["']([^"']*)["'][^>]*>/gi)];
-    const dataSrcMatchesReverse = [...html.matchAll(/<img[^>]*\balt=["']([^"']*)["'][^>]*\bdata-src=["']([^"']+)["'][^>]*>/gi)];
+    const dataSrcMatches = [
+      ...html.matchAll(/<img[^>]*\bdata-src=["']([^"']+)["'][^>]*\balt=["']([^"']*)["'][^>]*>/gi),
+    ];
+    const dataSrcMatchesReverse = [
+      ...html.matchAll(/<img[^>]*\balt=["']([^"']*)["'][^>]*\bdata-src=["']([^"']+)["'][^>]*>/gi),
+    ];
 
     // Srcset patterns
-    const srcsetMatches = [...html.matchAll(/<(?:img|source)[^>]*\bsrcset=["']([^"']+)["'][^>]*\balt=["']([^"']*)["'][^>]*>/gi)];
-    const srcsetMatchesReverse = [...html.matchAll(/<(?:img|source)[^>]*\balt=["']([^"']*)["'][^>]*\bsrcset=["']([^"']+)["'][^>]*>/gi)];
+    const srcsetMatches = [
+      ...html.matchAll(/<(?:img|source)[^>]*\bsrcset=["']([^"']+)["'][^>]*\balt=["']([^"']*)["'][^>]*>/gi),
+    ];
+    const srcsetMatchesReverse = [
+      ...html.matchAll(/<(?:img|source)[^>]*\balt=["']([^"']*)["'][^>]*\bsrcset=["']([^"']+)["'][^>]*>/gi),
+    ];
 
     const images = new Map(); // alt -> src
 
-    for (const m of imgMatches) {
-      const src = m[1]; const
-        alt = m[2];
+    imgMatches.forEach((m) => {
+      const src = m[1];
+      const alt = m[2];
       if (src && !src.startsWith('data:')) images.set(alt, src);
-    }
-    for (const m of imgMatchesReverse) {
-      const alt = m[1]; const
-        src = m[2];
+    });
+    imgMatchesReverse.forEach((m) => {
+      const alt = m[1];
+      const src = m[2];
       if (src && !src.startsWith('data:') && !images.has(alt)) images.set(alt, src);
-    }
-    for (const m of dataSrcMatches) {
-      const src = m[1]; const
-        alt = m[2];
+    });
+    dataSrcMatches.forEach((m) => {
+      const src = m[1];
+      const alt = m[2];
       if (src && !src.startsWith('data:') && !images.has(alt)) images.set(alt, src);
-    }
-    for (const m of dataSrcMatchesReverse) {
-      const alt = m[1]; const
-        src = m[2];
+    });
+    dataSrcMatchesReverse.forEach((m) => {
+      const alt = m[1];
+      const src = m[2];
       if (src && !src.startsWith('data:') && !images.has(alt)) images.set(alt, src);
-    }
-    for (const m of srcsetMatches) {
-      const srcset = m[1]; const
-        alt = m[2];
+    });
+    srcsetMatches.forEach((m) => {
+      const srcset = m[1];
+      const alt = m[2];
       const firstSrc = srcset.split(',')[0].trim().split(/\s+/)[0];
-      if (firstSrc && !firstSrc.startsWith('data:') && !images.has(alt)) images.set(alt, firstSrc);
-    }
-    for (const m of srcsetMatchesReverse) {
-      const alt = m[1]; const
-        srcset = m[2];
+      if (firstSrc && !firstSrc.startsWith('data:') && !images.has(alt)) {
+        images.set(alt, firstSrc);
+      }
+    });
+    srcsetMatchesReverse.forEach((m) => {
+      const alt = m[1];
+      const srcset = m[2];
       const firstSrc = srcset.split(',')[0].trim().split(/\s+/)[0];
-      if (firstSrc && !firstSrc.startsWith('data:') && !images.has(alt)) images.set(alt, firstSrc);
-    }
+      if (firstSrc && !firstSrc.startsWith('data:') && !images.has(alt)) {
+        images.set(alt, firstSrc);
+      }
+    });
 
     return images;
   } catch (e) {
@@ -169,7 +191,7 @@ async function main() {
   const allFailed = [];
   const existingFiles = new Set(fs.readdirSync(IMAGES_DIR));
 
-  for (let i = 0; i < affected.length; i++) {
+  for (let i = 0; i < affected.length; i += 1) {
     const page = affected[i];
     console.log(`\n[${i + 1}/${affected.length}] Processing ${page.slug} (${page.emptyImages.length} empty images)`);
 
@@ -180,6 +202,7 @@ async function main() {
     let content = fs.readFileSync(page.file, 'utf8');
     let modified = false;
 
+    // eslint-disable-next-line no-restricted-syntax
     for (const emptyImg of page.emptyImages) {
       // Decode HTML entities in alt text for matching
       const altDecoded = emptyImg.alt
@@ -194,19 +217,23 @@ async function main() {
 
       // Try partial matching if exact match fails
       if (!imgSrc && emptyImg.alt) {
-        for (const [alt, src] of pageImages) {
+        const entries = [...pageImages.entries()];
+        const match = entries.find(([alt]) => {
           const altNorm = alt.toLowerCase().trim();
           const searchNorm = altDecoded.toLowerCase().trim();
-          if (altNorm === searchNorm || altNorm.includes(searchNorm) || searchNorm.includes(altNorm)) {
-            imgSrc = src;
-            break;
-          }
+          return altNorm === searchNorm
+            || altNorm.includes(searchNorm)
+            || searchNorm.includes(altNorm);
+        });
+        if (match) {
+          [, imgSrc] = match;
         }
       }
 
       if (!imgSrc) {
-        totalFailed++;
+        totalFailed += 1;
         allFailed.push({ page: page.slug, alt: emptyImg.alt });
+        // eslint-disable-next-line no-continue
         continue;
       }
 
@@ -225,7 +252,7 @@ async function main() {
         const ext = path.extname(localFilename);
         const base = path.basename(localFilename, ext);
         let counter = 2;
-        while (existingFiles.has(`${base}-${counter}${ext}`)) counter++;
+        while (existingFiles.has(`${base}-${counter}${ext}`)) counter += 1;
         // Only rename if we haven't already downloaded this exact URL
         // For now just reuse existing if filename matches
       }
@@ -234,14 +261,16 @@ async function main() {
 
       if (!fs.existsSync(destPath) || fs.statSync(destPath).size < 100) {
         try {
+          // eslint-disable-next-line no-await-in-loop
           await downloadFile(imgSrc, destPath);
           existingFiles.add(localFilename);
         } catch (e) {
           console.error(`  FAILED to download: ${localFilename} - ${e.message}`);
-          totalFailed++;
+          totalFailed += 1;
           allFailed.push({
             page: page.slug, alt: emptyImg.alt, url: imgSrc, error: e.message,
           });
+          // eslint-disable-next-line no-continue
           continue;
         }
       }
@@ -253,7 +282,7 @@ async function main() {
       if (content.includes(oldTag)) {
         content = content.replace(oldTag, newTag);
         modified = true;
-        totalFixed++;
+        totalFixed += 1;
       }
     }
 
@@ -268,17 +297,19 @@ async function main() {
 
   if (allFailed.length > 0) {
     console.log('\nFailed images:');
-    allFailed.forEach((f) => console.log(`  ${f.page}: alt="${f.alt}" ${f.url || ''} ${f.error || '(no match found)'}`));
+    allFailed.forEach((f) => console.log(
+      `  ${f.page}: alt="${f.alt}" ${f.url || ''} ${f.error || '(no match found)'}`,
+    ));
   }
 
   // Final count of remaining empty src
   let remaining = 0;
   const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
-  for (const file of files) {
+  files.forEach((file) => {
     const c = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
     const m = c.match(/<img src="" /g);
-    if (m) remaining += m.length;
-  }
+    if (m) { remaining += m.length; }
+  });
   console.log(`\nRemaining empty src: ${remaining}`);
 }
 

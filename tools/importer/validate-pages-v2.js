@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Validates all imported pages have correct EDS structure.
  * v2: Fixed section parsing to handle the actual .plain.html format.
@@ -20,7 +21,7 @@ const existingImages = new Set(fs.existsSync(IMAGES_DIR) ? fs.readdirSync(IMAGES
 const realIssues = [];
 let passCount = 0;
 
-for (const file of files) {
+files.forEach((file) => {
   const slug = file.replace('.plain.html', '');
   const filePath = path.join(CONTENT_DIR, file);
   const content = fs.readFileSync(filePath, 'utf8');
@@ -64,12 +65,12 @@ for (const file of files) {
   if (externalImgs > 0) pageIssues.push(`${externalImgs} external image(s)`);
 
   const localImgMatches = [...content.matchAll(/src="\.\/(images\/[^"]+)"/g)];
-  for (const m of localImgMatches) {
+  localImgMatches.forEach((m) => {
     const imgFile = m[1].replace('images/', '');
     if (!existingImages.has(imgFile)) {
       pageIssues.push(`Broken image: ${imgFile}`);
     }
-  }
+  });
 
   // 6. multiple H1s
   const h1Count = (content.match(/<h1[^>]*>/g) || []).length;
@@ -82,11 +83,11 @@ for (const file of files) {
   if (bodyText.length < 100) pageIssues.push('Very little text content');
 
   if (pageIssues.length === 0) {
-    passCount++;
+    passCount += 1;
   } else {
     realIssues.push({ slug, issues: pageIssues });
   }
-}
+});
 
 // Print results
 console.log('=== VALIDATION RESULTS ===\n');
@@ -97,15 +98,15 @@ if (realIssues.length > 0) {
 
   // Group by issue type
   const issueTypes = {};
-  for (const page of realIssues) {
-    for (const issue of page.issues) {
+  realIssues.forEach((page) => {
+    page.issues.forEach((issue) => {
       if (!issueTypes[issue]) issueTypes[issue] = [];
       issueTypes[issue].push(page.slug);
-    }
-  }
+    });
+  });
 
   console.log('Issues by type:');
-  for (const [type, pages] of Object.entries(issueTypes).sort()) {
+  Object.entries(issueTypes).sort().forEach(([type, pages]) => {
     console.log(`\n  "${type}": ${pages.length} pages`);
     if (pages.length <= 10) {
       pages.forEach((p) => console.log(`    - ${p}`));
@@ -113,7 +114,7 @@ if (realIssues.length > 0) {
       pages.slice(0, 5).forEach((p) => console.log(`    - ${p}`));
       console.log(`    ... and ${pages.length - 5} more`);
     }
-  }
+  });
 }
 
 console.log('\n=== SUMMARY ===');

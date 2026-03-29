@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Downloads all external images from imported content files
  * and replaces URLs with local ./images/ references.
@@ -27,17 +28,17 @@ console.log(`Found ${htmlFiles.length} HTML files to process`);
 const urlToFiles = new Map(); // url -> Set of file paths that use it
 const allExternalUrls = new Set();
 
-for (const file of htmlFiles) {
+htmlFiles.forEach((file) => {
   const content = fs.readFileSync(file, 'utf8');
   // Match src="https://..." attributes
-  const srcMatches = content.matchAll(/src="(https:\/\/[^"]+)"/g);
-  for (const match of srcMatches) {
+  const srcMatches = [...content.matchAll(/src="(https:\/\/[^"]+)"/g)];
+  srcMatches.forEach((match) => {
     const url = match[1];
     allExternalUrls.add(url);
     if (!urlToFiles.has(url)) urlToFiles.set(url, new Set());
     urlToFiles.get(url).add(file);
-  }
-}
+  });
+});
 
 console.log(`Found ${allExternalUrls.size} unique external image URLs`);
 
@@ -48,7 +49,9 @@ function urlToFilename(url) {
     const { pathname } = u;
 
     // For scene7 URLs like /is/image/abbviecorp/NAME or /is/content/abbviecorp/NAME
-    const scene7Match = pathname.match(/\/is\/(?:image|content)\/abbviecorp\/(.+)/);
+    const scene7Match = pathname.match(
+      /\/is\/(?:image|content)\/abbviecorp\/(.+)/,
+    );
     if (scene7Match) {
       let name = scene7Match[1];
       // Remove any path segments
@@ -60,7 +63,9 @@ function urlToFilename(url) {
         return `${name}.${fmt}`;
       }
       // Check if URL path ends with extension
-      const extMatch = name.match(/\.(jpg|jpeg|png|gif|svg|webp|avif)$/i);
+      const extMatch = name.match(
+        /\.(jpg|jpeg|png|gif|svg|webp|avif)$/i,
+      );
       if (extMatch) {
         return name;
       }
@@ -79,7 +84,7 @@ function urlToFilename(url) {
       name += '.webp';
     }
     return name;
-  } catch (e) {
+  } catch (_e) {
     return `image-${Date.now()}.webp`;
   }
 }
@@ -97,7 +102,9 @@ function sanitizeFilename(name) {
 function downloadFile(url, destPath) {
   return new Promise((resolve, reject) => {
     // Decode HTML entities in URL
-    const cleanUrl = url.replace(/&#x26;/g, '&').replace(/&amp;/g, '&');
+    const cleanUrl = url
+      .replace(/&#x26;/g, '&')
+      .replace(/&amp;/g, '&');
 
     const protocol = cleanUrl.startsWith('https') ? https : http;
     const request = protocol.get(cleanUrl, {
@@ -108,13 +115,20 @@ function downloadFile(url, destPath) {
       timeout: 30000,
     }, (response) => {
       // Handle redirects
-      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-        downloadFile(response.headers.location, destPath).then(resolve).catch(reject);
+      if (
+        response.statusCode >= 300
+        && response.statusCode < 400
+        && response.headers.location
+      ) {
+        downloadFile(response.headers.location, destPath)
+          .then(resolve).catch(reject);
         return;
       }
 
       if (response.statusCode !== 200) {
-        reject(new Error(`HTTP ${response.statusCode} for ${cleanUrl}`));
+        reject(new Error(
+          `HTTP ${response.statusCode} for ${cleanUrl}`,
+        ));
         return;
       }
 
@@ -135,13 +149,42 @@ function downloadFile(url, destPath) {
   });
 }
 
+// Process a single download task
+async function processDownload(url, urlToLocal, state) {
+  const filename = urlToLocal.get(url);
+  const destPath = path.join(IMAGES_DIR, filename);
+
+  // Skip if already downloaded
+  if (
+    fs.existsSync(destPath)
+    && fs.statSync(destPath).size > 0
+  ) {
+    state.downloaded += 1;
+    return;
+  }
+
+  try {
+    await downloadFile(url, destPath);
+    state.downloaded += 1;
+    if (state.downloaded % 20 === 0) {
+      console.log(
+        `  Downloaded ${state.downloaded}/${state.total}...`,
+      );
+    }
+  } catch (e) {
+    state.failed += 1;
+    state.failedUrls.push({ url, error: e.message });
+    console.error(`  FAILED: ${filename} - ${e.message}`);
+  }
+}
+
 // Main execution
 async function main() {
   const urlToLocal = new Map(); // external URL -> local filename
 
   // Build URL to filename mapping
   const filenameCount = new Map(); // track duplicates
-  for (const url of allExternalUrls) {
+  allExternalUrls.forEach((url) => {
     let filename = sanitizeFilename(urlToFilename(url));
 
     // Handle duplicate filenames
@@ -156,48 +199,38 @@ async function main() {
     }
 
     urlToLocal.set(url, filename);
-  }
+  });
 
   // Download images in batches
   const urls = [...allExternalUrls];
   const BATCH_SIZE = 10;
-  let downloaded = 0;
-  let failed = 0;
-  const failedUrls = [];
+  const state = {
+    downloaded: 0,
+    failed: 0,
+    failedUrls: [],
+    total: urls.length,
+  };
 
   for (let i = 0; i < urls.length; i += BATCH_SIZE) {
     const batch = urls.slice(i, i + BATCH_SIZE);
-    const promises = batch.map(async (url) => {
-      const filename = urlToLocal.get(url);
-      const destPath = path.join(IMAGES_DIR, filename);
+    const promises = batch.map(
+      (url) => processDownload(url, urlToLocal, state),
+    );
 
-      // Skip if already downloaded
-      if (fs.existsSync(destPath) && fs.statSync(destPath).size > 0) {
-        downloaded++;
-        return;
-      }
-
-      try {
-        await downloadFile(url, destPath);
-        downloaded++;
-        if (downloaded % 20 === 0) {
-          console.log(`  Downloaded ${downloaded}/${urls.length}...`);
-        }
-      } catch (e) {
-        failed++;
-        failedUrls.push({ url, error: e.message });
-        console.error(`  FAILED: ${filename} - ${e.message}`);
-      }
-    });
-
+    // eslint-disable-next-line no-await-in-loop
     await Promise.all(promises);
   }
 
-  console.log(`\nDownload complete: ${downloaded} succeeded, ${failed} failed out of ${urls.length}`);
+  console.log(
+    `\nDownload complete: ${state.downloaded} succeeded, `
+    + `${state.failed} failed out of ${urls.length}`,
+  );
 
-  if (failedUrls.length > 0) {
+  if (state.failedUrls.length > 0) {
     console.log('\nFailed URLs:');
-    failedUrls.forEach((f) => console.log(`  ${f.url} -> ${f.error}`));
+    state.failedUrls.forEach((f) => {
+      console.log(`  ${f.url} -> ${f.error}`);
+    });
   }
 
   // Now replace URLs in all HTML files
@@ -205,41 +238,49 @@ async function main() {
   let filesUpdated = 0;
   let refsReplaced = 0;
 
-  for (const file of htmlFiles) {
+  htmlFiles.forEach((file) => {
     let content = fs.readFileSync(file, 'utf8');
     let modified = false;
 
-    for (const [extUrl, localFilename] of urlToLocal) {
+    urlToLocal.forEach((localFilename, extUrl) => {
       const localRef = `./images/${localFilename}`;
       // Replace src="EXTERNAL_URL" with src="./images/filename"
-      const escaped = extUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escaped = extUrl.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        '\\$&',
+      );
       const regex = new RegExp(`src="${escaped}"`, 'g');
       const before = content;
       content = content.replace(regex, `src="${localRef}"`);
       if (content !== before) {
         modified = true;
-        refsReplaced++;
+        refsReplaced += 1;
       }
-    }
+    });
 
     if (modified) {
       fs.writeFileSync(file, content, 'utf8');
-      filesUpdated++;
+      filesUpdated += 1;
     }
-  }
+  });
 
-  console.log(`Updated ${filesUpdated} files, replaced ${refsReplaced} image references`);
+  console.log(
+    `Updated ${filesUpdated} files, `
+    + `replaced ${refsReplaced} image references`,
+  );
 
   // Final verification
   let remainingExternal = 0;
-  for (const file of htmlFiles) {
+  htmlFiles.forEach((file) => {
     const content = fs.readFileSync(file, 'utf8');
-    const matches = content.matchAll(/src="(https:\/\/[^"]+)"/g);
-    for (const m of matches) {
-      remainingExternal++;
-    }
-  }
-  console.log(`\nRemaining external image references: ${remainingExternal}`);
+    const matches = [
+      ...content.matchAll(/src="(https:\/\/[^"]+)"/g),
+    ];
+    remainingExternal += matches.length;
+  });
+  console.log(
+    `\nRemaining external image references: ${remainingExternal}`,
+  );
 }
 
 main().catch(console.error);

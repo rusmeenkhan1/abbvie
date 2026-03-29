@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * For pages missing Description in metadata, extract it from the hero subtitle.
  * The hero-article block's last row contains the article subtitle/intro text.
@@ -13,17 +14,17 @@ const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'
 let fixed = 0;
 let failed = 0;
 
-for (const file of files) {
+files.forEach((file) => {
   const slug = file.replace('.plain.html', '');
   const filePath = path.join(CONTENT_DIR, file);
   let content = fs.readFileSync(filePath, 'utf8');
 
   // Skip if already has Description
-  if (content.includes('<div>Description</div>')) continue;
+  if (content.includes('<div>Description</div>')) return;
 
   if (!content.includes('class="metadata"')) {
     console.log(`SKIP ${slug}: no metadata block`);
-    continue;
+    return;
   }
 
   // Extract hero subtitle - it's the last <div><div>TEXT</div></div> in the hero-article block
@@ -48,7 +49,9 @@ for (const file of files) {
 
   // If no subtitle found, try to use the first paragraph of body content
   if (!subtitle) {
-    const bodyMatch = content.match(/<\/div>\s*<div><(?:p|h2|h3)[^>]*>([\s\S]*?)<\/(?:p|h2|h3)>/);
+    const bodyMatch = content.match(
+      /<\/div>\s*<div><(?:p|h2|h3)[^>]*>([\s\S]*?)<\/(?:p|h2|h3)>/,
+    );
     if (bodyMatch) {
       subtitle = bodyMatch[1].replace(/<[^>]+>/g, '').trim();
     }
@@ -56,8 +59,8 @@ for (const file of files) {
 
   if (!subtitle || subtitle.length < 10) {
     console.log(`FAIL ${slug}: no subtitle/description found`);
-    failed++;
-    continue;
+    failed += 1;
+    return;
   }
 
   // Truncate to reasonable length
@@ -70,15 +73,15 @@ for (const file of files) {
   const titleIdx = content.indexOf('<div><div>Title</div><div>');
   if (titleIdx === -1) {
     console.log(`FAIL ${slug}: no Title in metadata`);
-    failed++;
-    continue;
+    failed += 1;
+    return;
   }
 
   const afterTitleStart = content.indexOf(titleRowEnd, titleIdx + 25);
   if (afterTitleStart === -1) {
     console.log(`FAIL ${slug}: can't find Title row end`);
-    failed++;
-    continue;
+    failed += 1;
+    return;
   }
 
   const insertPoint = afterTitleStart + titleRowEnd.length;
@@ -87,8 +90,8 @@ for (const file of files) {
   content = content.substring(0, insertPoint) + descRow + content.substring(insertPoint);
   fs.writeFileSync(filePath, content, 'utf8');
   console.log(`FIXED ${slug}: "${subtitle.substring(0, 60)}..."`);
-  fixed++;
-}
+  fixed += 1;
+});
 
 console.log('\n=== SUMMARY ===');
 console.log(`Fixed: ${fixed}`);
@@ -96,11 +99,11 @@ console.log(`Failed: ${failed}`);
 
 // Verify
 let remaining = 0;
-for (const file of files) {
+files.forEach((file) => {
   const content = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
   if (content.includes('class="metadata"') && !content.includes('<div>Description</div>')) {
-    remaining++;
+    remaining += 1;
     console.log(`  Still missing: ${file.replace('.plain.html', '')}`);
   }
-}
+});
 console.log(`Remaining without Description: ${remaining}`);

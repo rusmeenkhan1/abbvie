@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Fixes missing Description in metadata blocks by scraping the original AbbVie pages.
  * Also fixes any other missing metadata fields.
@@ -14,7 +15,7 @@ function findPagesWithoutDescription() {
   const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
   const affected = [];
 
-  for (const file of files) {
+  files.forEach((file) => {
     const filePath = path.join(CONTENT_DIR, file);
     const content = fs.readFileSync(filePath, 'utf8');
 
@@ -26,7 +27,7 @@ function findPagesWithoutDescription() {
         originalUrl: `https://www.abbvie.com/who-we-are/our-stories/${slug}.html`,
       });
     }
-  }
+  });
   return affected;
 }
 
@@ -39,16 +40,22 @@ function fetchMetaDescription(url) {
     );
 
     // Try meta description tag
-    const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i)
-      || html.match(/<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i);
+    const descMatch = html.match(
+      /<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i,
+    ) || html.match(
+      /<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i,
+    );
 
     if (descMatch) {
       return descMatch[1].replace(/"/g, '&quot;').replace(/&/g, '&#x26;');
     }
 
     // Try og:description
-    const ogDescMatch = html.match(/<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']/i)
-      || html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:description["']/i);
+    const ogDescMatch = html.match(
+      /<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']/i,
+    ) || html.match(
+      /<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:description["']/i,
+    );
 
     if (ogDescMatch) {
       return ogDescMatch[1].replace(/"/g, '&quot;').replace(/&/g, '&#x26;');
@@ -68,7 +75,7 @@ async function main() {
   let fixed = 0;
   let failed = 0;
 
-  for (let i = 0; i < affected.length; i++) {
+  for (let i = 0; i < affected.length; i += 1) {
     const page = affected[i];
     console.log(`[${i + 1}/${affected.length}] ${page.slug}`);
 
@@ -76,39 +83,42 @@ async function main() {
 
     if (!description) {
       console.log('  FAILED: Could not find description');
-      failed++;
-      continue;
+      failed += 1;
+    } else {
+      // Add Description row to metadata block
+      let content = fs.readFileSync(page.file, 'utf8');
+
+      // Find the Title row in metadata and add Description after it
+      const titlePattern = '<div><div>Title</div><div>';
+      const titleIdx = content.indexOf(titlePattern);
+
+      if (titleIdx === -1) {
+        console.log('  FAILED: Could not find Title in metadata');
+        failed += 1;
+      } else {
+        // Find the end of the Title row
+        const afterTitle = content.indexOf(
+          '</div></div>',
+          titleIdx + titlePattern.length,
+        );
+
+        if (afterTitle === -1) {
+          console.log('  FAILED: Could not parse Title row end');
+          failed += 1;
+        } else {
+          const insertPoint = afterTitle + '</div></div>'.length;
+          const descRow = `<div><div>Description</div><div>${description}</div></div>`;
+
+          content = content.substring(0, insertPoint)
+            + descRow
+            + content.substring(insertPoint);
+
+          fs.writeFileSync(page.file, content, 'utf8');
+          console.log(`  FIXED: "${description.substring(0, 60)}..."`);
+          fixed += 1;
+        }
+      }
     }
-
-    // Add Description row to metadata block
-    let content = fs.readFileSync(page.file, 'utf8');
-
-    // Find the Title row in metadata and add Description after it
-    const titlePattern = '<div><div>Title</div><div>';
-    const titleIdx = content.indexOf(titlePattern);
-
-    if (titleIdx === -1) {
-      console.log('  FAILED: Could not find Title in metadata');
-      failed++;
-      continue;
-    }
-
-    // Find the end of the Title row
-    const afterTitle = content.indexOf('</div></div>', titleIdx + titlePattern.length);
-    if (afterTitle === -1) {
-      console.log('  FAILED: Could not parse Title row end');
-      failed++;
-      continue;
-    }
-
-    const insertPoint = afterTitle + '</div></div>'.length;
-    const descRow = `<div><div>Description</div><div>${description}</div></div>`;
-
-    content = content.substring(0, insertPoint) + descRow + content.substring(insertPoint);
-
-    fs.writeFileSync(page.file, content, 'utf8');
-    console.log(`  FIXED: "${description.substring(0, 60)}..."`);
-    fixed++;
   }
 
   console.log('\n=== SUMMARY ===');
@@ -118,12 +128,12 @@ async function main() {
   // Verify
   let remaining = 0;
   const files = fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.plain.html'));
-  for (const file of files) {
+  files.forEach((file) => {
     const content = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
     if (content.includes('class="metadata"') && !content.includes('<div>Description</div>')) {
-      remaining++;
+      remaining += 1;
     }
-  }
+  });
   console.log(`Remaining without Description: ${remaining}`);
 }
 

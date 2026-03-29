@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Detailed image comparison for selected pages.
  * Shows exactly which images are in the original vs migrated content.
@@ -30,7 +31,7 @@ function fetchOriginal(slug) {
   }
 }
 
-function extractAllImages(html, label) {
+function extractAllImages(html) {
   // Strip header and footer
   let body = html;
   const headerEnd = html.indexOf('</header>');
@@ -42,23 +43,29 @@ function extractAllImages(html, label) {
 
   // src images
   const srcMatches = [...body.matchAll(/<img[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)];
-  for (const m of srcMatches) {
+  srcMatches.forEach((m) => {
     const src = m[1];
     const altMatch = m[0].match(/\balt=["']([^"']*)["']/i);
     const alt = altMatch ? altMatch[1] : '';
-    images.push({ src: src.substring(0, 120), alt: alt.substring(0, 60) });
-  }
+    images.push({
+      src: src.substring(0, 120),
+      alt: alt.substring(0, 60),
+    });
+  });
 
   // data-src (lazy loaded)
   const dataSrcMatches = [...body.matchAll(/<img[^>]*\bdata-src=["']([^"']+)["'][^>]*>/gi)];
-  for (const m of dataSrcMatches) {
+  dataSrcMatches.forEach((m) => {
     const src = m[1];
     const altMatch = m[0].match(/\balt=["']([^"']*)["']/i);
     const alt = altMatch ? altMatch[1] : '';
     if (!images.find((i) => i.src === src.substring(0, 120))) {
-      images.push({ src: `${src.substring(0, 120)} [data-src]`, alt: alt.substring(0, 60) });
+      images.push({
+        src: `${src.substring(0, 120)} [data-src]`,
+        alt: alt.substring(0, 60),
+      });
     }
-  }
+  });
 
   return images;
 }
@@ -66,16 +73,19 @@ function extractAllImages(html, label) {
 function extractMigratedImages(html) {
   const images = [];
   const srcMatches = [...html.matchAll(/<img[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)];
-  for (const m of srcMatches) {
+  srcMatches.forEach((m) => {
     const src = m[1];
     const altMatch = m[0].match(/\balt=["']([^"']*)["']/i);
     const alt = altMatch ? altMatch[1] : '';
-    images.push({ src: src.substring(0, 120), alt: alt.substring(0, 60) });
-  }
+    images.push({
+      src: src.substring(0, 120),
+      alt: alt.substring(0, 60),
+    });
+  });
   return images;
 }
 
-for (const slug of TEST_SLUGS) {
+TEST_SLUGS.forEach((slug) => {
   console.log(`\n${'='.repeat(80)}`);
   console.log(`PAGE: ${slug}`);
   console.log(`${'='.repeat(80)}`);
@@ -83,12 +93,13 @@ for (const slug of TEST_SLUGS) {
   const originalHtml = fetchOriginal(slug);
   if (!originalHtml) {
     console.log('  FETCH FAILED');
-    continue;
+    return;
   }
 
-  const migratedHtml = fs.readFileSync(path.join(CONTENT_DIR, `${slug}.plain.html`), 'utf8');
+  const migratedPath = path.join(CONTENT_DIR, `${slug}.plain.html`);
+  const migratedHtml = fs.readFileSync(migratedPath, 'utf8');
 
-  const origImages = extractAllImages(originalHtml, 'ORIGINAL');
+  const origImages = extractAllImages(originalHtml);
   const migrImages = extractMigratedImages(migratedHtml);
 
   console.log(`\nORIGINAL BODY IMAGES (${origImages.length}):`);
@@ -109,5 +120,6 @@ for (const slug of TEST_SLUGS) {
     console.log(`  ${i + 1}. alt="${img.alt}" | ${img.src}`);
   });
 
-  console.log(`\nDIFF: ${origImages.length - migrImages.length} more images in original`);
-}
+  const diff = origImages.length - migrImages.length;
+  console.log(`\nDIFF: ${diff} more images in original`);
+});

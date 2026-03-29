@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Fixes malformed cards-related blocks on specific pages by
  * fetching card content from original pages.
@@ -30,8 +31,8 @@ function extractCards(html) {
   const cards = [];
   // Find card containers - these are in the "related stories" section near the bottom
   const cardRe = /class="card-container[^"]*"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/gi;
-  let m;
-  while ((m = cardRe.exec(html)) !== null) {
+  let m = cardRe.exec(html);
+  while (m !== null) {
     const cardHTML = m[0];
 
     // Extract date
@@ -65,6 +66,7 @@ function extractCards(html) {
         date, category, title, description, link, imgSrc, imgAlt,
       });
     }
+    m = cardRe.exec(html);
   }
   return cards;
 }
@@ -93,8 +95,6 @@ function downloadImage(url, filename) {
 
 function buildCardsRelatedHTML(cards) {
   const cardRows = cards.map((card) => {
-    const parts = [];
-
     // Image
     let imgHTML = '';
     if (card.localImg) {
@@ -118,7 +118,7 @@ function buildCardsRelatedHTML(cards) {
   return `<div class="cards-related">${cardRows.join('')}</div>`;
 }
 
-for (const slug of pages) {
+pages.forEach((slug) => {
   console.log(`\n=== ${slug} ===`);
 
   const filePath = path.join(CONTENT_DIR, `${slug}.plain.html`);
@@ -128,7 +128,7 @@ for (const slug of pages) {
   const originalHTML = fetchOriginalHTML(slug);
   if (!originalHTML) {
     console.log('Failed to fetch original');
-    continue;
+    return;
   }
 
   const cards = extractCards(originalHTML);
@@ -136,18 +136,22 @@ for (const slug of pages) {
 
   if (cards.length === 0) {
     console.log('No cards to process');
-    continue;
+    return;
   }
 
   // Take the first card that has an article link (skip site-wide promo cards)
-  const articleCards = cards.filter((c) => c.link && c.link.includes('/who-we-are/our-stories/'));
+  const articleCards = cards.filter(
+    (c) => c.link && c.link.includes('/who-we-are/our-stories/'),
+  );
 
   console.log(`Article-related cards: ${articleCards.length}`);
 
-  const cardsToUse = articleCards.length > 0 ? articleCards.slice(0, 3) : cards.slice(0, 1);
+  const cardsToUse = articleCards.length > 0
+    ? articleCards.slice(0, 3)
+    : cards.slice(0, 1);
 
   // Download images for cards
-  for (const card of cardsToUse) {
+  cardsToUse.forEach((card) => {
     if (card.imgSrc) {
       // Create filename from image URL
       const urlParts = card.imgSrc.split('/');
@@ -157,7 +161,7 @@ for (const slug of pages) {
         card.localImg = filename;
       }
     }
-  }
+  });
 
   // Build new cards-related HTML
   const newCardsHTML = buildCardsRelatedHTML(cardsToUse);
@@ -166,40 +170,40 @@ for (const slug of pages) {
   const cardsStart = content.indexOf('<div class="cards-related">');
   if (cardsStart === -1) {
     console.log('No existing cards-related block to replace');
-    continue;
+    return;
   }
 
   // Find the end of the outer wrapping div for the cards section
   // Structure: <div><div class="cards-related">...</div></div></div>
   // Need to find the section-level closing divs
-  const depth = 0;
-  const pos = cardsStart;
   // Find the cards-related closing
   const searchFrom = content.indexOf('cards-related');
   // The cards block ends with </div></div></div> then the next section starts
-  const metadataIdx = content.indexOf('class="metadata"', searchFrom);
+  const metadataIdx = content.indexOf(
+    'class="metadata"',
+    searchFrom,
+  );
   if (metadataIdx === -1) {
     console.log('Cannot find metadata block after cards');
-    continue;
+    return;
   }
-
-  // The cards section is: <div><div class="cards-related">..cards..</div></div></div>
-  // Find the </div></div> before the metadata section div
-  const sectionBefore = content.lastIndexOf('</div>', metadataIdx);
-  const sectionStart = content.lastIndexOf('\n<div>', metadataIdx);
 
   // Replace from cards-related to end of its section
   // Find: <div class="cards-related">...</div></div></div>
-  const cardsBlockMatch = content.match(/<div class="cards-related">[\s\S]*?<\/div><\/div><\/div>\s*\n/);
+  const cardsBlockMatch = content.match(
+    /<div class="cards-related">[\s\S]*?<\/div><\/div><\/div>\s*\n/,
+  );
   if (cardsBlockMatch) {
     const oldBlock = cardsBlockMatch[0];
     const newBlock = `${newCardsHTML}</div>\n`;
     content = content.replace(oldBlock, newBlock);
     fs.writeFileSync(filePath, content, 'utf8');
-    console.log(`Replaced cards-related block with ${cardsToUse.length} card(s)`);
+    console.log(
+      `Replaced cards-related block with ${cardsToUse.length} card(s)`,
+    );
   } else {
     console.log('Could not match cards-related block pattern');
   }
-}
+});
 
 console.log('\nDone');

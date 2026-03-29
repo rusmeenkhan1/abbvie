@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Accurate content check for first 25 pages.
  * Uses direct substring matching with proper normalization.
@@ -81,13 +82,17 @@ function getOrigArticleParagraphs(html) {
 
   const paragraphs = [];
   const pRe = /<p[^>]*>([\s\S]*?)<\/p>/gi;
-  let m;
-  while ((m = pRe.exec(clean)) !== null) {
+  let m = pRe.exec(clean);
+  while (m !== null) {
     const text = normalize(m[1]);
-    if (text.length < 40) continue;
-    if (shouldSkip(text)) continue;
-    if (/^\w+ \d{1,2}, \d{4}\s+\w+$/.test(text)) continue;
-    paragraphs.push(text);
+    if (
+      text.length >= 40
+      && !shouldSkip(text)
+      && !/^\w+ \d{1,2}, \d{4}\s+\w+$/.test(text)
+    ) {
+      paragraphs.push(text);
+    }
+    m = pRe.exec(clean);
   }
   return paragraphs;
 }
@@ -99,12 +104,17 @@ function getOrigHeadings(html) {
     .replace(/<nav[\s\S]*?<\/nav>/gi, '');
   const headings = [];
   const re = /<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi;
-  let m;
-  while ((m = re.exec(clean)) !== null) {
+  let m = re.exec(clean);
+  while (m !== null) {
     const text = normalize(m[1]);
-    if (text.length > 5 && !text.includes('you are about to leave') && !text.includes('share this')) {
+    if (
+      text.length > 5
+      && !text.includes('you are about to leave')
+      && !text.includes('share this')
+    ) {
       headings.push(text);
     }
+    m = re.exec(clean);
   }
   return headings;
 }
@@ -122,26 +132,29 @@ function checkPage(slug) {
 
   // 1. PARAGRAPH CHECK - direct substring in normalized text
   const origParas = getOrigArticleParagraphs(originalHTML);
-  for (const para of origParas) {
+  origParas.forEach((para) => {
     // Take a 40-char chunk from the middle of the paragraph
     const start = Math.min(10, Math.floor(para.length / 4));
     const chunk = para.substring(start, start + 40);
-    if (chunk.length < 20) continue;
-
-    if (!migratedPlain.includes(chunk)) {
-      issues.push({ type: 'MISSING_PARAGRAPH', detail: para.substring(0, 120) });
+    if (chunk.length >= 20 && !migratedPlain.includes(chunk)) {
+      issues.push({
+        type: 'MISSING_PARAGRAPH',
+        detail: para.substring(0, 120),
+      });
     }
-  }
+  });
 
   // 2. HEADING CHECK
   const origHeadings = getOrigHeadings(originalHTML);
-  for (const h of origHeadings) {
+  origHeadings.forEach((h) => {
     const chunk = h.substring(0, Math.min(30, h.length));
-    if (chunk.length < 5) continue;
-    if (!migratedPlain.includes(chunk)) {
-      issues.push({ type: 'MISSING_HEADING', detail: h.substring(0, 80) });
+    if (chunk.length >= 5 && !migratedPlain.includes(chunk)) {
+      issues.push({
+        type: 'MISSING_HEADING',
+        detail: h.substring(0, 80),
+      });
     }
-  }
+  });
 
   // 3. STRUCTURAL CHECKS
   if (!migratedHTML.includes('class="hero-article"')) {
@@ -150,25 +163,43 @@ function checkPage(slug) {
   if (!migratedHTML.includes('class="metadata"')) {
     issues.push({ type: 'NO_METADATA', detail: 'Missing metadata block' });
   } else {
-    if (!migratedHTML.includes('<div>Title</div>')) issues.push({ type: 'META', detail: 'Missing Title' });
-    if (!migratedHTML.includes('<div>Description</div>')) issues.push({ type: 'META', detail: 'Missing Description' });
-    if (!migratedHTML.includes('<div>og:title</div>')) issues.push({ type: 'META', detail: 'Missing og:title' });
+    if (!migratedHTML.includes('<div>Title</div>')) {
+      issues.push({ type: 'META', detail: 'Missing Title' });
+    }
+    if (!migratedHTML.includes('<div>Description</div>')) {
+      issues.push({ type: 'META', detail: 'Missing Description' });
+    }
+    if (!migratedHTML.includes('<div>og:title</div>')) {
+      issues.push({ type: 'META', detail: 'Missing og:title' });
+    }
   }
 
   // 4. IMAGE INTEGRITY
   const localImgs = [...migratedHTML.matchAll(/src="\.\/(images\/[^"]+)"/g)];
-  for (const m of localImgs) {
-    const imgFile = m[1].replace('images/', '');
-    if (!existingImages.has(imgFile)) issues.push({ type: 'BROKEN_IMG', detail: imgFile });
+  localImgs.forEach((match) => {
+    const imgFile = match[1].replace('images/', '');
+    if (!existingImages.has(imgFile)) {
+      issues.push({ type: 'BROKEN_IMG', detail: imgFile });
+    }
+  });
+  if (migratedHTML.match(/src=""/)) {
+    issues.push({ type: 'EMPTY_SRC', detail: 'Empty image src' });
   }
-  if (migratedHTML.match(/src=""/)) issues.push({ type: 'EMPTY_SRC', detail: 'Empty image src' });
-  if (migratedHTML.match(/<a href="">/)) issues.push({ type: 'EMPTY_HREF', detail: 'Empty link href' });
-  if (migratedHTML.includes('icon-search.svg')) issues.push({ type: 'PLACEHOLDER', detail: 'icon-search.svg' });
-  if (migratedHTML.match(/src="https?:\/\//)) issues.push({ type: 'EXTERNAL_IMG', detail: 'External image URL' });
+  if (migratedHTML.match(/<a href="">/)) {
+    issues.push({ type: 'EMPTY_HREF', detail: 'Empty link href' });
+  }
+  if (migratedHTML.includes('icon-search.svg')) {
+    issues.push({ type: 'PLACEHOLDER', detail: 'icon-search.svg' });
+  }
+  if (migratedHTML.match(/src="https?:\/\//)) {
+    issues.push({ type: 'EXTERNAL_IMG', detail: 'External image URL' });
+  }
 
   // 5. SINGLE H1
   const h1Count = (migratedHTML.match(/<h1[^>]*>/g) || []).length;
-  if (h1Count !== 1) issues.push({ type: 'H1_COUNT', detail: `Found ${h1Count} H1s` });
+  if (h1Count !== 1) {
+    issues.push({ type: 'H1_COUNT', detail: `Found ${h1Count} H1s` });
+  }
 
   return issues;
 }
@@ -179,14 +210,14 @@ async function main() {
   let passCount = 0;
   const allIssues = [];
 
-  for (let i = 0; i < files.length; i++) {
+  for (let i = 0; i < files.length; i += 1) {
     const slug = files[i].replace('.plain.html', '');
     process.stdout.write(`[${i + 1}/${files.length}] ${slug}... `);
     const issues = checkPage(slug);
 
     if (issues.length === 0) {
       console.log('✓');
-      passCount++;
+      passCount += 1;
     } else {
       console.log(`✗ (${issues.length})`);
       issues.forEach((iss) => console.log(`    [${iss.type}] ${iss.detail}`));
@@ -199,10 +230,16 @@ async function main() {
   if (allIssues.length > 0) {
     console.log(`FAILED: ${allIssues.length}`);
     const typeCounts = {};
-    for (const p of allIssues) for (const i of p.issues) typeCounts[i.type] = (typeCounts[i.type] || 0) + 1;
-    for (const [type, count] of Object.entries(typeCounts).sort((a, b) => b[1] - a[1])) {
-      console.log(`  ${type}: ${count}`);
-    }
+    allIssues.forEach((p) => {
+      p.issues.forEach((iss) => {
+        typeCounts[iss.type] = (typeCounts[iss.type] || 0) + 1;
+      });
+    });
+    Object.entries(typeCounts)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([type, count]) => {
+        console.log(`  ${type}: ${count}`);
+      });
   }
   console.log(`${'='.repeat(70)}`);
 }

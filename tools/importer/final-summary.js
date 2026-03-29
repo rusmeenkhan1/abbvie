@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 const fs = require('fs');
 const path = require('path');
 
@@ -14,7 +15,7 @@ const files = fs.readdirSync(CONTENT_DIR)
 // Spot-check card dates
 console.log('=== CARD DATE SPOT CHECK ===');
 const pagesWithCards = [];
-for (const file of files) {
+files.forEach((file) => {
   const content = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
   if (content.includes('cards-related')) {
     const cardsBlock = content.substring(content.indexOf('cards-related'));
@@ -23,7 +24,7 @@ for (const file of files) {
     pagesWithCards.push(slug);
     console.log(`  ${slug.substring(0, 55).padEnd(57)} Date: ${dateMatch ? dateMatch[1] : 'N/A'}`);
   }
-}
+});
 console.log(`\nPages with cards-related: ${pagesWithCards.length}/25`);
 
 // Final quality metrics
@@ -43,31 +44,30 @@ const stats = {
   substantial: 0,
 };
 
-for (const file of files) {
+files.forEach((file) => {
   const content = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
 
-  if (content.includes('class="hero-article"')) stats.hero++;
-  if (content.includes('class="metadata"')) stats.metadata++;
-  if (content.includes('<div>Title</div>')) stats.title++;
-  if (content.includes('<div>Description</div>')) stats.desc++;
-  if (content.includes('<div>og:title</div>')) stats.og++;
-  if (!/src=""/.test(content)) stats.noEmptySrc++;
-  if (!/<a href="">/.test(content)) stats.noEmptyHref++;
-  if (!/src="https?:\/\//.test(content)) stats.noExternal++;
-  if (!content.includes('icon-search.svg')) stats.noPlaceholder++;
-  if ((content.match(/<h1[^>]*>/g) || []).length === 1) stats.singleH1++;
+  if (content.includes('class="hero-article"')) stats.hero += 1;
+  if (content.includes('class="metadata"')) stats.metadata += 1;
+  if (content.includes('<div>Title</div>')) stats.title += 1;
+  if (content.includes('<div>Description</div>')) stats.desc += 1;
+  if (content.includes('<div>og:title</div>')) stats.og += 1;
+  if (!/src=""/.test(content)) stats.noEmptySrc += 1;
+  if (!/<a href="">/.test(content)) stats.noEmptyHref += 1;
+  if (!/src="https?:\/\//.test(content)) stats.noExternal += 1;
+  if (!content.includes('icon-search.svg')) stats.noPlaceholder += 1;
+  if ((content.match(/<h1[^>]*>/g) || []).length === 1) stats.singleH1 += 1;
 
   // Check broken images
   const localImgs = [...content.matchAll(/src="\.\/(images\/[^"]+)"/g)];
-  let allExist = true;
-  for (const m of localImgs) {
-    if (!existingImages.has(m[1].replace('images/', ''))) { allExist = false; break; }
-  }
-  if (allExist) stats.noBrokenImg++;
+  const allExist = localImgs.every(
+    (m) => existingImages.has(m[1].replace('images/', '')),
+  );
+  if (allExist) stats.noBrokenImg += 1;
 
   const bodyText = content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-  if (bodyText.length > 200) stats.substantial++;
-}
+  if (bodyText.length > 200) stats.substantial += 1;
+});
 
 console.log(`  Hero-article block:    ${stats.hero}/25`);
 console.log(`  Metadata block:        ${stats.metadata}/25`);

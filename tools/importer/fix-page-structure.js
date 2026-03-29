@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Fixes structural issues in imported pages:
  * 1. Reconstructs hero-article block wrapper for 3 pages
@@ -53,10 +54,10 @@ function fixHeroArticle(slug) {
 
   // Extract date + category line
   const dateCatMatch = firstSection.match(/<p>([A-Z][a-z]+ \d{1,2}, \d{4})\s*(<a href="[^"]*">([^<]+)<\/a>)?<\/p>/);
-  let date = ''; let
-    category = '';
+  let date = '';
+  let category = '';
   if (dateCatMatch) {
-    date = dateCatMatch[1];
+    [, date] = dateCatMatch;
     category = dateCatMatch[3] || '';
   }
 
@@ -136,26 +137,26 @@ function main() {
     'day-in-life-meet-director-clearing-path-for-patient-access',
     'the-math-of-migraine',
   ];
-  for (const slug of heroPages) {
+  heroPages.forEach((slug) => {
     fixHeroArticle(slug);
-  }
+  });
 
   // Fix empty sections
   console.log('\n=== Removing empty sections ===');
   let emptySectionsFixed = 0;
-  for (const file of files) {
+  files.forEach((file) => {
     const slug = file.replace('.plain.html', '');
-    if (fixEmptySections(slug)) emptySectionsFixed++;
-  }
+    if (fixEmptySections(slug)) emptySectionsFixed += 1;
+  });
   console.log(`Fixed ${emptySectionsFixed} pages with empty sections`);
 
   // Fix empty hrefs
   console.log('\n=== Fixing empty hrefs ===');
   let emptyHrefsFixed = 0;
-  for (const file of files) {
+  files.forEach((file) => {
     const slug = file.replace('.plain.html', '');
-    if (fixEmptyHrefs(slug)) emptyHrefsFixed++;
-  }
+    if (fixEmptyHrefs(slug)) emptyHrefsFixed += 1;
+  });
   console.log(`Fixed ${emptyHrefsFixed} pages with empty hrefs`);
 
   // Verify
@@ -163,13 +164,17 @@ function main() {
   let remainingNoHero = 0;
   let remainingEmptySections = 0;
   let remainingEmptyHrefs = 0;
-  for (const file of files) {
+  files.forEach((file) => {
     const content = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
-    if (!content.includes('class="hero-article"')) remainingNoHero++;
-    if (content.match(/<div>(\s*)<\/div>/)) remainingEmptySections++;
-    if (content.match(/<a href="">/)) remainingEmptyHrefs++;
-  }
-  console.log(`Remaining: no hero-article=${remainingNoHero}, empty sections=${remainingEmptySections}, empty hrefs=${remainingEmptyHrefs}`);
+    if (!content.includes('class="hero-article"')) remainingNoHero += 1;
+    if (content.match(/<div>(\s*)<\/div>/)) remainingEmptySections += 1;
+    if (content.match(/<a href="">/)) remainingEmptyHrefs += 1;
+  });
+  console.log(
+    `Remaining: no hero-article=${remainingNoHero},`
+    + ` empty sections=${remainingEmptySections},`
+    + ` empty hrefs=${remainingEmptyHrefs}`,
+  );
 }
 
 main();

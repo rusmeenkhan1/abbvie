@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Deep comparison of migrated pages vs original AbbVie pages.
  * Compares: headings, paragraphs, images (src+alt), links (href+text),
@@ -49,19 +50,15 @@ function fetchOriginal(slug) {
       `curl -sL -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)" --max-time 30 "${url}"`,
       { maxBuffer: 20 * 1024 * 1024, encoding: 'utf8' },
     );
-  } catch (e) {
+  } catch (_e) {
     return null;
   }
 }
 
 // Extract text between article/main content, ignoring header/footer
 function extractBodyContent(html) {
-  // Try to find the main article content area
-  // AbbVie uses class="stories-page" or similar for the main content
   let body = html;
 
-  // Remove everything before the main content
-  const mainStart = html.indexOf('class="experiencefragment') || html.indexOf('class="stories');
   // Remove header
   const headerEnd = html.indexOf('</header>');
   if (headerEnd > -1) body = html.substring(headerEnd);
@@ -71,7 +68,10 @@ function extractBodyContent(html) {
   if (footerStart > -1) body = body.substring(0, footerStart);
 
   // Also remove experience fragments (header/footer)
-  body = body.replace(/<div[^>]*class="experiencefragment[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+  body = body.replace(
+    /<div[^>]*class="experiencefragment[^"]*"[^>]*>[\s\S]*?<\/div>/gi,
+    '',
+  );
 
   return body;
 }
@@ -89,29 +89,31 @@ function extractElements(html) {
 
   // Headings
   const headingMatches = [...html.matchAll(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi)];
-  for (const m of headingMatches) {
+  headingMatches.forEach((m) => {
     const text = m[2].replace(/<[^>]+>/g, '').trim();
-    if (text) elements.headings.push({ level: parseInt(m[1]), text });
-  }
+    if (text) elements.headings.push({ level: parseInt(m[1], 10), text });
+  });
 
   // Paragraphs (text content only)
   const pMatches = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)];
-  for (const m of pMatches) {
+  pMatches.forEach((m) => {
     const text = m[1].replace(/<[^>]+>/g, '').trim();
     if (text && text.length > 10) elements.paragraphs.push(text);
-  }
+  });
 
   // Images
   const imgMatches = [...html.matchAll(/<img[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)];
-  for (const m of imgMatches) {
+  imgMatches.forEach((m) => {
     const altMatch = m[0].match(/\balt=["']([^"']*)["']/i);
     const alt = altMatch ? altMatch[1] : '';
     elements.images.push({ src: m[1], alt });
-  }
+  });
 
   // Also check for data-src lazy-loaded images
-  const lazySrcMatches = [...html.matchAll(/<img[^>]*\bdata-src=["']([^"']+)["'][^>]*>/gi)];
-  for (const m of lazySrcMatches) {
+  const lazySrcMatches = [
+    ...html.matchAll(/<img[^>]*\bdata-src=["']([^"']+)["'][^>]*>/gi),
+  ];
+  lazySrcMatches.forEach((m) => {
     const altMatch = m[0].match(/\balt=["']([^"']*)["']/i);
     const alt = altMatch ? altMatch[1] : '';
     // Only add if not already captured via src
@@ -119,30 +121,45 @@ function extractElements(html) {
     if (!elements.images.find((img) => img.src === src)) {
       elements.images.push({ src, alt });
     }
-  }
+  });
 
   // Links (non-navigation)
-  const linkMatches = [...html.matchAll(/<a[^>]*\bhref=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
-  for (const m of linkMatches) {
+  const linkMatches = [
+    ...html.matchAll(/<a[^>]*\bhref=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi),
+  ];
+  linkMatches.forEach((m) => {
     const text = m[2].replace(/<[^>]+>/g, '').trim();
     const href = m[1];
-    // Skip navigation/header/footer links
-    if (text && href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+    // Skip navigation/header/footer links and javascript: URLs
+    const isJSUrl = href.startsWith('javascript'); // eslint-disable-line no-script-url
+    if (text && href && !href.startsWith('#') && !isJSUrl) {
       elements.links.push({ href, text });
     }
-  }
+  });
 
   // Meta tags
-  const metaDescMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i)
-    || html.match(/<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i);
-  if (metaDescMatch) elements.meta.description = metaDescMatch[1];
+  const metaDescMatch = html.match(
+    /<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i,
+  ) || html.match(
+    /<meta\s+content=["']([^"']+)["']\s+name=["']description["']/i,
+  );
+  if (metaDescMatch) {
+    [, elements.meta.description] = metaDescMatch;
+  }
 
-  const ogTitleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i)
-    || html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:title["']/i);
-  if (ogTitleMatch) elements.meta.ogTitle = ogTitleMatch[1];
+  const ogTitleMatch = html.match(
+    /<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i,
+  ) || html.match(
+    /<meta\s+content=["']([^"']+)["']\s+property=["']og:title["']/i,
+  );
+  if (ogTitleMatch) {
+    [, elements.meta.ogTitle] = ogTitleMatch;
+  }
 
   const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-  if (titleMatch) elements.meta.title = titleMatch[1];
+  if (titleMatch) {
+    [, elements.meta.title] = titleMatch;
+  }
 
   return elements;
 }
@@ -158,47 +175,55 @@ function extractMigratedElements(html) {
 
   // Headings
   const headingMatches = [...html.matchAll(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi)];
-  for (const m of headingMatches) {
+  headingMatches.forEach((m) => {
     const text = m[2].replace(/<[^>]+>/g, '').trim();
-    if (text) elements.headings.push({ level: parseInt(m[1]), text });
-  }
+    if (text) elements.headings.push({ level: parseInt(m[1], 10), text });
+  });
 
   // Paragraphs
   const pMatches = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)];
-  for (const m of pMatches) {
+  pMatches.forEach((m) => {
     const text = m[1].replace(/<[^>]+>/g, '').trim();
     if (text && text.length > 10) elements.paragraphs.push(text);
-  }
+  });
 
   // Images
   const imgMatches = [...html.matchAll(/<img[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)];
-  for (const m of imgMatches) {
+  imgMatches.forEach((m) => {
     const altMatch = m[0].match(/\balt=["']([^"']*)["']/i);
     const alt = altMatch ? altMatch[1] : '';
     elements.images.push({ src: m[1], alt });
-  }
+  });
 
   // Links
-  const linkMatches = [...html.matchAll(/<a[^>]*\bhref=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
-  for (const m of linkMatches) {
+  const linkMatches = [
+    ...html.matchAll(/<a[^>]*\bhref=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi),
+  ];
+  linkMatches.forEach((m) => {
     const text = m[2].replace(/<[^>]+>/g, '').trim();
     const href = m[1];
     if (text && href) {
       elements.links.push({ href, text });
     }
-  }
+  });
 
   // Metadata from block
-  const metadataMatch = html.match(/<div class="metadata">([\s\S]*?)<\/div><\/div>/);
+  const metadataMatch = html.match(
+    /<div class="metadata">([\s\S]*?)<\/div><\/div>/,
+  );
   if (metadataMatch) {
-    const metaRows = [...metadataMatch[0].matchAll(/<div><div>([^<]+)<\/div><div>([\s\S]*?)<\/div><\/div>/g)];
-    for (const row of metaRows) {
+    const metaRows = [
+      ...metadataMatch[0].matchAll(
+        /<div><div>([^<]+)<\/div><div>([\s\S]*?)<\/div><\/div>/g,
+      ),
+    ];
+    metaRows.forEach((row) => {
       const key = row[1].trim().toLowerCase();
       const val = row[2].replace(/<[^>]+>/g, '').trim();
       if (key === 'title') elements.meta.title = val;
       if (key === 'description') elements.meta.description = val;
       if (key === 'og:title') elements.meta.ogTitle = val;
-    }
+    });
   }
 
   return elements;
@@ -246,29 +271,46 @@ function comparePages(slug) {
     const origText = normalizeText(origH1[0].text);
     const migrText = normalizeText(migrH1[0].text);
     if (origText !== migrText) {
-      issues.push({ type: 'H1_MISMATCH', original: origText, migrated: migrText });
+      issues.push({
+        type: 'H1_MISMATCH',
+        original: origText,
+        migrated: migrText,
+      });
     }
   }
 
   // Compare H2s
-  const origH2 = original.headings.filter((h) => h.level === 2).map((h) => normalizeText(h.text));
-  const migrH2 = migrated.headings.filter((h) => h.level === 2).map((h) => normalizeText(h.text));
+  const origH2 = original.headings
+    .filter((h) => h.level === 2)
+    .map((h) => normalizeText(h.text));
+  const migrH2 = migrated.headings
+    .filter((h) => h.level === 2)
+    .map((h) => normalizeText(h.text));
 
-  for (const oh2 of origH2) {
+  origH2.forEach((oh2) => {
     if (!migrH2.find((mh2) => mh2 === oh2)) {
       issues.push({ type: 'MISSING_H2', detail: oh2 });
     }
-  }
+  });
 
   // 2. Compare metadata
   if (original.meta.title && !migrated.meta.title) {
-    issues.push({ type: 'MISSING_META_TITLE', original: original.meta.title });
+    issues.push({
+      type: 'MISSING_META_TITLE',
+      original: original.meta.title,
+    });
   }
   if (original.meta.description && !migrated.meta.description) {
-    issues.push({ type: 'MISSING_META_DESCRIPTION', original: original.meta.description });
+    issues.push({
+      type: 'MISSING_META_DESCRIPTION',
+      original: original.meta.description,
+    });
   }
   if (original.meta.ogTitle && !migrated.meta.ogTitle) {
-    issues.push({ type: 'MISSING_META_OG_TITLE', original: original.meta.ogTitle });
+    issues.push({
+      type: 'MISSING_META_OG_TITLE',
+      original: original.meta.ogTitle,
+    });
   }
 
   // 3. Compare image count (body only, excluding nav/footer)
@@ -276,8 +318,11 @@ function comparePages(slug) {
   const origBodyImages = original.images.filter((img) => {
     const src = img.src.toLowerCase();
     // Skip common nav/footer/icon images
-    return !src.includes('/icons/') && !src.includes('logo') && !src.includes('favicon')
-      && !src.includes('/navigation/') && !src.includes('/footer/');
+    return !src.includes('/icons/')
+      && !src.includes('logo')
+      && !src.includes('favicon')
+      && !src.includes('/navigation/')
+      && !src.includes('/footer/');
   });
   const migrImages = migrated.images;
 
@@ -286,7 +331,8 @@ function comparePages(slug) {
       type: 'IMAGE_COUNT_MISMATCH',
       original: origBodyImages.length,
       migrated: migrImages.length,
-      detail: `Original has ${origBodyImages.length} images, migrated has ${migrImages.length}`,
+      detail: `Original has ${origBodyImages.length} images, `
+        + `migrated has ${migrImages.length}`,
     });
   }
 
@@ -296,8 +342,8 @@ function comparePages(slug) {
   const migrParaTexts = migrated.paragraphs.map(normalizeText);
 
   const missingParas = [];
-  for (const op of origParaTexts) {
-    if (op.length < 20) continue; // skip very short paras
+  origParaTexts.forEach((op) => {
+    if (op.length < 20) return; // skip very short paras
     // Check if any migrated paragraph contains this text (fuzzy match)
     const found = migrParaTexts.some((mp) => {
       if (mp === op) return true;
@@ -309,7 +355,7 @@ function comparePages(slug) {
     if (!found) {
       missingParas.push(op.substring(0, 100));
     }
-  }
+  });
 
   if (missingParas.length > 0) {
     issues.push({
@@ -323,25 +369,30 @@ function comparePages(slug) {
   const origBodyLinks = original.links.filter((l) => {
     const href = l.href.toLowerCase();
     // Skip nav links, social, and generic links
-    return !href.includes('/who-we-are/our-stories.html') // back link
-      && !href.includes('facebook.com') && !href.includes('twitter.com')
-      && !href.includes('linkedin.com') && !href.includes('instagram.com')
-      && !href.startsWith('/content/') && href.length > 5;
+    return !href.includes('/who-we-are/our-stories.html')
+      && !href.includes('facebook.com')
+      && !href.includes('twitter.com')
+      && !href.includes('linkedin.com')
+      && !href.includes('instagram.com')
+      && !href.startsWith('/content/')
+      && href.length > 5;
   });
 
   const migrBodyLinks = migrated.links;
   const missingLinks = [];
 
-  for (const ol of origBodyLinks) {
+  origBodyLinks.forEach((ol) => {
     const found = migrBodyLinks.some((ml) => {
       const normOText = normalizeText(ol.text);
       const normMText = normalizeText(ml.text);
-      return normOText === normMText || ml.href.includes(ol.href) || ol.href.includes(ml.href);
+      return normOText === normMText
+        || ml.href.includes(ol.href)
+        || ol.href.includes(ml.href);
     });
     if (!found && ol.text.length > 3) {
       missingLinks.push({ text: ol.text, href: ol.href });
     }
-  }
+  });
 
   if (missingLinks.length > 0) {
     issues.push({
@@ -359,7 +410,7 @@ async function main() {
   const allResults = {};
   let totalIssues = 0;
 
-  for (let i = 0; i < SLUGS.length; i++) {
+  for (let i = 0; i < SLUGS.length; i += 1) {
     const slug = SLUGS[i];
     console.log(`[${i + 1}/${SLUGS.length}] Comparing: ${slug}`);
 
@@ -367,18 +418,25 @@ async function main() {
     allResults[slug] = issues;
 
     if (issues.length === 0) {
-      console.log('  ✓ PASS - no differences');
+      console.log('  PASS - no differences');
     } else {
-      console.log(`  ✗ ${issues.length} issue(s):`);
-      for (const issue of issues) {
-        console.log(`    - ${issue.type}: ${issue.detail || issue.original || issue.count || ''}`);
+      console.log(`  ${issues.length} issue(s):`);
+      issues.forEach((issue) => {
+        console.log(
+          `    - ${issue.type}: `
+          + `${issue.detail || issue.original || issue.count || ''}`,
+        );
         if (issue.samples) {
-          issue.samples.slice(0, 2).forEach((s) => console.log(`      "${s.substring(0, 80)}..."`));
+          issue.samples.slice(0, 2).forEach((s) => {
+            console.log(`      "${s.substring(0, 80)}..."`);
+          });
         }
         if (issue.links) {
-          issue.links.slice(0, 2).forEach((l) => console.log(`      "${l.text}" -> ${l.href}`));
+          issue.links.slice(0, 2).forEach((l) => {
+            console.log(`      "${l.text}" -> ${l.href}`);
+          });
         }
-      }
+      });
       totalIssues += issues.length;
     }
   }
@@ -389,21 +447,25 @@ async function main() {
 
   console.log('\n=== SUMMARY ===');
   console.log(`Pages compared: ${SLUGS.length}`);
-  console.log(`Pages with issues: ${Object.values(allResults).filter((v) => v.length > 0).length}`);
+  console.log(
+    `Pages with issues: ${Object.values(allResults).filter((v) => v.length > 0).length}`,
+  );
   console.log(`Total issues: ${totalIssues}`);
   console.log(`Report saved: ${reportPath}`);
 
   // Issue type breakdown
   const typeCount = {};
-  for (const issues of Object.values(allResults)) {
-    for (const issue of issues) {
+  Object.values(allResults).forEach((issues) => {
+    issues.forEach((issue) => {
       typeCount[issue.type] = (typeCount[issue.type] || 0) + 1;
-    }
-  }
+    });
+  });
   console.log('\nIssue breakdown:');
-  for (const [type, count] of Object.entries(typeCount).sort((a, b) => b[1] - a[1])) {
-    console.log(`  ${type}: ${count}`);
-  }
+  Object.entries(typeCount)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([type, count]) => {
+      console.log(`  ${type}: ${count}`);
+    });
 }
 
 main().catch(console.error);

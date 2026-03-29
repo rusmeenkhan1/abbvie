@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Precise comparison of migrated pages vs original AbbVie pages.
  * Focuses on actual body content differences, excluding header/footer/nav.
@@ -117,47 +118,49 @@ function extractOriginalArticle(html) {
   }
 
   const h2Matches = [...body.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)];
-  for (const m of h2Matches) {
+  h2Matches.forEach((m) => {
     const text = m[1].replace(/<[^>]+>/g, '').trim();
     if (text) result.h2s.push(text);
-  }
+  });
 
   const h5Matches = [...body.matchAll(/<h5[^>]*>([\s\S]*?)<\/h5>/gi)];
-  for (const m of h5Matches) {
+  h5Matches.forEach((m) => {
     const text = m[1].replace(/<[^>]+>/g, '').trim();
     if (text) result.h5s.push(text);
-  }
+  });
 
   // Extract paragraphs from body - get all text content
   const pMatches = [...body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)];
-  for (const m of pMatches) {
+  pMatches.forEach((m) => {
     const text = m[1].replace(/<[^>]+>/g, '').trim();
     // Skip very short, navigation-like, or metadata paragraphs
     if (text.length > 30 && !text.match(/^\d+ Minute Read$/) && !text.match(/^All Stories$/)) {
       result.bodyParagraphs.push(text);
     }
-  }
+  });
 
   // Extract images from body
   const imgMatches = [...body.matchAll(/<img[^>]*\balt=["']([^"']*)["'][^>]*>/gi)];
-  for (const m of imgMatches) {
+  imgMatches.forEach((m) => {
     const alt = m[1].trim();
     if (alt && !alt.includes('icon') && !alt.includes('logo') && alt.length > 2) {
       result.bodyImages.push(alt);
     }
-  }
+  });
   // Also reverse pattern
   const imgMatches2 = [...body.matchAll(/<img[^>]*\bsrc=["']([^"']+)["'][^>]*\balt=["']([^"']*)["'][^>]*>/gi)];
-  for (const m of imgMatches2) {
+  imgMatches2.forEach((m) => {
     const alt = m[2].trim();
-    if (alt && !result.bodyImages.includes(alt) && !alt.includes('icon') && !alt.includes('logo') && alt.length > 2) {
+    if (alt && !result.bodyImages.includes(alt)
+        && !alt.includes('icon') && !alt.includes('logo')
+        && alt.length > 2) {
       result.bodyImages.push(alt);
     }
-  }
+  });
 
   // Extract editorial links from body
   const linkMatches = [...body.matchAll(/<a[^>]*\bhref=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
-  for (const m of linkMatches) {
+  linkMatches.forEach((m) => {
     const href = m[1];
     const text = m[2].replace(/<[^>]+>/g, '').trim();
     // Skip nav/footer/header links, social links, email protection
@@ -186,7 +189,7 @@ function extractOriginalArticle(html) {
         && text !== 'Join Us' && text !== 'Sustainability') {
       result.bodyLinks.push({ href, text });
     }
-  }
+  });
 
   return result;
 }
@@ -214,36 +217,36 @@ function extractMigrated(html) {
   if (h1Matches.length > 0) result.h1 = h1Matches[0][1].replace(/<[^>]+>/g, '').trim();
 
   const h2Matches = [...html.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)];
-  for (const m of h2Matches) {
+  h2Matches.forEach((m) => {
     const text = m[1].replace(/<[^>]+>/g, '').trim();
     if (text) result.h2s.push(text);
-  }
+  });
 
   const h5Matches = [...html.matchAll(/<h5[^>]*>([\s\S]*?)<\/h5>/gi)];
-  for (const m of h5Matches) {
+  h5Matches.forEach((m) => {
     const text = m[1].replace(/<[^>]+>/g, '').trim();
     if (text) result.h5s.push(text);
-  }
+  });
 
   // Extract body paragraphs (from all sections, not just hero)
   const pMatches = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)];
-  for (const m of pMatches) {
+  pMatches.forEach((m) => {
     const text = m[1].replace(/<[^>]+>/g, '').trim();
     if (text.length > 30) {
       result.bodyParagraphs.push(text);
     }
-  }
+  });
 
   // Images
   const imgMatches = [...html.matchAll(/<img[^>]*\balt=["']([^"']*)["'][^>]*>/gi)];
-  for (const m of imgMatches) {
+  imgMatches.forEach((m) => {
     const alt = m[1].trim();
     if (alt && alt.length > 2) result.bodyImages.push(alt);
-  }
+  });
 
   // Links
   const linkMatches = [...html.matchAll(/<a[^>]*\bhref=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
-  for (const m of linkMatches) {
+  linkMatches.forEach((m) => {
     const href = m[1];
     const text = m[2].replace(/<[^>]+>/g, '').trim();
     if (text && text.length > 2 && href.length > 5
@@ -253,19 +256,19 @@ function extractMigrated(html) {
         && text !== 'Read story') {
       result.bodyLinks.push({ href, text });
     }
-  }
+  });
 
   // Metadata
   const metadataMatch = html.match(/<div class="metadata">([\s\S]*?)<\/div><\/div>/);
   if (metadataMatch) {
     const metaRows = [...metadataMatch[0].matchAll(/<div><div>([^<]+)<\/div><div>([\s\S]*?)<\/div><\/div>/g)];
-    for (const row of metaRows) {
+    metaRows.forEach((row) => {
       const key = row[1].trim().toLowerCase();
       const val = row[2].replace(/<[^>]+>/g, '').trim();
       if (key === 'title') result.metaTitle = val;
       if (key === 'description') result.metaDescription = val;
       if (key === 'og:title') result.metaOgTitle = val;
-    }
+    });
   }
 
   return result;
@@ -287,29 +290,29 @@ function comparePage(slug) {
   }
 
   // 2. H2 comparison
-  for (const oh2 of original.h2s) {
+  original.h2s.forEach((oh2) => {
     const normO = normalizeText(oh2);
     if (!migrated.h2s.some((mh2) => normalizeText(mh2) === normO)) {
       issues.push({ type: 'MISSING_H2', text: oh2 });
     }
-  }
+  });
 
   // 3. H5 comparison (sub-headings)
-  for (const oh5 of original.h5s) {
+  original.h5s.forEach((oh5) => {
     const normO = normalizeText(oh5);
     if (!migrated.h5s.some((mh5) => normalizeText(mh5) === normO)) {
       issues.push({ type: 'MISSING_H5', text: oh5 });
     }
-  }
+  });
 
   // 4. Body paragraph comparison - check for missing substantial content
   const migrNormParas = migrated.bodyParagraphs.map(normalizeText);
   let missingParas = 0;
   const missingParaSamples = [];
 
-  for (const op of original.bodyParagraphs) {
+  original.bodyParagraphs.forEach((op) => {
     const normO = normalizeText(op);
-    if (normO.length < 30) continue;
+    if (normO.length < 30) return;
 
     const found = migrNormParas.some((mp) => {
       if (mp === normO) return true;
@@ -319,15 +322,19 @@ function comparePage(slug) {
     });
 
     if (!found) {
-      missingParas++;
+      missingParas += 1;
       if (missingParaSamples.length < 3) {
         missingParaSamples.push(op.substring(0, 120));
       }
     }
-  }
+  });
 
   if (missingParas > 0) {
-    issues.push({ type: 'MISSING_BODY_TEXT', count: missingParas, samples: missingParaSamples });
+    issues.push({
+      type: 'MISSING_BODY_TEXT',
+      count: missingParas,
+      samples: missingParaSamples,
+    });
   }
 
   // 5. Metadata comparison
@@ -338,37 +345,66 @@ function comparePage(slug) {
     issues.push({ type: 'MISSING_META_DESC', value: original.metaDescription });
   }
   if (original.metaOgTitle && !migrated.metaOgTitle) {
-    issues.push({ type: 'MISSING_META_OG_TITLE', value: original.metaOgTitle });
+    issues.push({
+      type: 'MISSING_META_OG_TITLE',
+      value: original.metaOgTitle,
+    });
   }
 
   // 6. Editorial link comparison
   const migrLinkTexts = migrated.bodyLinks.map((l) => normalizeText(l.text));
   const missingLinks = [];
-  for (const ol of original.bodyLinks) {
+  original.bodyLinks.forEach((ol) => {
     const normText = normalizeText(ol.text);
-    if (normText.length < 3) continue;
+    if (normText.length < 3) return;
     // Skip category links (already in hero metadata)
-    if (ol.href.includes('/our-stories/') && ol.href.includes('-stories.html')) continue;
+    if (ol.href.includes('/our-stories/')
+        && ol.href.includes('-stories.html')) return;
     // Skip email/phone links
-    if (ol.href.startsWith('mailto:') || ol.href.startsWith('tel:')) continue;
+    if (ol.href.startsWith('mailto:')
+        || ol.href.startsWith('tel:')) return;
 
-    if (!migrLinkTexts.some((mt) => mt === normText || mt.includes(normText) || normText.includes(mt))) {
+    const hasMatch = migrLinkTexts.some(
+      (mt) => mt === normText
+        || mt.includes(normText)
+        || normText.includes(mt),
+    );
+    if (!hasMatch) {
       missingLinks.push({ text: ol.text, href: ol.href });
     }
-  }
+  });
 
   if (missingLinks.length > 0) {
-    issues.push({ type: 'MISSING_EDITORIAL_LINKS', count: missingLinks.length, links: missingLinks.slice(0, 5) });
+    issues.push({
+      type: 'MISSING_EDITORIAL_LINKS',
+      count: missingLinks.length,
+      links: missingLinks.slice(0, 5),
+    });
   }
 
   // 7. Image count (body only)
   const origImgCount = original.bodyImages.length;
   const migrImgCount = migrated.bodyImages.length;
   if (Math.abs(origImgCount - migrImgCount) > 1) {
-    issues.push({ type: 'IMAGE_COUNT_DIFF', orig: origImgCount, migr: migrImgCount });
+    issues.push({
+      type: 'IMAGE_COUNT_DIFF',
+      orig: origImgCount,
+      migr: migrImgCount,
+    });
   }
 
   return issues;
+}
+
+function formatIssueSummary(issue) {
+  if (issue.type === 'MISSING_BODY_TEXT') {
+    return `${issue.count} paras - ${issue.samples[0]?.substring(0, 80)}`;
+  }
+  if (issue.type === 'MISSING_EDITORIAL_LINKS') {
+    return `${issue.count} links - ${issue.links[0]?.text}`;
+  }
+  return issue.text || issue.value
+    || `orig=${issue.orig}, migr=${issue.migr}`;
 }
 
 async function main() {
@@ -376,8 +412,7 @@ async function main() {
   let totalIssueCount = 0;
   const issueSummary = {};
 
-  for (let i = 0; i < SLUGS.length; i++) {
-    const slug = SLUGS[i];
+  SLUGS.forEach((slug, i) => {
     process.stdout.write(`[${i + 1}/${SLUGS.length}] ${slug} ... `);
 
     const issues = comparePage(slug);
@@ -386,27 +421,25 @@ async function main() {
       console.log('PASS');
     } else {
       console.log(`${issues.length} issue(s):`);
-      for (const issue of issues) {
-        const summary = issue.type === 'MISSING_BODY_TEXT'
-          ? `${issue.count} paras - ${issue.samples[0]?.substring(0, 80)}`
-          : issue.type === 'MISSING_EDITORIAL_LINKS'
-            ? `${issue.count} links - ${issue.links[0]?.text}`
-            : issue.text || issue.value || `orig=${issue.orig}, migr=${issue.migr}`;
+      issues.forEach((issue) => {
+        const summary = formatIssueSummary(issue);
         console.log(`  - ${issue.type}: ${summary}`);
         issueSummary[issue.type] = (issueSummary[issue.type] || 0) + 1;
-      }
-      totalIssuePages++;
+      });
+      totalIssuePages += 1;
       totalIssueCount += issues.length;
     }
-  }
+  });
 
   console.log('\n=== SUMMARY ===');
   console.log(`Pages: ${SLUGS.length}, Clean: ${SLUGS.length - totalIssuePages}, With issues: ${totalIssuePages}`);
   console.log(`Total issue instances: ${totalIssueCount}`);
   console.log('\nBreakdown:');
-  for (const [type, count] of Object.entries(issueSummary).sort((a, b) => b[1] - a[1])) {
-    console.log(`  ${type}: ${count}`);
-  }
+  Object.entries(issueSummary)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([type, count]) => {
+      console.log(`  ${type}: ${count}`);
+    });
 }
 
 main().catch(console.error);
