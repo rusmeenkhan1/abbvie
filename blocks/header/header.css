@@ -16,8 +16,16 @@ header .nav-wrapper {
   width: 100%;
   z-index: 100;
   position: fixed;
+  top: 0;
+  left: 0;
   border-bottom: none;
   box-shadow: none;
+  transition: background-color 0.15s ease-in-out;
+}
+
+header .nav-wrapper.scrolled {
+  background-color: rgb(255 255 255 / 85%);
+  backdrop-filter: blur(5px);
 }
 
 header nav {
@@ -102,79 +110,68 @@ header .nav-brand img {
   height: auto;
 }
 
-/* --- Hamburger --- */
+/* --- Hamburger (staggered lines like original) --- */
 header .nav-hamburger {
   display: flex;
   align-items: center;
 }
 
 header nav .nav-hamburger button {
-  height: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
   margin: 0;
   border: 0;
   border-radius: 0;
-  padding: 0;
+  padding: 8px;
   background-color: transparent;
-  color: var(--color-navy);
-  overflow: initial;
-  text-overflow: initial;
-  white-space: initial;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
 }
 
-header nav .nav-hamburger-icon,
-header nav .nav-hamburger-icon::before,
-header nav .nav-hamburger-icon::after {
-  box-sizing: border-box;
+header .nav-hamburger .hamburger-line {
   display: block;
-  position: relative;
-  width: 20px;
+  height: 1.5px;
+  background: var(--header-navy);
+  border-radius: 1px;
+  transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out, width 0.5s ease-in-out;
 }
 
-header nav .nav-hamburger-icon::before,
-header nav .nav-hamburger-icon::after {
-  content: '';
-  position: absolute;
-  background: currentcolor;
+/* Staggered widths: shortest top, full middle, medium bottom */
+header .nav-hamburger .hamburger-line:nth-child(1) {
+  width: 40%;
 }
 
-header nav[aria-expanded='false'] .nav-hamburger-icon,
-header nav[aria-expanded='false'] .nav-hamburger-icon::before,
-header nav[aria-expanded='false'] .nav-hamburger-icon::after {
-  height: 2px;
-  border-radius: 2px;
-  background: currentcolor;
+header .nav-hamburger .hamburger-line:nth-child(2) {
+  width: 100%;
 }
 
-header nav[aria-expanded='false'] .nav-hamburger-icon::before {
-  top: -6px;
+header .nav-hamburger .hamburger-line:nth-child(3) {
+  width: 70%;
 }
 
-header nav[aria-expanded='false'] .nav-hamburger-icon::after {
-  top: 6px;
+/* Open state: morph to X */
+header nav[aria-expanded='true'] .nav-hamburger .hamburger-line {
+  width: 100%;
 }
 
-header nav[aria-expanded='true'] .nav-hamburger-icon {
-  height: 22px;
+header nav[aria-expanded='true'] .nav-hamburger .hamburger-line:nth-child(1) {
+  transform: translateY(6.5px) rotate(45deg);
 }
 
-header nav[aria-expanded='true'] .nav-hamburger-icon::before,
-header nav[aria-expanded='true'] .nav-hamburger-icon::after {
-  top: 3px;
-  left: 1px;
-  transform: rotate(45deg);
-  transform-origin: 2px 1px;
-  width: 24px;
-  height: 2px;
-  border-radius: 2px;
+header nav[aria-expanded='true'] .nav-hamburger .hamburger-line:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
 }
 
-header nav[aria-expanded='true'] .nav-hamburger-icon::after {
-  top: unset;
-  bottom: 3px;
-  transform: rotate(-45deg);
+header nav[aria-expanded='true'] .nav-hamburger .hamburger-line:nth-child(3) {
+  transform: translateY(-6.5px) rotate(-45deg);
 }
 
-@media (width >= 900px) {
+@media (width >= 1200px) {
   header nav .nav-hamburger {
     display: none;
     visibility: hidden;
@@ -192,27 +189,7 @@ header nav .nav-brand img {
   height: auto;
 }
 
-/* sections */
-header nav .nav-sections {
-  grid-area: sections;
-  flex: 1 1 auto;
-  display: none;
-}
-
-/* Default: show hamburger, hide close */
-header .nav-hamburger .icon-close {
-  display: none;
-}
-
-/* Expanded: show close, hide hamburger */
-/* stylelint-disable-next-line no-descending-specificity */
-header nav[aria-expanded='true'] .nav-hamburger .icon-hamburger {
-  display: none;
-}
-
-header nav[aria-expanded='true'] .nav-hamburger .icon-close {
-  display: block;
-}
+/* sections - merged with mobile animation rules below */
 
 /* --- Search Button --- */
 header .nav-search {
@@ -307,20 +284,28 @@ header .search-submit {
   display: flex;
 }
 
-/* === MOBILE NAV SECTIONS === */
+/* === MOBILE NAV SECTIONS (animated) === */
 /* stylelint-disable-next-line no-descending-specificity */
-header .nav-sections {
-  display: none;
+header nav .nav-sections {
+  grid-area: sections;
+  flex: 1 1 auto;
   position: fixed;
   inset: var(--header-nav-height) 0 0 0;
   background: #fff;
   overflow-y: auto;
   z-index: 80;
   padding: 0;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.35s ease, visibility 0s linear 0.35s;
+  pointer-events: none;
 }
 
 header nav[aria-expanded='true'] .nav-sections {
-  display: block;
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.35s ease, visibility 0s linear 0s;
+  pointer-events: auto;
 }
 
 header .nav-sections .default-content-wrapper {
@@ -387,10 +372,15 @@ header .nav-item-link {
   text-decoration: none;
 }
 
-/* --- Mega Panel (hidden on mobile by default) --- */
+/* --- Mega Panel (hidden by default, shown via animation on mobile) --- */
 header .mega-panel {
   display: none;
   flex-direction: column;
+  position: fixed;
+  inset: var(--header-nav-height) 0 0 0;
+  background: #fff;
+  z-index: 85;
+  overflow-y: auto;
 }
 
 /* --- Mobile Back Button --- */
@@ -434,22 +424,28 @@ header .nav-header-bar:has(.nav-sections.submenu-active) .nav-brand {
   visibility: hidden;
 }
 
-/* --- Mobile Submenu Open State --- */
+/* --- Mobile Submenu Active: hide nav items, show only active submenu --- */
 header .nav-sections.submenu-active .default-content-wrapper > ul > .nav-item {
   display: none;
 }
 
 header .nav-sections.submenu-active .default-content-wrapper > ul > .nav-item.mobile-submenu-open {
   display: block;
-  border-bottom: none;
 }
 
 header .nav-sections.submenu-active .nav-item.mobile-submenu-open > .nav-item-btn {
   display: none;
 }
 
+/* --- Mobile Submenu Open State (slide in from top) --- */
 header .nav-sections.submenu-active .nav-item.mobile-submenu-open > .mega-panel {
   display: flex;
+  animation: slide-in-from-top 0.3s ease-out;
+}
+
+@keyframes slide-in-from-top {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
 }
 
 header .mega-promo {
@@ -810,19 +806,11 @@ header .mega-expand-link:hover {
 }
 
 /* ============================
-   DESKTOP (900px+)
+   DESKTOP (1200px+)
    ============================ */
-@media (width >= 900px) {
+@media (width >= 1200px) {
   header {
     --header-nav-height: 88px;
-
-    height: auto;
-  }
-
-  header .nav-wrapper {
-    position: sticky;
-    top: 0;
-    box-shadow: none;
   }
 
   header .nav-header-bar {
@@ -873,6 +861,10 @@ header .mega-expand-link:hover {
     flex: 1;
     height: auto;
     align-items: center;
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    transition: none;
   }
 
   header .nav-sections .default-content-wrapper {
@@ -943,16 +935,30 @@ header .mega-expand-link:hover {
     font-size: 16px;
   }
 
-  /* --- Desktop Mega Panel --- */
-  header .nav-item.active > .mega-panel {
+  /* --- Desktop Mega Panel (animated with CSS transitions) --- */
+  /* stylelint-disable-next-line no-descending-specificity */
+  header .nav-drop > .mega-panel {
     display: flex;
     flex-direction: column;
     position: fixed;
-    top: var(--header-nav-height);
-    left: 0;
-    right: 0;
+    inset: var(--header-nav-height) 0 auto 0;
     z-index: 90;
     background: #fff;
+    overflow-y: visible;
+    visibility: hidden;
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top center;
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s linear 0.3s;
+    pointer-events: none;
+  }
+
+  header .nav-item.active > .mega-panel {
+    visibility: visible;
+    opacity: 1;
+    transform: scaleY(1);
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s linear 0s;
+    pointer-events: auto;
   }
 
   /* stylelint-disable-next-line no-descending-specificity */
@@ -1038,15 +1044,6 @@ header .mega-expand-link:hover {
   /* stylelint-disable-next-line no-descending-specificity */
   header .nav-back-btn {
     display: none;
-  }
-}
-
-/* ============================
-   LARGE DESKTOP (1200px+)
-   ============================ */
-@media (width >= 1200px) {
-  header .nav-brand img {
-    width: 110px;
   }
 }
 
