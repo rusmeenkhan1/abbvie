@@ -14,8 +14,10 @@ footer {
   color: var(--color-navy);
   font-size: var(--body-font-size-s);
   border-radius: 80px 0 0;
-  margin-top: -80px;
   position: relative;
+  max-width: 1330px;
+  margin: auto;
+  margin-top: -80px;
 }
 
 footer .footer {
@@ -24,6 +26,7 @@ footer .footer {
   max-width: 1330px;
   margin: 0 auto;
   padding: 56px 24px 0;
+  border-radius: 80px 0 0;
 }
 
 footer .footer p {

@@ -1,6 +1,6 @@
 /* Hero Article - story hero with full-width image and overlapping metadata card */
 .hero-article-container .hero-article-wrapper {
-  max-width: unset;
+  max-width: 1330px;
   padding: 0;
 }
 
