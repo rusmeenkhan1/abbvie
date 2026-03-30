@@ -74,6 +74,11 @@
     --heading-font-size-s: 18px;
     --heading-font-size-xs: 16px;
     --content-padding: 0 32px;
+  }
+}
+
+@media (width >= 1200px) {
+  :root {
     --nav-height: 88px;
   }
 }
