@@ -353,6 +353,10 @@ main > .section {
   padding: var(--section-padding);
 }
 
+main > .section:empty {
+  display: none;
+}
+
 main > .section > div {
   max-width: var(--content-max-width);
   margin: auto;
@@ -898,29 +902,253 @@ main > .section.hero-article-container {
 }
 
 /* Story detail body content - constrained width after hero-article */
-main > .section.hero-article-container + .section > .default-content-wrapper {
+main > .section.hero-article-container ~ .section > .default-content-wrapper {
   max-width: 100%;
   padding: 0 24px;
 }
 
-main > .section.hero-article-container + .section > .default-content-wrapper p > img {
+main > .section.hero-article-container ~ .section > .default-content-wrapper p {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--color-navy);
+  margin: 0 0 30px;
+}
+
+main > .section.hero-article-container ~ .section > .default-content-wrapper h5 {
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 24px;
+  color: var(--color-navy);
+  margin: 0 0 16px;
+  letter-spacing: 0;
+}
+
+main > .section.hero-article-container ~ .section > .default-content-wrapper h2 {
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 24px;
+  letter-spacing: normal;
+  color: var(--color-navy);
+  margin: 48px 0 24px;
+}
+
+main > .section.hero-article-container ~ .section > .default-content-wrapper p > img {
   border-radius: 16px;
 }
 
+/* Article carousel */
+main > .section.hero-article-container ~ .section .article-carousel {
+  position: relative;
+  margin: 32px 0 48px;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+main > .section.hero-article-container ~ .section .article-carousel .carousel-slides {
+  display: flex;
+  transition: transform 0.4s ease;
+}
+
+main > .section.hero-article-container ~ .section .article-carousel .carousel-slide {
+  min-width: 100%;
+  flex-shrink: 0;
+}
+
+main > .section.hero-article-container ~ .section .article-carousel .carousel-slide img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+main > .section.hero-article-container ~ .section .article-carousel .carousel-nav {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+
+main > .section.hero-article-container ~ .section .article-carousel .carousel-nav button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--color-navy);
+  background: var(--background-color);
+  color: var(--color-navy);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background-color 0.2s, color 0.2s;
+  font-size: 16px;
+  line-height: 1;
+}
+
+main > .section.hero-article-container ~ .section .article-carousel .carousel-nav button:hover {
+  background: var(--color-navy);
+  color: var(--background-color);
+}
+
+/* Hide duplicate h5 that follows video embed */
+main > .section.hero-article-container ~ .section .article-video-embed + h5 {
+  display: none;
+}
+
+/* Article video embed */
+main > .section.hero-article-container ~ .section .article-video-embed {
+  position: relative;
+  margin: 48px 0;
+  overflow: hidden;
+}
+
+main > .section.hero-article-container ~ .section .article-video-embed picture,
+/* stylelint-disable-next-line no-descending-specificity */
+main > .section.hero-article-container ~ .section .article-video-embed img {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 300px;
+  object-fit: cover;
+  border-radius: 0;
+}
+
+main > .section.hero-article-container ~ .section .article-video-embed .video-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+
+main > .section.hero-article-container ~ .section .article-video-embed .video-overlay h2 {
+  color: #fff;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 32px;
+  letter-spacing: -0.56px;
+  margin: 0 0 24px;
+  max-width: 400px;
+}
+
+main > .section.hero-article-container ~ .section .article-video-embed .video-overlay .video-play-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #fff;
+  color: #fff;
+  background: transparent;
+  padding: 14px 32px;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+main > .section.hero-article-container ~ .section .article-video-embed .video-overlay .video-play-btn::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent #fff;
+}
+
+main > .section.hero-article-container ~ .section .article-video-embed .video-overlay .video-play-btn:hover {
+  background: rgb(255 255 255 / 20%);
+}
+
 @media (width >= 600px) {
-  main > .section.hero-article-container + .section > .default-content-wrapper {
+  main > .section.hero-article-container ~ .section > .default-content-wrapper {
     max-width: none;
     margin-left: 70px;
     margin-right: 70px;
     padding: 0;
   }
+
+  main > .section.hero-article-container ~ .section > .default-content-wrapper p {
+    font-size: 16px;
+    line-height: 22px;
+  }
+
+  main > .section.hero-article-container ~ .section > .default-content-wrapper h5 {
+    font-size: 28px;
+    font-weight: 650;
+    line-height: 32px;
+  }
+
+  main > .section.hero-article-container ~ .section > .default-content-wrapper h2 {
+    font-size: 28px;
+    font-weight: 650;
+    line-height: 32px;
+  }
+
+  main > .section.hero-article-container ~ .section .article-video-embed .video-overlay h2 {
+    font-size: 36px;
+    line-height: 40px;
+  }
 }
 
 @media (width >= 900px) {
-  main > .section.hero-article-container + .section > .default-content-wrapper {
-    max-width: 880px;
+  main > .section.hero-article-container ~ .section > .default-content-wrapper {
+    max-width: 660px;
     margin: 0 auto;
     padding: 0;
+  }
+
+  main > .section.hero-article-container ~ .section > .default-content-wrapper p {
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  main > .section.hero-article-container ~ .section > .default-content-wrapper h5 {
+    font-size: 32px;
+    font-weight: 650;
+    line-height: 36px;
+  }
+
+  main > .section.hero-article-container ~ .section > .default-content-wrapper h2 {
+    font-size: 32px;
+    font-weight: 650;
+    line-height: 36px;
+    letter-spacing: -0.64px;
+  }
+
+  main > .section.hero-article-container ~ .section .article-carousel {
+    margin: 40px 0 80px;
+  }
+
+  main > .section.hero-article-container ~ .section .article-video-embed {
+    margin: 56px auto;
+    max-width: 880px;
+    width: calc(100% + 220px);
+    margin-left: calc(-110px);
+  }
+
+  main > .section.hero-article-container ~ .section .article-video-embed img {
+    min-height: 400px;
+  }
+
+  main > .section.hero-article-container ~ .section .article-video-embed .video-overlay h2 {
+    font-size: 40px;
+    line-height: 44px;
+    letter-spacing: -0.8px;
+    max-width: 500px;
+  }
+
+  main > .section.hero-article-container ~ .section .article-video-embed .video-overlay .video-play-btn {
+    padding: 16px 40px;
   }
 }
 

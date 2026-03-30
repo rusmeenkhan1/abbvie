@@ -77,6 +77,131 @@ function buildAutoBlocks(main) {
 }
 
 /**
+ * Decorates article body content after hero-article sections.
+ * Converts consecutive image paragraphs into a carousel and
+ * video thumbnail patterns into a video embed overlay.
+ * Runs after section/block decoration to avoid block loading conflicts.
+ * @param {Element} main The main element
+ */
+function decorateArticleBody(main) {
+  const heroSection = main.querySelector('.section.hero-article-container');
+  if (!heroSection) return;
+
+  // Find the body section (next sibling of hero section)
+  const bodySection = heroSection.nextElementSibling;
+  if (!bodySection || !bodySection.classList.contains('section')) return;
+
+  const dcw = bodySection.querySelector('.default-content-wrapper');
+  if (!dcw) return;
+
+  // Build carousel from consecutive image-only paragraphs
+  const children = [...dcw.children];
+  const imgParagraphs = [];
+
+  for (let i = 0; i < children.length; i += 1) {
+    const child = children[i];
+    const isImgP = child.tagName === 'P'
+      && child.querySelector('img')
+      && child.textContent.trim() === '';
+
+    if (isImgP) {
+      imgParagraphs.push(child);
+    } else {
+      if (imgParagraphs.length >= 2) {
+        const carousel = document.createElement('div');
+        carousel.className = 'article-carousel';
+
+        const slides = document.createElement('div');
+        slides.className = 'carousel-slides';
+
+        imgParagraphs.forEach((p) => {
+          const slide = document.createElement('div');
+          slide.className = 'carousel-slide';
+          const pic = p.querySelector('picture') || p.querySelector('img');
+          slide.append(pic);
+          slides.append(slide);
+          p.remove();
+        });
+
+        carousel.append(slides);
+
+        const nav = document.createElement('div');
+        nav.className = 'carousel-nav';
+        const prevBtn = document.createElement('button');
+        prevBtn.setAttribute('aria-label', 'Previous slide');
+        prevBtn.innerHTML = '&#8249;';
+        const nextBtn = document.createElement('button');
+        nextBtn.setAttribute('aria-label', 'Next slide');
+        nextBtn.innerHTML = '&#8250;';
+        nav.append(prevBtn, nextBtn);
+        carousel.append(nav);
+
+        child.before(carousel);
+
+        let current = 0;
+        const total = slides.children.length;
+        const updateSlide = () => {
+          slides.style.transform = `translateX(-${current * 100}%)`;
+        };
+        prevBtn.addEventListener('click', () => {
+          current = (current - 1 + total) % total;
+          updateSlide();
+        });
+        nextBtn.addEventListener('click', () => {
+          current = (current + 1) % total;
+          updateSlide();
+        });
+      }
+      imgParagraphs.length = 0;
+    }
+  }
+
+  // Build video embed from thumbnail + title + watch pattern
+  const updatedChildren = [...dcw.children];
+  for (let i = 0; i < updatedChildren.length - 2; i += 1) {
+    const el1 = updatedChildren[i];
+    const el2 = updatedChildren[i + 1];
+    const el3 = updatedChildren[i + 2];
+
+    const isVideoImg = el1.tagName === 'P'
+      && el1.querySelector('img')
+      && el1.textContent.trim() === '';
+    const isTitleP = el2.tagName === 'P'
+      && !el2.querySelector('img')
+      && el2.textContent.trim().length > 5
+      && el2.textContent.trim().length < 100;
+    const isWatchP = el3.tagName === 'P'
+      && el3.textContent.trim().toLowerCase().startsWith('watch');
+
+    if (isVideoImg && isTitleP && isWatchP) {
+      const embed = document.createElement('div');
+      embed.className = 'article-video-embed';
+
+      const pic = el1.querySelector('picture') || el1.querySelector('img');
+      embed.append(pic);
+
+      const overlay = document.createElement('div');
+      overlay.className = 'video-overlay';
+
+      const heading = document.createElement('h2');
+      heading.textContent = el2.textContent.trim();
+
+      const btn = document.createElement('button');
+      btn.className = 'video-play-btn';
+      btn.textContent = el3.textContent.trim();
+
+      overlay.append(heading, btn);
+      embed.append(overlay);
+
+      el1.replaceWith(embed);
+      el2.remove();
+      el3.remove();
+      break;
+    }
+  }
+}
+
+/**
  * Decorates formatted links to style them as buttons.
  * @param {HTMLElement} main The main container element
  */
@@ -190,6 +315,7 @@ export function decorateMain(main) {
   decorateSections(main);
   decorateBlocks(main);
   decorateButtons(main);
+  decorateArticleBody(main);
 }
 
 /**

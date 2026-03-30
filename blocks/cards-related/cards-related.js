@@ -80,4 +80,11 @@ export default function decorate(block) {
   });
 
   block.replaceChildren(ul);
+
+  // Hide block if no valid cards were created or cards lack essential content
+  const hasImages = ul.querySelector('img');
+  const hasTitles = ul.querySelector('.cards-related-title');
+  if (ul.children.length === 0 || (!hasImages && !hasTitles)) {
+    block.style.display = 'none';
+  }
 }

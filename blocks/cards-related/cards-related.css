@@ -4,6 +4,14 @@
   padding: 0 24px;
 }
 
+.cards-related-container:has(.cards-related[style*="display: none"]) {
+  display: none;
+}
+
+.cards-related-wrapper:has(.cards-related[style*="display: none"]) {
+  display: none;
+}
+
 .cards-related {
   margin: 0;
 }
