@@ -3,32 +3,27 @@ main .footer-wrapper {
   display: none;
 }
 
-/* Hide footer-related default content that appears after inline footer */
 main .footer-wrapper ~ .default-content-wrapper {
   display: none;
 }
 
-/* Footer base - light blue background with curved top-left matching original AbbVie */
+/* =====================================================
+   FOOTER BASE – Mobile first (< 600px)
+   ===================================================== */
 footer {
-  background-color: var(--color-light-grey);
   color: var(--color-navy);
-  font-size: var(--body-font-size-s);
-  border-radius: 80px 0 0;
   position: relative;
-  max-width: 1330px;
-  margin: auto;
-  margin-top: -80px;
+  margin-top: -32px;
 }
 
 footer .footer {
   background-color: var(--color-light-grey);
-  box-sizing: border-box;
-  max-width: 1330px;
-  margin: 0 auto;
-  padding: 56px 24px 0;
-  border-radius: 80px 0 0;
+  border-radius: 32px 0 0;
+  padding: 32px 35px 0;
+  position: relative;
 }
 
+/* ---- Typography resets ---- */
 footer .footer p {
   margin: 0;
   color: var(--color-navy);
@@ -50,148 +45,395 @@ footer .footer ul {
   margin: 0;
 }
 
-footer .footer ul li {
-  padding: 6px 0;
-}
-
-/* Section 1: Logo + nav links - large stacked links */
-footer .footer > div:first-child {
-  padding-bottom: 32px;
-}
-
-footer .footer > div:first-child > p {
-  font-size: var(--body-font-size-s);
-  font-weight: 700;
-  margin-bottom: 24px;
-}
-
-footer .footer > div:first-child > p a {
-  font-weight: 700;
-}
-
-footer .footer > div:first-child ul {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-footer .footer > div:first-child ul li {
-  padding: 0;
-}
-
-footer .footer > div:first-child ul li a {
-  font-size: var(--heading-font-size-m);
-  font-weight: 300;
-  line-height: 1.3;
-  display: block;
-  padding: 8px 0;
-}
-
-/* Section 2 & 3: Popular pages + External links */
-footer .footer > div:nth-child(2),
-footer .footer > div:nth-child(3) {
-  padding: 24px 0;
-}
-
 footer .footer h2 {
-  color: var(--color-navy);
+  color: #666b7a;
   font-size: var(--body-font-size-xxs);
-  font-weight: 700;
+  font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   margin: 0 0 16px;
 }
 
-footer .footer > div:nth-child(2) ul li a,
-footer .footer > div:nth-child(3) ul li a {
+/* =====================================================
+   SVG ICON SIZES (ordered by ascending specificity)
+   ===================================================== */
+footer .footer .icon-external svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* =====================================================
+   SCROLL-TO-TOP BUTTON
+   ===================================================== */
+footer .footer .footer-scroll-top {
+  position: absolute;
+  top: -44px;
+  right: 20px;
+  z-index: 1;
+}
+
+footer .footer .footer-scroll-top button {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background-color: var(--color-lavender);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-speed);
+  padding: 0;
+}
+
+footer .footer .footer-scroll-top button:hover {
+  background-color: #8ea0d4;
+}
+
+footer .footer .footer-scroll-top button svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* =====================================================
+   GRID LAYOUT – Mobile (stacked)
+   ===================================================== */
+footer .footer .footer-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Logo column ---- */
+footer .footer .footer-col-logo {
+  margin-bottom: 16px;
+}
+
+footer .footer .footer-col-logo img {
+  width: 88px;
+  height: auto;
+}
+
+/* ---- Nav links column ---- */
+footer .footer .footer-col-nav {
+  margin-bottom: 24px;
+}
+
+footer .footer .footer-nav-links {
+  margin-bottom: 24px;
+}
+
+footer .footer .footer-nav-links li {
+  margin-bottom: 20px;
+}
+
+footer .footer .footer-nav-links li a {
+  font-size: 40px;
+  font-weight: 650;
+  line-height: 44px;
+  display: block;
+  color: var(--color-navy);
+}
+
+/* ---- Social icons ---- */
+footer .footer .footer-social {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+footer .footer .footer-social li a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+footer .footer .footer-social li a svg {
+  width: 24px;
+  height: 24px;
+  fill: var(--color-navy);
+}
+
+/* ---- Popular pages ---- */
+footer .footer .footer-col-popular {
+  margin-bottom: 24px;
+}
+
+footer .footer .footer-section-popular ul li,
+footer .footer .footer-section-external ul li {
+  margin-bottom: 16px;
+}
+
+footer .footer .footer-section-popular ul li a,
+footer .footer .footer-section-external ul li a {
   font-size: var(--body-font-size-s);
   font-weight: 400;
-}
-
-/* Section 4: Legal disclaimer */
-footer .footer > div:nth-child(4) {
-  padding: 24px 0 16px;
-}
-
-footer .footer > div:nth-child(4) p {
-  font-size: var(--body-font-size-xxs);
-  line-height: 1.6;
+  line-height: 20px;
   color: var(--color-navy);
-  opacity: 0.7;
 }
 
-/* Section 5: Bottom links bar */
-footer .footer > div:last-child {
-  border-top: 1px solid #e0e0e0;
-  padding: 16px 0 32px;
+/* ---- External links ---- */
+footer .footer .footer-col-external {
+  margin-bottom: 16px;
 }
 
-footer .footer > div:last-child ul {
+footer .footer .footer-section-external ul li a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+footer .footer .icon-external {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+}
+
+/* ---- Last-child margin resets (after all li rules) ---- */
+footer .footer .footer-nav-links li:last-child {
+  margin-bottom: 0;
+}
+
+footer .footer .footer-section-popular ul li:last-child,
+footer .footer .footer-section-external ul li:last-child {
+  margin-bottom: 0;
+}
+
+/* ---- Disclaimer ---- */
+footer .footer .footer-disclaimer {
+  margin-top: 32px;
+}
+
+footer .footer .footer-disclaimer p {
+  font-size: var(--body-font-size-s);
+  line-height: 20px;
+  color: var(--color-navy);
+  margin-bottom: 16px;
+}
+
+footer .footer .footer-disclaimer p:last-child {
+  text-align: right;
+  margin-bottom: 0;
+}
+
+/* ---- Divider ---- */
+footer .footer .footer-divider {
+  border: none;
+  border-top: 1px solid var(--color-grey-border);
+  margin: 24px 0;
+}
+
+/* ---- Bottom legal links – Mobile: stacked vertical ---- */
+footer .footer .footer-legal ul {
   display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 32px;
 }
 
-footer .footer > div:last-child ul li a {
+footer .footer .footer-legal ul li a {
   font-size: var(--body-font-size-xxs);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--color-navy);
-  opacity: 0.7;
 }
 
-/* Desktop: 4-column grid layout */
-@media (width >= 900px) {
-  footer .footer {
-    display: grid;
-    grid-template-columns: 650px 200px 1fr;
-    gap: 0 25px;
-    padding: 80px 0 0;
+/* =====================================================
+   TABLET (>= 600px)
+   ===================================================== */
+@media (width >= 600px) {
+  footer {
+    margin-top: -64px;
   }
 
-  /* Logo + nav links: column 1 - logo at left, nav links indented */
-  footer .footer > div:first-child {
+  footer .footer {
+    border-radius: 64px 0 0;
+    padding: 56px 70px 0;
+  }
+
+  footer .footer .footer-scroll-top {
+    right: 70px;
+  }
+
+  footer .footer .footer-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr 1fr;
+    gap: 0 20px;
+  }
+
+  /* Logo: col 1, row 1 */
+  footer .footer .footer-col-logo {
     grid-column: 1;
     grid-row: 1;
-    padding-bottom: 40px;
+    margin-bottom: 0;
+  }
+
+  /* Nav: col 2, row 1 */
+  footer .footer .footer-col-nav {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  /* Popular: col 3, row 1 */
+  footer .footer .footer-col-popular {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  /* External + disclaimer: col 2-3, row 2 */
+  footer .footer .footer-col-external {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+
+  /* Nav links: smaller on tablet */
+  footer .footer .footer-nav-links li a {
+    font-size: 30px;
+    line-height: 34px;
+  }
+
+  footer .footer .footer-nav-links li {
+    margin-bottom: 20px;
+  }
+
+  /* Section links at tablet */
+  footer .footer .footer-section-popular ul li a,
+  footer .footer .footer-section-external ul li a {
+    line-height: 22px;
+  }
+
+  /* Social icons at tablet */
+  footer .footer .footer-social {
+    gap: 40px;
+  }
+
+  /* Bottom links: flex-wrap horizontal */
+  footer .footer .footer-legal ul {
+    flex-flow: row wrap;
+    gap: 20px;
+  }
+}
+
+/* =====================================================
+   DESKTOP (>= 900px)
+   ===================================================== */
+@media (width >= 900px) {
+  footer {
+    margin-top: -80px;
+  }
+
+  footer .footer {
+    border-radius: 80px 0 0;
+    padding: 80px 55px 0;
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+  }
+
+  footer .footer .footer-scroll-top {
+    right: 72px;
+  }
+
+  /* 4-column grid: logo | nav+social | popular | external+disclaimer */
+  footer .footer .footer-grid {
     display: grid;
-    grid-template-columns: 225px 1fr;
-    align-items: start;
+    grid-template-columns: 2fr 4fr 2fr 4fr;
+    grid-template-rows: auto;
+    gap: 0 20px;
   }
 
-  footer .footer > div:first-child > p {
-    margin-bottom: 8px;
+  /* Logo: col 1, row 1 */
+  footer .footer .footer-col-logo {
+    grid-column: 1;
+    grid-row: 1;
   }
 
-  footer .footer > div:first-child ul li a {
+  /* Nav: col 2, row 1 */
+  footer .footer .footer-col-nav {
+    grid-column: 2;
+    grid-row: 1;
+    margin-bottom: 40px;
+  }
+
+  /* Popular: col 3, row 1 */
+  footer .footer .footer-col-popular {
+    grid-column: 3;
+    grid-row: 1;
+    margin-bottom: 0;
+  }
+
+  /* External + disclaimer: col 4, row 1 */
+  footer .footer .footer-col-external {
+    grid-column: 4;
+    grid-row: 1;
+    margin-bottom: 0;
+  }
+
+  /* Nav links at full desktop size */
+  footer .footer .footer-nav-links li {
+    margin-bottom: 20px;
+  }
+
+  footer .footer .footer-nav-links li a {
     font-size: 40px;
     font-weight: 650;
     line-height: 44px;
   }
 
-  /* Popular pages: column 2 */
-  footer .footer > div:nth-child(2) {
-    grid-column: 2;
-    grid-row: 1;
-    padding: 0;
+  /* Social icons gap */
+  footer .footer .footer-social {
+    gap: 40px;
+    margin-top: 8px;
   }
 
-  /* External links: column 3 */
-  footer .footer > div:nth-child(3) {
-    grid-column: 3;
-    grid-row: 1;
-    padding: 0;
+  /* Section links at 18px on desktop */
+  footer .footer .footer-section-popular ul li a,
+  footer .footer .footer-section-external ul li a {
+    font-size: var(--body-font-size-m);
+    line-height: 24px;
   }
 
-  /* Legal disclaimer: under external links column only */
-  footer .footer > div:nth-child(4) {
-    grid-column: 3;
-    grid-row: 2;
-    padding: 32px 0 16px;
+  footer .footer .footer-section-popular ul li,
+  footer .footer .footer-section-external ul li {
+    margin-bottom: 16px;
   }
 
-  /* Bottom links bar: full width */
-  footer .footer > div:last-child {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    padding: 16px 0 40px;
+  /* Disclaimer at 18px */
+  footer .footer .footer-disclaimer {
+    margin-top: 48px;
+  }
+
+  footer .footer .footer-disclaimer p {
+    font-size: var(--body-font-size-m);
+    line-height: 24px;
+  }
+
+  /* Divider */
+  footer .footer .footer-divider {
+    margin: 0;
+    padding-top: 24px;
+  }
+
+  /* Bottom links */
+  footer .footer .footer-legal ul {
+    flex-flow: row wrap;
+    gap: 20px;
+    padding-top: 24px;
+    padding-bottom: 40px;
+  }
+}
+
+/* =====================================================
+   WIDE DESKTOP (>= 1200px)
+   ===================================================== */
+@media (width >= 1200px) {
+  footer .footer .footer-nav-links li {
+    margin-bottom: 20px;
+  }
+
+  footer .footer .footer-nav-links li a {
+    font-size: 40px;
+    line-height: 44px;
   }
 }
