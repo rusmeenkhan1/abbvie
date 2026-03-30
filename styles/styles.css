@@ -919,8 +919,7 @@ main > .section.hero-article-container + .section > .default-content-wrapper p >
 @media (width >= 900px) {
   main > .section.hero-article-container + .section > .default-content-wrapper {
     max-width: 880px;
-    margin-left: 70px;
-    margin-right: auto;
+    margin: 0 auto;
     padding: 0;
   }
 }
