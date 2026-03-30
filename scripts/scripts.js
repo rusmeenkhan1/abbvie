@@ -23,8 +23,7 @@ function buildHeroBlock(main) {
   if (h1 && picture && (h1.compareDocumentPosition(picture) & Node.DOCUMENT_POSITION_PRECEDING)) {
     // Check if h1 or picture is already inside a hero or hero-interior block
     if (h1.closest('.hero') || picture.closest('.hero')
-      || h1.closest('.hero-interior') || picture.closest('.hero-interior')
-      || h1.closest('.hero-article') || picture.closest('.hero-article')) {
+      || h1.closest('.hero-interior') || picture.closest('.hero-interior')) {
       return; // Don't create a duplicate hero block
     }
     const section = document.createElement('div');
