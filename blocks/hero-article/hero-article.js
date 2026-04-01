@@ -54,9 +54,20 @@ export default function decorate(block) {
     const meta = document.createElement('div');
     meta.className = 'hero-article-meta';
 
-    const date = cols[0]?.textContent?.trim();
-    const category = cols[1]?.textContent?.trim();
-    const readTime = cols[2]?.textContent?.trim();
+    let date;
+    let category;
+    let readTime;
+
+    if (cols.length >= 3) {
+      // 3-column: date | category | readTime
+      date = cols[0]?.textContent?.trim();
+      category = cols[1]?.textContent?.trim();
+      readTime = cols[2]?.textContent?.trim();
+    } else {
+      // 2-column: category | readTime (date injected by scripts.js)
+      category = cols[0]?.textContent?.trim();
+      readTime = cols[1]?.textContent?.trim();
+    }
 
     if (date) {
       const dateSpan = document.createElement('span');

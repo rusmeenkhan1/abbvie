@@ -343,6 +343,48 @@ async function loadEager(doc) {
 }
 
 /**
+ * Fetches the query index and injects the published date into hero-article blocks.
+ * Matches the current page path against the index to find the corresponding date.
+ * @param {Element} main The main element
+ */
+async function addArticleDate(main) {
+  const meta = main.querySelector('.hero-article .hero-article-meta');
+  if (!meta) return;
+
+  // Skip if a date span already exists with content
+  const existingDate = meta.querySelector('.hero-article-date');
+  if (existingDate?.textContent.trim()) return;
+
+  try {
+    const resp = await fetch('/query-index.json');
+    if (!resp.ok) return;
+    const { data } = await resp.json();
+    if (!data) return;
+
+    let { pathname } = window.location;
+    if (pathname.endsWith('.html')) pathname = pathname.slice(0, -5);
+    if (pathname.endsWith('/')) pathname = pathname.slice(0, -1);
+
+    const entry = data.find((e) => e.path === pathname);
+    if (!entry?.lastModified) return;
+
+    const date = new Date(entry.lastModified * 1000);
+    const formatted = date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const dateSpan = document.createElement('span');
+    dateSpan.className = 'hero-article-date';
+    dateSpan.textContent = formatted;
+    meta.prepend(dateSpan);
+  } catch {
+    // silently fail — date is non-critical
+  }
+}
+
+/**
  * Loads everything that doesn't need to be delayed.
  * @param {Element} doc The container element
  */
@@ -351,6 +393,8 @@ async function loadLazy(doc) {
 
   const main = doc.querySelector('main');
   await loadSections(main);
+
+  addArticleDate(main);
 
   const { hash } = window.location;
   const element = hash ? doc.getElementById(hash.substring(1)) : false;
