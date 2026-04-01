@@ -5,16 +5,13 @@
  * from each story page to enable dynamic Related Content.
  */
 
+/* eslint-disable no-console, no-await-in-loop, no-restricted-syntax */
+
 import { readdir, readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 
 const STORIES_DIR = join(process.cwd(), 'content', 'who-we-are', 'our-stories');
 const OUTPUT_FILE = join(process.cwd(), 'content', 'who-we-are', 'our-stories', 'query-index.json');
-
-function extractText(html, regex) {
-  const match = html.match(regex);
-  return match ? match[1].trim() : '';
-}
 
 function decodeEntities(str) {
   return str
@@ -33,7 +30,6 @@ async function processFile(filename) {
   const path = `/who-we-are/our-stories/${slug}`;
 
   // Extract from hero-article block
-  // Hero structure: row1=image, row2=breadcrumb, row3=category+readtime, row4=h1, row5=description
   const heroMatch = html.match(/<div class="hero-article">([\s\S]*?)<\/div><\/div><\/div>/);
   if (!heroMatch) return null;
 
@@ -41,25 +37,12 @@ async function processFile(filename) {
   const heroImgMatch = html.match(/<div class="hero-article">[\s\S]*?<img\s+src="([^"]+)"/);
   const image = heroImgMatch ? heroImgMatch[1] : '';
 
-  // Extract category from hero row 3 (first div of the category/readtime row)
-  // The hero rows: after the breadcrumb row, the next row has category + read time
-  const heroContent = heroMatch[1];
-  const heroRows = heroContent.split(/<\/div><\/div><div>/);
-
   let category = '';
   let readTime = '';
   let title = '';
   let description = '';
 
-  // Parse hero-article rows
-  // Row pattern: each row is wrapped in <div><div>...</div></div>
-  const rowPattern = /<div><div>([\s\S]*?)<\/div>(?:<div>([\s\S]*?)<\/div>)?<\/div>/g;
-  const rows = [];
-  let rowMatch;
-  const heroBlock = html.match(/<div class="hero-article">([\s\S]*?)(?=<\/div>\s*<\/div>\s*<div>)/);
-
-  // Simpler approach: extract specific patterns
-  // Category: in a row with just short text (no links, no h1), paired with "X Minute Read"
+  // Extract category and read time
   const catReadMatch = html.match(/<div class="hero-article">[\s\S]*?<div><div>([^<]+)<\/div><div>(\d+ Minute Read)<\/div><\/div>/);
   if (catReadMatch) {
     category = catReadMatch[1].trim();
@@ -73,7 +56,6 @@ async function processFile(filename) {
   }
 
   // Description: the last row text in hero (after h1 row)
-  // It's typically a paragraph or plain text in the last div pair
   const descMatch = html.match(/<\/h1><\/div><\/div><div><div>([\s\S]*?)<\/div><\/div><\/div><\/div>/);
   if (descMatch) {
     description = decodeEntities(descMatch[1].replace(/<[^>]+>/g, '').trim());
