@@ -94,65 +94,105 @@ function decorateArticleBody(main) {
   const dcw = bodySection.querySelector('.default-content-wrapper');
   if (!dcw) return;
 
-  // Build carousel from consecutive image-only paragraphs
+  // Build carousel from consecutive paragraphs that contain an image
+  // Supports image-only paragraphs and image+caption paragraphs
   const children = [...dcw.children];
   const imgParagraphs = [];
 
+  const isImageParagraph = (el) => el.tagName === 'P' && el.querySelector('img');
+
+  const buildCarousel = (items, insertBefore) => {
+    const carousel = document.createElement('div');
+    carousel.className = 'article-carousel';
+
+    const slides = document.createElement('div');
+    slides.className = 'carousel-slides';
+
+    items.forEach((p) => {
+      const slide = document.createElement('div');
+      slide.className = 'carousel-slide';
+      const pic = p.querySelector('picture') || p.querySelector('img');
+      slide.append(pic);
+
+      const captionText = p.textContent.trim();
+      if (captionText) {
+        const caption = document.createElement('p');
+        caption.className = 'carousel-slide-caption';
+        caption.textContent = captionText;
+        slide.append(caption);
+      }
+
+      slides.append(slide);
+      p.remove();
+    });
+
+    carousel.append(slides);
+
+    const nav = document.createElement('div');
+    nav.className = 'carousel-nav';
+    const prevBtn = document.createElement('button');
+    prevBtn.setAttribute('aria-label', 'Previous slide');
+    prevBtn.className = 'carousel-nav-prev';
+    const nextBtn = document.createElement('button');
+    nextBtn.setAttribute('aria-label', 'Next slide');
+    nextBtn.className = 'carousel-nav-next';
+    nav.append(prevBtn, nextBtn);
+    carousel.append(nav);
+
+    const indicators = document.createElement('div');
+    indicators.className = 'carousel-indicators';
+    const allSlides = [...slides.children];
+    allSlides.forEach((_, idx) => {
+      const dot = document.createElement('button');
+      dot.className = `carousel-indicator${idx === 0 ? ' active' : ''}`;
+      dot.setAttribute('aria-label', `Go to slide ${idx + 1}`);
+      indicators.append(dot);
+    });
+    carousel.append(indicators);
+
+    insertBefore.before(carousel);
+
+    let current = 0;
+    const total = allSlides.length;
+    const updateSlide = () => {
+      slides.style.transform = `translateX(-${current * 100}%)`;
+      indicators.querySelector('.active')?.classList.remove('active');
+      indicators.children[current]?.classList.add('active');
+    };
+    prevBtn.addEventListener('click', () => {
+      current = (current - 1 + total) % total;
+      updateSlide();
+    });
+    nextBtn.addEventListener('click', () => {
+      current = (current + 1) % total;
+      updateSlide();
+    });
+    [...indicators.children].forEach((dot, idx) => {
+      dot.addEventListener('click', () => {
+        current = idx;
+        updateSlide();
+      });
+    });
+  };
+
   for (let i = 0; i < children.length; i += 1) {
     const child = children[i];
-    const isImgP = child.tagName === 'P'
-      && child.querySelector('img')
-      && child.textContent.trim() === '';
 
-    if (isImgP) {
+    if (isImageParagraph(child)) {
       imgParagraphs.push(child);
     } else {
       if (imgParagraphs.length >= 2) {
-        const carousel = document.createElement('div');
-        carousel.className = 'article-carousel';
-
-        const slides = document.createElement('div');
-        slides.className = 'carousel-slides';
-
-        imgParagraphs.forEach((p) => {
-          const slide = document.createElement('div');
-          slide.className = 'carousel-slide';
-          const pic = p.querySelector('picture') || p.querySelector('img');
-          slide.append(pic);
-          slides.append(slide);
-          p.remove();
-        });
-
-        carousel.append(slides);
-
-        const nav = document.createElement('div');
-        nav.className = 'carousel-nav';
-        const prevBtn = document.createElement('button');
-        prevBtn.setAttribute('aria-label', 'Previous slide');
-        prevBtn.innerHTML = '&#8249;';
-        const nextBtn = document.createElement('button');
-        nextBtn.setAttribute('aria-label', 'Next slide');
-        nextBtn.innerHTML = '&#8250;';
-        nav.append(prevBtn, nextBtn);
-        carousel.append(nav);
-
-        child.before(carousel);
-
-        let current = 0;
-        const total = slides.children.length;
-        const updateSlide = () => {
-          slides.style.transform = `translateX(-${current * 100}%)`;
-        };
-        prevBtn.addEventListener('click', () => {
-          current = (current - 1 + total) % total;
-          updateSlide();
-        });
-        nextBtn.addEventListener('click', () => {
-          current = (current + 1) % total;
-          updateSlide();
-        });
+        buildCarousel(imgParagraphs, child);
       }
       imgParagraphs.length = 0;
+    }
+  }
+  // Handle trailing image paragraphs
+  if (imgParagraphs.length >= 2) {
+    const lastImg = imgParagraphs[imgParagraphs.length - 1];
+    const afterEl = lastImg.nextElementSibling;
+    if (afterEl) {
+      buildCarousel(imgParagraphs, afterEl);
     }
   }
 
