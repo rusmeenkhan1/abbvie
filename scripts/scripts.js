@@ -129,10 +129,10 @@ function decorateArticleBody(main) {
         nav.className = 'carousel-nav';
         const prevBtn = document.createElement('button');
         prevBtn.setAttribute('aria-label', 'Previous slide');
-        prevBtn.innerHTML = '&#8249;';
+        prevBtn.innerHTML = '&#8592;';
         const nextBtn = document.createElement('button');
         nextBtn.setAttribute('aria-label', 'Next slide');
-        nextBtn.innerHTML = '&#8250;';
+        nextBtn.innerHTML = '&#8594;';
         nav.append(prevBtn, nextBtn);
         carousel.append(nav);
 
@@ -162,6 +162,74 @@ function decorateArticleBody(main) {
     if (idx > 0 && !h2.previousElementSibling?.matches('hr')) {
       const hr = document.createElement('hr');
       h2.before(hr);
+    }
+  });
+
+  // Detect and style media inquiries section (run early so other detectors can check for it)
+  dcw.querySelectorAll('p').forEach((p) => {
+    const strong = p.querySelector('strong');
+    if (strong && strong.textContent.trim().toLowerCase().includes('media inquiries')) {
+      if (!p.previousElementSibling?.matches('hr')) {
+        const hr = document.createElement('hr');
+        p.before(hr);
+      }
+      p.classList.add('article-media-inquiries');
+    }
+  });
+
+  // Alternate pattern: <h3>Media inquiries:</h3><p>Email:...</p>
+  dcw.querySelectorAll('h3').forEach((h3) => {
+    if (h3.textContent.trim().toLowerCase().includes('media inquiries')) {
+      const nextP = h3.nextElementSibling;
+      if (nextP?.tagName === 'P' && nextP.querySelector('a[href^="mailto:"]')) {
+        const merged = document.createElement('p');
+        merged.className = 'article-media-inquiries';
+        merged.innerHTML = `<strong>${h3.textContent.trim()}</strong> ${nextP.innerHTML}`;
+        if (!h3.previousElementSibling?.matches('hr')) {
+          h3.before(document.createElement('hr'));
+        }
+        h3.replaceWith(merged);
+        nextP.remove();
+      }
+    }
+  });
+
+  // Detect and convert references to collapsible accordion (run BEFORE pullquote detection)
+  [...dcw.querySelectorAll('p')].forEach((p) => {
+    if (p.textContent.trim() !== 'References') return;
+
+    const details = document.createElement('details');
+    details.className = 'article-references';
+    const summary = document.createElement('summary');
+    summary.innerHTML = 'References <span class="article-references-icon"></span>';
+    details.append(summary);
+    const content = document.createElement('div');
+    content.className = 'article-references-content';
+
+    // Collect all following siblings that are part of the references
+    const toRemove = [];
+    let next = p.nextElementSibling;
+    while (next) {
+      if (next.classList.contains('article-media-inquiries')
+        || next.classList.contains('article-pullquote')
+        || next.tagName === 'HR'
+        || next.tagName === 'H2') break;
+      // Skip "Expand All / Collapse All" filler paragraphs
+      const txt = next.textContent.trim();
+      if (txt === 'Expand All  Collapse All' || txt === 'Expand All Collapse All') {
+        toRemove.push(next);
+        next = next.nextElementSibling;
+      } else {
+        content.append(next.cloneNode(true));
+        toRemove.push(next);
+        next = next.nextElementSibling;
+      }
+    }
+
+    if (content.children.length > 0) {
+      details.append(content);
+      p.replaceWith(details);
+      toRemove.forEach((el) => el.remove());
     }
   });
 
@@ -236,115 +304,82 @@ function decorateArticleBody(main) {
     el.remove();
   });
 
-  // Detect and style media inquiries section
-  dcw.querySelectorAll('p').forEach((p) => {
-    const strong = p.querySelector('strong');
-    if (strong && strong.textContent.trim().toLowerCase().includes('media inquiries')) {
-      if (!p.previousElementSibling?.matches('hr')) {
-        const hr = document.createElement('hr');
-        p.before(hr);
-      }
-      p.classList.add('article-media-inquiries');
-    }
-  });
-
-  // Alternate pattern: <h3>Media inquiries:</h3><p>Email:...</p>
-  dcw.querySelectorAll('h3').forEach((h3) => {
-    if (h3.textContent.trim().toLowerCase().includes('media inquiries')) {
-      const nextP = h3.nextElementSibling;
-      if (nextP?.tagName === 'P' && nextP.querySelector('a[href^="mailto:"]')) {
-        const merged = document.createElement('p');
-        merged.className = 'article-media-inquiries';
-        merged.innerHTML = `<strong>${h3.textContent.trim()}</strong> ${nextP.innerHTML}`;
-        if (!h3.previousElementSibling?.matches('hr')) {
-          h3.before(document.createElement('hr'));
+  // Build video embed from thumbnail + title + optional subtitle + watch pattern
+  function findVideoPattern(elements) {
+    for (let i = 0; i < elements.length - 2; i += 1) {
+      const el1 = elements[i];
+      const isVideoImg = el1.tagName === 'P'
+        && el1.querySelector('img')
+        && el1.textContent.trim() === '';
+      if (!isVideoImg) { /* skip */ } else {
+        // Look ahead for the "watch" element (could be at i+2, i+3, or i+4)
+        let watchIdx = -1;
+        const maxLook = Math.min(i + 5, elements.length);
+        for (let j = i + 2; j < maxLook; j += 1) {
+          const candidate = elements[j];
+          if (candidate.tagName === 'P'
+            && candidate.textContent.trim().toLowerCase().startsWith('watch')) {
+            watchIdx = j;
+            break;
+          }
+          if (candidate.tagName !== 'P' || candidate.querySelector('img')) break;
         }
-        h3.replaceWith(merged);
-        nextP.remove();
+        if (watchIdx < 0) { /* no watch found */ } else {
+          const titleEl = elements[i + 1];
+          const validTitle = titleEl.tagName === 'P'
+            && !titleEl.querySelector('img')
+            && titleEl.textContent.trim().length >= 3
+            && titleEl.textContent.trim().length <= 200;
+          if (validTitle) {
+            return { imgIdx: i, watchIdx, titleEl };
+          }
+        }
       }
     }
-  });
+    return null;
+  }
 
-  // Detect and convert references to collapsible accordion
-  [...dcw.querySelectorAll('p')].forEach((p) => {
-    if (p.textContent.trim() !== 'References') return;
-
-    const details = document.createElement('details');
-    details.className = 'article-references';
-    const summary = document.createElement('summary');
-    summary.innerHTML = 'References <span class="article-references-icon"></span>';
-    details.append(summary);
-    const content = document.createElement('div');
-    content.className = 'article-references-content';
-
-    // Collect all following siblings that are part of the references
-    const toRemove = [];
-    let next = p.nextElementSibling;
-    while (next) {
-      if (next.classList.contains('article-media-inquiries')
-        || next.classList.contains('article-pullquote')
-        || next.tagName === 'HR'
-        || next.tagName === 'H2') break;
-      // Skip "Expand All / Collapse All" filler paragraphs
-      const txt = next.textContent.trim();
-      if (txt === 'Expand All  Collapse All' || txt === 'Expand All Collapse All') {
-        toRemove.push(next);
-        next = next.nextElementSibling;
-      } else {
-        content.append(next.cloneNode(true));
-        toRemove.push(next);
-        next = next.nextElementSibling;
-      }
-    }
-
-    if (content.children.length > 0) {
-      details.append(content);
-      p.replaceWith(details);
-      toRemove.forEach((el) => el.remove());
-    }
-  });
-
-  // Build video embed from thumbnail + title + watch pattern
   const updatedChildren = [...dcw.children];
-  for (let i = 0; i < updatedChildren.length - 2; i += 1) {
-    const el1 = updatedChildren[i];
-    const el2 = updatedChildren[i + 1];
-    const el3 = updatedChildren[i + 2];
+  const videoMatch = findVideoPattern(updatedChildren);
+  if (videoMatch) {
+    const { imgIdx, watchIdx, titleEl } = videoMatch;
+    const el1 = updatedChildren[imgIdx];
+    const watchEl = updatedChildren[watchIdx];
+    const embed = document.createElement('div');
+    embed.className = 'article-video-embed';
 
-    const isVideoImg = el1.tagName === 'P'
-      && el1.querySelector('img')
-      && el1.textContent.trim() === '';
-    const isTitleP = el2.tagName === 'P'
-      && !el2.querySelector('img')
-      && el2.textContent.trim().length > 5
-      && el2.textContent.trim().length < 100;
-    const isWatchP = el3.tagName === 'P'
-      && el3.textContent.trim().toLowerCase().startsWith('watch');
+    const pic = el1.querySelector('picture') || el1.querySelector('img');
+    embed.append(pic);
 
-    if (isVideoImg && isTitleP && isWatchP) {
-      const embed = document.createElement('div');
-      embed.className = 'article-video-embed';
+    const overlay = document.createElement('div');
+    overlay.className = 'video-overlay';
 
-      const pic = el1.querySelector('picture') || el1.querySelector('img');
-      embed.append(pic);
+    const heading = document.createElement('h2');
+    heading.textContent = titleEl.textContent.trim();
 
-      const overlay = document.createElement('div');
-      overlay.className = 'video-overlay';
+    const btn = document.createElement('button');
+    btn.className = 'video-play-btn';
+    btn.textContent = watchEl.textContent.trim();
 
-      const heading = document.createElement('h2');
-      heading.textContent = el2.textContent.trim();
+    overlay.append(heading, btn);
+    embed.append(overlay);
 
-      const btn = document.createElement('button');
-      btn.className = 'video-play-btn';
-      btn.textContent = el3.textContent.trim();
+    // Remove all elements between image and watch (inclusive)
+    el1.replaceWith(embed);
+    for (let j = imgIdx + 1; j <= watchIdx; j += 1) {
+      updatedChildren[j].remove();
+    }
 
-      overlay.append(heading, btn);
-      embed.append(overlay);
-
-      el1.replaceWith(embed);
-      el2.remove();
-      el3.remove();
-      break;
+    // Also remove the duplicate h5 + subtitle that follows the watch pattern
+    const nextAfterWatch = embed.nextElementSibling;
+    if (nextAfterWatch?.tagName === 'H5') {
+      const afterH5 = nextAfterWatch.nextElementSibling;
+      if (afterH5?.tagName === 'P'
+        && !afterH5.querySelector('img')
+        && afterH5.textContent.trim().length < 200) {
+        afterH5.remove();
+      }
+      nextAfterWatch.remove();
     }
   }
 

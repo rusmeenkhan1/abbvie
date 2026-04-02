@@ -970,8 +970,7 @@ main > .section.article-with-sidebar .cards-related .cards-related-title {
   }
 
   main > .section.article-with-sidebar > .article-sidebar {
-    position: sticky;
-    top: 100px;
+    position: static;
     align-self: start;
     padding: 0;
     margin: 0;
@@ -1049,34 +1048,33 @@ main > .section.hero-article-container ~ .section .article-carousel .carousel-sl
 }
 
 main > .section.hero-article-container ~ .section .article-carousel .carousel-nav {
-  position: absolute;
-  bottom: 16px;
-  right: 16px;
+  position: relative;
   display: flex;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 12px 0;
   z-index: 2;
 }
 
 main > .section.hero-article-container ~ .section .article-carousel .carousel-nav button {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
-  border: 2px solid var(--color-navy);
-  background: var(--background-color);
+  border-radius: 0;
+  border: none;
+  background: transparent;
   color: var(--color-navy);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  transition: background-color 0.2s, color 0.2s;
-  font-size: 16px;
+  transition: opacity 0.2s;
+  font-size: 20px;
   line-height: 1;
 }
 
 main > .section.hero-article-container ~ .section .article-carousel .carousel-nav button:hover {
-  background: var(--color-navy);
-  color: var(--background-color);
+  opacity: 0.6;
 }
 
 /* Hide duplicate h5 that follows video embed */
@@ -1448,6 +1446,39 @@ main > .section.hero-article-container ~ .section > .default-content-wrapper .ar
   main > .section.hero-article-container ~ .section > .default-content-wrapper .article-references summary {
     font-size: 32px;
   }
+}
+
+/* Email arrow icon on mailto links in media inquiries */
+main > .section.hero-article-container ~ .section > .default-content-wrapper .article-media-inquiries a[href^="mailto:"]::after {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 6px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1 11L11 1M11 1H3M11 1v8' stroke='%230066f5' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center;
+  background-size: contain;
+  vertical-align: middle;
+  transition: transform 0.2s ease;
+}
+
+main > .section.hero-article-container ~ .section > .default-content-wrapper .article-media-inquiries a[href^="mailto:"]:hover::after {
+  transform: translate(2px, -2px);
+}
+
+/* Ensure related content and email sections don't go behind footer on mobile/tablet */
+main > .section.hero-article-container ~ .section {
+  position: relative;
+  z-index: 1;
+}
+
+/* Footer gap - space between last article section and footer */
+main > .section.hero-article-container ~ .section:last-child {
+  padding-bottom: 80px;
+}
+
+/* Related content section (standalone) - ensure proper spacing before footer */
+main > .section.cards-related-container:last-child {
+  padding-bottom: 80px;
 }
 
 /* Ultra-wide screen constraints (>1440px) */
