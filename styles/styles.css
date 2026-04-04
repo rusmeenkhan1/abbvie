@@ -1473,7 +1473,12 @@ main > .section.hero-article-container ~ .section {
 
 /* Footer gap - space between last article section and footer */
 main > .section.hero-article-container ~ .section:last-child {
-  padding-bottom: 80px;
+  padding-bottom: 200px;
+}
+
+/* Ensure article body sections with sidebar also have bottom spacing */
+main > .section.article-with-sidebar {
+  padding-bottom: 200px;
 }
 
 /* Related content section (standalone) - ensure proper spacing before footer */

@@ -381,7 +381,11 @@ header .mega-panel {
   display: none;
   flex-direction: column;
   position: fixed;
-  inset: var(--header-nav-height) 0 0 0;
+  top: var(--header-nav-height);
+  left: 0;
+  right: 0;
+  height: calc(100vh - var(--header-nav-height));
+  height: calc(100dvh - var(--header-nav-height));
   background: #fff;
   z-index: 85;
   overflow-y: auto;
