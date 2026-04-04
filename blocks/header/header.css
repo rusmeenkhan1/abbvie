@@ -45,7 +45,7 @@ header .nav-header-bar {
   position: relative;
   z-index: 10;
   background: #fff;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: none;
 }
 
 header .nav-header-right {

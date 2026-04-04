@@ -230,6 +230,10 @@ function decorateArticleBody(main) {
       details.append(content);
       p.replaceWith(details);
       toRemove.forEach((el) => el.remove());
+      // Remove stray <hr> immediately after the references accordion
+      if (details.nextElementSibling?.tagName === 'HR') {
+        details.nextElementSibling.remove();
+      }
     }
   });
 
