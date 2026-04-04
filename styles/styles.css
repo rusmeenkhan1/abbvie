@@ -962,6 +962,8 @@ main > .section.article-with-sidebar .cards-related .cards-related-title {
     gap: 40px;
     justify-content: center;
     max-width: 1100px;
+    padding-left: 35px;
+    padding-right: 35px;
   }
 
   main > .section.article-with-sidebar > .default-content-wrapper {
@@ -1087,6 +1089,7 @@ main > .section.hero-article-container ~ .section .article-video-embed {
   position: relative;
   margin: 48px 0;
   overflow: hidden;
+  border-radius: 16px;
 }
 
 main > .section.hero-article-container ~ .section .article-video-embed picture,
@@ -1212,10 +1215,9 @@ main > .section.hero-article-container ~ .section .article-video-embed .video-ov
   }
 
   main > .section.hero-article-container ~ .section .article-video-embed {
-    margin: 56px auto;
-    max-width: 880px;
-    width: calc(100% + 220px);
-    margin-left: calc(-110px);
+    margin: 56px 0;
+    max-width: 100%;
+    width: 100%;
   }
 
   main > .section.hero-article-container ~ .section .article-video-embed img {
@@ -1231,6 +1233,14 @@ main > .section.hero-article-container ~ .section .article-video-embed .video-ov
 
   main > .section.hero-article-container ~ .section .article-video-embed .video-overlay .video-play-btn {
     padding: 16px 40px;
+  }
+}
+
+@media (width >= 1200px) {
+  main > .section.hero-article-container ~ .section .article-video-embed {
+    max-width: 880px;
+    width: calc(100% + 220px);
+    margin-left: calc(-110px);
   }
 }
 
