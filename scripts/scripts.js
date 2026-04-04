@@ -304,6 +304,19 @@ function decorateArticleBody(main) {
     el.remove();
   });
 
+  // YouTube video ID mapping (page path -> YouTube video ID)
+  const VIDEO_MAP = {
+    '/who-we-are/our-stories/immunologys-next-frontier': 'uIxRed5Xegw',
+    '/who-we-are/our-stories/inside-dream-initiative': 'T_up1joThrA',
+    '/who-we-are/our-stories/the-power-love-in-ibd': 'nzUMv9J4xnw',
+    '/who-we-are/our-stories/green-chemistry-cleaner-faster-chemical-reactions': 'dCKpxMcTssg',
+    '/who-we-are/our-stories/everyones-talking-about-data-science': 'bMKSaF6sflc',
+    '/who-we-are/our-stories/rebuilding-puerto-rico-one-community-health-center-at-a-time': 'D_aAxXb1v3g',
+    '/who-we-are/our-stories/unlocking-the-next-level-of-protein-degradation': 'e4ZFsAuOmoQ',
+    '/who-we-are/our-stories/discovery-files-vision-for-blood-cancer-patients': 'cOIxTT89eXE',
+    '/who-we-are/our-stories/navigating-ulcerative-colitis-as-a-child': '9dPIZT6-2so',
+  };
+
   // Build video embed from thumbnail + title + optional subtitle + watch pattern
   function findVideoPattern(elements) {
     for (let i = 0; i < elements.length - 2; i += 1) {
@@ -380,6 +393,28 @@ function decorateArticleBody(main) {
         afterH5.remove();
       }
       nextAfterWatch.remove();
+    }
+
+    // Add click-to-play: load YouTube iframe when play button is clicked
+    const pagePath = window.location.pathname.replace(/\.html$/, '');
+    const videoId = VIDEO_MAP[pagePath];
+    if (videoId) {
+      embed.addEventListener('click', () => {
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+        iframe.setAttribute('frameborder', '0');
+        iframe.setAttribute('allowfullscreen', '');
+        iframe.setAttribute('allow', 'autoplay; encrypted-media');
+        iframe.style.position = 'absolute';
+        iframe.style.inset = '0';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        embed.style.position = 'relative';
+        embed.innerHTML = '';
+        embed.style.aspectRatio = '16 / 9';
+        embed.append(iframe);
+      });
+      embed.style.cursor = 'pointer';
     }
   }
 

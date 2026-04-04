@@ -8,7 +8,7 @@ function createScrollToTop() {
   button.setAttribute('aria-label', 'Scroll to top of page');
   // Use EDS icon span - decorateIcons() will load SVG from /icons/
   const iconSpan = document.createElement('span');
-  iconSpan.className = 'icon icon-chevron-right';
+  iconSpan.className = 'icon icon-arrow-up';
   button.appendChild(iconSpan);
   button.addEventListener('click', () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
