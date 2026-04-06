@@ -90,7 +90,8 @@ footer .footer .footer-scroll-top button:hover {
   background-color: #8ea0d4;
 }
 
-footer .footer .footer-scroll-top button svg {
+footer .footer .footer-scroll-top button svg,
+footer .footer .footer-scroll-top button .icon img {
   width: 24px;
   height: 24px;
 }
@@ -108,6 +109,7 @@ footer .footer .footer-col-logo {
   margin-bottom: 16px;
 }
 
+/* stylelint-disable-next-line no-descending-specificity */
 footer .footer .footer-col-logo img {
   width: 88px;
   height: auto;

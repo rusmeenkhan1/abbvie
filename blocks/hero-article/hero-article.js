@@ -54,26 +54,25 @@ export default function decorate(block) {
     const meta = document.createElement('div');
     meta.className = 'hero-article-meta';
 
-    const date = cols[0]?.textContent?.trim();
-    const category = cols[1]?.textContent?.trim();
-    const readTime = cols[2]?.textContent?.trim();
+    // Handle both 2-column (category | readTime) and 3-column (date | category | readTime)
+    const colTexts = cols.map((c) => c.textContent?.trim()).filter(Boolean);
+    const readTimePattern = /\d+\s*minute\s*read/i;
+    const readTimeVal = colTexts.find((t) => readTimePattern.test(t));
+    const nonReadTime = colTexts.filter((t) => !readTimePattern.test(t));
 
-    if (date) {
-      const dateSpan = document.createElement('span');
-      dateSpan.className = 'hero-article-date';
-      dateSpan.textContent = date;
-      meta.append(dateSpan);
-    }
+    // First non-readtime value is category
+    const category = nonReadTime[0];
+
     if (category) {
       const catSpan = document.createElement('span');
       catSpan.className = 'hero-article-category';
       catSpan.textContent = category;
       meta.append(catSpan);
     }
-    if (readTime) {
+    if (readTimeVal) {
       const timeSpan = document.createElement('span');
       timeSpan.className = 'hero-article-readtime';
-      timeSpan.textContent = readTime;
+      timeSpan.textContent = readTimeVal;
       meta.append(timeSpan);
     }
 
