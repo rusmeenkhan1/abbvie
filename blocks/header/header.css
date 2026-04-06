@@ -45,7 +45,7 @@ header .nav-header-bar {
   position: relative;
   z-index: 10;
   background: #fff;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: none;
 }
 
 header .nav-header-right {
@@ -290,21 +290,21 @@ header nav .nav-sections {
   grid-area: sections;
   flex: 1 1 auto;
   position: fixed;
-  inset: var(--header-nav-height) 0 0 0;
+  top: var(--header-nav-height);
+  left: 0;
+  right: 0;
+  height: calc(100vh - var(--header-nav-height));
+  height: calc(100dvh - var(--header-nav-height));
   background: #fff;
   overflow-y: auto;
   z-index: 80;
   padding: 0;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.35s ease, visibility 0s linear 0.35s;
+  display: none;
   pointer-events: none;
 }
 
 header nav[aria-expanded='true'] .nav-sections {
-  visibility: visible;
-  opacity: 1;
-  transition: opacity 0.35s ease, visibility 0s linear 0s;
+  display: block;
   pointer-events: auto;
 }
 
@@ -377,7 +377,11 @@ header .mega-panel {
   display: none;
   flex-direction: column;
   position: fixed;
-  inset: var(--header-nav-height) 0 0 0;
+  top: var(--header-nav-height);
+  left: 0;
+  right: 0;
+  height: calc(100vh - var(--header-nav-height));
+  height: calc(100dvh - var(--header-nav-height));
   background: #fff;
   z-index: 85;
   overflow-y: auto;
@@ -853,7 +857,7 @@ header .mega-expand-link:hover {
   /* --- Nav Sections inline on desktop --- */
   /* stylelint-disable-next-line no-descending-specificity */
   header nav .nav-sections {
-    display: flex;
+    display: flex !important;
     position: static;
     overflow: visible;
     background: transparent;
@@ -861,10 +865,7 @@ header .mega-expand-link:hover {
     flex: 1;
     height: auto;
     align-items: center;
-    visibility: visible;
-    opacity: 1;
     pointer-events: auto;
-    transition: none;
   }
 
   header .nav-sections .default-content-wrapper {
