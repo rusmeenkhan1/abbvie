@@ -21,7 +21,6 @@ header .nav-wrapper {
   border-bottom: none;
   box-shadow: none;
   transition: background-color 0.15s ease-in-out;
-  overflow: hidden;
 }
 
 header .nav-wrapper.scrolled {
