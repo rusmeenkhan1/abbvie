@@ -94,17 +94,22 @@ function decorateArticleBody(main) {
   const dcw = bodySection.querySelector('.default-content-wrapper');
   if (!dcw) return;
 
-  // Build carousel from consecutive image-only paragraphs
+  // Build carousel from consecutive image paragraphs (with or without captions)
   const children = [...dcw.children];
   const imgParagraphs = [];
 
+  // An image paragraph is a <p> with an <img> where the text is either empty or a short caption
+  function isCarouselCandidate(el) {
+    if (el.tagName !== 'P' || !el.querySelector('img')) return false;
+    const text = el.textContent.trim();
+    // Pure image paragraph (no text) or image with caption (< 300 chars)
+    return text === '' || text.length < 300;
+  }
+
   for (let i = 0; i < children.length; i += 1) {
     const child = children[i];
-    const isImgP = child.tagName === 'P'
-      && child.querySelector('img')
-      && child.textContent.trim() === '';
 
-    if (isImgP) {
+    if (isCarouselCandidate(child)) {
       imgParagraphs.push(child);
     } else {
       if (imgParagraphs.length >= 2) {
@@ -119,6 +124,14 @@ function decorateArticleBody(main) {
           slide.className = 'carousel-slide';
           const pic = p.querySelector('picture') || p.querySelector('img');
           slide.append(pic);
+          // Add caption if present
+          const caption = p.textContent.trim();
+          if (caption) {
+            const captionEl = document.createElement('p');
+            captionEl.className = 'carousel-caption';
+            captionEl.textContent = caption;
+            slide.append(captionEl);
+          }
           slides.append(slide);
           p.remove();
         });

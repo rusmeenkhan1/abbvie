@@ -956,14 +956,21 @@ main > .section.article-with-sidebar .cards-related .cards-related-title {
 }
 
 @media (width >= 900px) {
+  main > .section.article-with-sidebar > .article-sidebar {
+    position: static;
+    padding: 0;
+    margin: 0 auto;
+    max-width: 660px;
+  }
+}
+
+@media (width >= 1200px) {
   main > .section.hero-article-container ~ .section.article-with-sidebar {
     display: grid;
     grid-template-columns: minmax(0, 660px) 200px;
     gap: 40px;
     justify-content: center;
     max-width: 1100px;
-    padding-left: 35px;
-    padding-right: 35px;
   }
 
   main > .section.article-with-sidebar > .default-content-wrapper {
@@ -972,10 +979,10 @@ main > .section.article-with-sidebar .cards-related .cards-related-title {
   }
 
   main > .section.article-with-sidebar > .article-sidebar {
-    position: static;
     align-self: start;
     padding: 0;
     margin: 0;
+    max-width: none;
   }
 }
 
@@ -1077,6 +1084,15 @@ main > .section.hero-article-container ~ .section .article-carousel .carousel-na
 
 main > .section.hero-article-container ~ .section .article-carousel .carousel-nav button:hover {
   opacity: 0.6;
+}
+
+main > .section.hero-article-container ~ .section .article-carousel .carousel-caption {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-navy);
+  margin: 12px 0 0;
+  padding: 0 4px;
+  font-style: italic;
 }
 
 /* Hide duplicate h5 that follows video embed */

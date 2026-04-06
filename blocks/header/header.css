@@ -21,6 +21,7 @@ header .nav-wrapper {
   border-bottom: none;
   box-shadow: none;
   transition: background-color 0.15s ease-in-out;
+  overflow: hidden;
 }
 
 header .nav-wrapper.scrolled {
@@ -299,16 +300,12 @@ header nav .nav-sections {
   overflow-y: auto;
   z-index: 80;
   padding: 0;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.35s ease, visibility 0s linear 0.35s;
+  display: none;
   pointer-events: none;
 }
 
 header nav[aria-expanded='true'] .nav-sections {
-  visibility: visible;
-  opacity: 1;
-  transition: opacity 0.35s ease, visibility 0s linear 0s;
+  display: block;
   pointer-events: auto;
 }
 
@@ -861,7 +858,7 @@ header .mega-expand-link:hover {
   /* --- Nav Sections inline on desktop --- */
   /* stylelint-disable-next-line no-descending-specificity */
   header nav .nav-sections {
-    display: flex;
+    display: flex !important;
     position: static;
     overflow: visible;
     background: transparent;
@@ -869,10 +866,7 @@ header .mega-expand-link:hover {
     flex: 1;
     height: auto;
     align-items: center;
-    visibility: visible;
-    opacity: 1;
     pointer-events: auto;
-    transition: none;
   }
 
   header .nav-sections .default-content-wrapper {
