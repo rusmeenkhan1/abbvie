@@ -1,19 +1,3 @@
-async function getLastModifiedDate() {
-  const { pathname } = window.location;
-  const pagePath = pathname.replace(/\.html$/, '');
-  try {
-    const resp = await fetch('/query-index.json');
-    if (!resp.ok) return null;
-    const json = await resp.json();
-    const entry = json.data.find((item) => item.path === pagePath);
-    if (!entry?.lastModified) return null;
-    const date = new Date(entry.lastModified * 1000);
-    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  } catch {
-    return null;
-  }
-}
-
 export default async function decorate(block) {
   const rows = [...block.children];
 
@@ -78,15 +62,6 @@ export default async function decorate(block) {
 
     // First non-readtime value is category
     const category = nonReadTime[0];
-
-    // Fetch lastModified date from query-index.json and prepend to meta
-    const dateStr = await getLastModifiedDate();
-    if (dateStr) {
-      const dateSpan = document.createElement('span');
-      dateSpan.className = 'hero-article-date';
-      dateSpan.textContent = dateStr;
-      meta.append(dateSpan);
-    }
 
     if (category) {
       const catSpan = document.createElement('span');

@@ -676,9 +676,8 @@ async function addArticleDate(main) {
   const meta = main.querySelector('.hero-article .hero-article-meta');
   if (!meta) return;
 
-  // Skip if a date span already exists with content
-  const existingDate = meta.querySelector('.hero-article-date');
-  if (existingDate?.textContent.trim()) return;
+  // Skip if a date element already exists
+  if (meta.querySelector('.hero-article-date')) return;
 
   try {
     const resp = await fetch('/query-index.json');
@@ -691,19 +690,21 @@ async function addArticleDate(main) {
     if (pathname.endsWith('/')) pathname = pathname.slice(0, -1);
 
     const entry = data.find((e) => e.path === pathname);
-    if (!entry?.lastModified) return;
+    if (!entry?.['last-Modified']) return;
 
-    const date = new Date(entry.lastModified * 1000);
+    const date = new Date(entry['last-Modified'] * 1000);
     const formatted = date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
 
-    const dateSpan = document.createElement('span');
-    dateSpan.className = 'hero-article-date';
-    dateSpan.textContent = formatted;
-    meta.prepend(dateSpan);
+    const dateDiv = document.createElement('div');
+    dateDiv.className = 'hero-article-date';
+    dateDiv.textContent = formatted;
+
+    // Insert as first child in meta (date appears above category and read time)
+    meta.prepend(dateDiv);
   } catch {
     // silently fail — date is non-critical
   }
