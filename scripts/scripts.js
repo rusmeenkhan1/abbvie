@@ -10,6 +10,8 @@ import {
   loadSection,
   loadSections,
   loadCSS,
+  getMetadata,
+  toClassName,
 } from './aem.js';
 
 /**
@@ -106,6 +108,59 @@ function decorateArticleBody(main) {
     return text === '' || text.length < 300;
   }
 
+  function buildCarousel(paragraphs, insertBeforeEl) {
+    const carousel = document.createElement('div');
+    carousel.className = 'article-carousel';
+
+    const slides = document.createElement('div');
+    slides.className = 'carousel-slides';
+
+    paragraphs.forEach((p) => {
+      const slide = document.createElement('div');
+      slide.className = 'carousel-slide';
+      const pic = p.querySelector('picture') || p.querySelector('img');
+      slide.append(pic);
+      const caption = p.textContent.trim();
+      if (caption) {
+        const captionEl = document.createElement('p');
+        captionEl.className = 'carousel-caption';
+        captionEl.textContent = caption;
+        slide.append(captionEl);
+      }
+      slides.append(slide);
+      p.remove();
+    });
+
+    carousel.append(slides);
+
+    const nav = document.createElement('div');
+    nav.className = 'carousel-nav';
+    const prevBtn = document.createElement('button');
+    prevBtn.setAttribute('aria-label', 'Previous slide');
+    prevBtn.innerHTML = '&#8592;';
+    const nextBtn = document.createElement('button');
+    nextBtn.setAttribute('aria-label', 'Next slide');
+    nextBtn.innerHTML = '&#8594;';
+    nav.append(prevBtn, nextBtn);
+    carousel.append(nav);
+
+    insertBeforeEl.before(carousel);
+
+    let current = 0;
+    const total = slides.children.length;
+    const updateSlide = () => {
+      slides.style.transform = `translateX(-${current * 100}%)`;
+    };
+    prevBtn.addEventListener('click', () => {
+      current = (current - 1 + total) % total;
+      updateSlide();
+    });
+    nextBtn.addEventListener('click', () => {
+      current = (current + 1) % total;
+      updateSlide();
+    });
+  }
+
   for (let i = 0; i < children.length; i += 1) {
     const child = children[i];
 
@@ -113,59 +168,17 @@ function decorateArticleBody(main) {
       imgParagraphs.push(child);
     } else {
       if (imgParagraphs.length >= 2) {
-        const carousel = document.createElement('div');
-        carousel.className = 'article-carousel';
-
-        const slides = document.createElement('div');
-        slides.className = 'carousel-slides';
-
-        imgParagraphs.forEach((p) => {
-          const slide = document.createElement('div');
-          slide.className = 'carousel-slide';
-          const pic = p.querySelector('picture') || p.querySelector('img');
-          slide.append(pic);
-          // Add caption if present
-          const caption = p.textContent.trim();
-          if (caption) {
-            const captionEl = document.createElement('p');
-            captionEl.className = 'carousel-caption';
-            captionEl.textContent = caption;
-            slide.append(captionEl);
-          }
-          slides.append(slide);
-          p.remove();
-        });
-
-        carousel.append(slides);
-
-        const nav = document.createElement('div');
-        nav.className = 'carousel-nav';
-        const prevBtn = document.createElement('button');
-        prevBtn.setAttribute('aria-label', 'Previous slide');
-        prevBtn.innerHTML = '&#8592;';
-        const nextBtn = document.createElement('button');
-        nextBtn.setAttribute('aria-label', 'Next slide');
-        nextBtn.innerHTML = '&#8594;';
-        nav.append(prevBtn, nextBtn);
-        carousel.append(nav);
-
-        child.before(carousel);
-
-        let current = 0;
-        const total = slides.children.length;
-        const updateSlide = () => {
-          slides.style.transform = `translateX(-${current * 100}%)`;
-        };
-        prevBtn.addEventListener('click', () => {
-          current = (current - 1 + total) % total;
-          updateSlide();
-        });
-        nextBtn.addEventListener('click', () => {
-          current = (current + 1) % total;
-          updateSlide();
-        });
+        buildCarousel(imgParagraphs, child);
       }
       imgParagraphs.length = 0;
+    }
+  }
+  // Handle trailing image paragraphs
+  if (imgParagraphs.length >= 2) {
+    const lastImg = imgParagraphs[imgParagraphs.length - 1];
+    const afterEl = lastImg.nextElementSibling;
+    if (afterEl) {
+      buildCarousel(imgParagraphs, afterEl);
     }
   }
 
@@ -657,6 +670,46 @@ async function loadEager(doc) {
 }
 
 /**
+ * Path-based template mappings used as fallback when the template
+ * metadata is not available as a meta tag.
+ */
+const TEMPLATE_PATH_MAP = [
+  { pattern: /^\/who-we-are\/our-stories\/.+/, template: 'stories-article' },
+];
+
+/**
+ * Resolves the template name from metadata or URL path fallback.
+ * @returns {string} the template class name, or empty string
+ */
+function resolveTemplate() {
+  const meta = toClassName(getMetadata('template'));
+  if (meta) return meta;
+
+  let { pathname } = window.location;
+  if (pathname.endsWith('.html')) pathname = pathname.slice(0, -5);
+  const match = TEMPLATE_PATH_MAP.find((m) => m.pattern.test(pathname));
+  return match ? match.template : '';
+}
+
+/**
+ * Loads a template module (JS + CSS) based on the page's template metadata.
+ * Templates live in /templates/{name}/{name}.js and .css.
+ * @param {Element} main The main element
+ */
+async function loadTemplate(main) {
+  const template = resolveTemplate();
+  if (!template) return;
+  try {
+    const cssLoaded = loadCSS(`${window.hlx.codeBasePath}/templates/${template}/${template}.css`);
+    const mod = await import(`../templates/${template}/${template}.js`);
+    if (mod.default) await mod.default(main);
+    await cssLoaded;
+  } catch {
+    // template module is optional — silently ignore if not found
+  }
+}
+
+/**
  * Loads everything that doesn't need to be delayed.
  * @param {Element} doc The container element
  */
@@ -665,6 +718,8 @@ async function loadLazy(doc) {
 
   const main = doc.querySelector('main');
   await loadSections(main);
+
+  loadTemplate(main);
 
   const { hash } = window.location;
   const element = hash ? doc.getElementById(hash.substring(1)) : false;
