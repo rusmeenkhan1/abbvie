@@ -1,0 +1,20 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/specialized-research-in-chaotic-systems-sparcs.html",
+  "path": "who-we-are/our-stories/specialized-research-in-chaotic-systems-sparcs",
+  "timestamp": "2026-03-27T11:19:26.479Z",
+  "title": "Specialized Research in Chaotic Systems (SPaRCS) | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

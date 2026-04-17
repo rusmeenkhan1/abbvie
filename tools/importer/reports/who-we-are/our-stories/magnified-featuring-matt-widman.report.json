@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/magnified-featuring-matt-widman.html",
+  "path": "who-we-are/our-stories/magnified-featuring-matt-widman",
+  "timestamp": "2026-03-27T11:17:00.588Z",
+  "title": "Magnified featuring Matt Widman | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

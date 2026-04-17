@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/magnified-featuring-nicholas-donoghoe.html",
+  "path": "who-we-are/our-stories/magnified-featuring-nicholas-donoghoe",
+  "timestamp": "2026-03-27T11:17:07.160Z",
+  "title": "Magnified featuring Nicholas Donoghoe | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

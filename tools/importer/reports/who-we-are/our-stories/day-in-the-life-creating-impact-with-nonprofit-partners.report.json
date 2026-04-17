@@ -1,0 +1,18 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/day-in-the-life-creating-impact-with-nonprofit-partners.html",
+  "path": "who-we-are/our-stories/day-in-the-life-creating-impact-with-nonprofit-partners",
+  "timestamp": "2026-03-27T11:13:29.603Z",
+  "title": "Day in the Life: Creating impact with nonprofit partners | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/they-wont-back-down.html",
+  "path": "who-we-are/our-stories/they-wont-back-down",
+  "timestamp": "2026-03-27T11:20:34.707Z",
+  "title": "They won’t back down | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}

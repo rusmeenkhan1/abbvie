@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "url": "https://www.abbvie.com/who-we-are/our-stories/a-molecular-behavior-chart-speeding-up-research-with-predictive-analytics.html",
+  "path": "who-we-are/our-stories/a-molecular-behavior-chart-speeding-up-research-with-predictive-analytics",
+  "timestamp": "2026-03-27T11:11:14.679Z",
+  "title": "A molecular behavior chart: speeding up research with predictive analytics | AbbVie",
+  "template": "our-stories-article",
+  "blocks": [
+    "hero-article",
+    "hero-article",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related",
+    "cards-related"
+  ]
+}
