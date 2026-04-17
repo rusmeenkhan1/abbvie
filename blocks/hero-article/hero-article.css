@@ -79,16 +79,6 @@
   margin-bottom: 32px;
 }
 
-.hero-article .hero-article-date {
-  font-size: 12px;
-  font-weight: 700;
-  font-family: var(--body-font-family);
-  line-height: 16px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: #666b7a;
-}
-
 .hero-article .hero-article-category {
   font-size: 12px;
   font-weight: 700;

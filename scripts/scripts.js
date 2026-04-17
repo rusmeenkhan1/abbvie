@@ -10,6 +10,8 @@ import {
   loadSection,
   loadSections,
   loadCSS,
+  getMetadata,
+  toClassName,
 } from './aem.js';
 
 /**
@@ -668,45 +670,42 @@ async function loadEager(doc) {
 }
 
 /**
- * Fetches the query index and injects the published date into hero-article blocks.
- * Matches the current page path against the index to find the corresponding date.
+ * Path-based template mappings used as fallback when the template
+ * metadata is not available as a meta tag.
+ */
+const TEMPLATE_PATH_MAP = [
+  { pattern: /^\/who-we-are\/our-stories\/.+/, template: 'stories-article' },
+];
+
+/**
+ * Resolves the template name from metadata or URL path fallback.
+ * @returns {string} the template class name, or empty string
+ */
+function resolveTemplate() {
+  const meta = toClassName(getMetadata('template'));
+  if (meta) return meta;
+
+  let { pathname } = window.location;
+  if (pathname.endsWith('.html')) pathname = pathname.slice(0, -5);
+  const match = TEMPLATE_PATH_MAP.find((m) => m.pattern.test(pathname));
+  return match ? match.template : '';
+}
+
+/**
+ * Loads a template module (JS + CSS) based on the page's template metadata.
+ * Templates live in /templates/{name}/{name}.js and .css.
  * @param {Element} main The main element
  */
-async function addArticleDate(main) {
-  const meta = main.querySelector('.hero-article .hero-article-meta');
-  if (!meta) return;
-
-  // Skip if a date element already exists
-  if (meta.querySelector('.hero-article-date')) return;
-
+async function loadTemplate(main) {
+  const template = resolveTemplate();
+  if (!template) return;
   try {
-    const resp = await fetch('/query-index.json');
-    if (!resp.ok) return;
-    const { data } = await resp.json();
-    if (!data) return;
-
-    let { pathname } = window.location;
-    if (pathname.endsWith('.html')) pathname = pathname.slice(0, -5);
-    if (pathname.endsWith('/')) pathname = pathname.slice(0, -1);
-
-    const entry = data.find((e) => e.path === pathname);
-    if (!entry?.['last-Modified']) return;
-
-    const date = new Date(entry['last-Modified'] * 1000);
-    const formatted = date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-
-    const dateDiv = document.createElement('div');
-    dateDiv.className = 'hero-article-date';
-    dateDiv.textContent = formatted;
-
-    // Insert as first child in meta (date appears above category and read time)
-    meta.prepend(dateDiv);
+    const cssLoaded = loadCSS(`${window.hlx.codeBasePath}/templates/${template}/${template}.css`);
+    const mod = await import(`../templates/${template}/${template}.js`);
+    if (mod.default) await mod.default(main);
+    await cssLoaded;
   } catch {
-    // silently fail — date is non-critical
+    // template module is optional — silently ignore if not found
   }
 }
 
@@ -720,7 +719,7 @@ async function loadLazy(doc) {
   const main = doc.querySelector('main');
   await loadSections(main);
 
-  addArticleDate(main);
+  loadTemplate(main);
 
   const { hash } = window.location;
   const element = hash ? doc.getElementById(hash.substring(1)) : false;
