@@ -20,6 +20,14 @@
   z-index: 1;
 }
 
+.cards-leaders .cards-leaders-card-body {
+  margin: 16px;
+}
+
+.cards-leaders .cards-leaders-card-image {
+  line-height: 0;
+}
+
 .cards-leaders > ul > li .cards-leaders-card-image,
 .cards-leaders > ul > li .cards-leaders-card-body {
   position: relative;
@@ -29,14 +37,6 @@
 
 .cards-leaders > ul > li .cards-leaders-card-body a[href] {
   pointer-events: auto;
-}
-
-.cards-leaders .cards-leaders-card-body {
-  margin: 16px;
-}
-
-.cards-leaders .cards-leaders-card-image {
-  line-height: 0;
 }
 
 .cards-leaders > ul > li img {
