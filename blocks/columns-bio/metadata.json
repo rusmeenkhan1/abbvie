@@ -1,0 +1,10 @@
+{
+  "variantName": "columns-bio",
+  "baseBlock": "columns",
+  "description": "Two-column bio layout with leader headshot image on left and biography text on right",
+  "sourceUrl": "https://www.abbvie.com/who-we-are/our-leaders/robert-michael.html",
+  "createdAt": "2026-04-27",
+  "usedBy": [
+    "https://www.abbvie.com/who-we-are/our-leaders/robert-michael.html"
+  ]
+}

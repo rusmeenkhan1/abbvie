@@ -1,0 +1,21 @@
+.columns-bio > div {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.columns-bio > div > div {
+  flex: 1;
+}
+
+.columns-bio .columns-bio-img-col img {
+  width: 100%;
+  border-radius: 8px;
+}
+
+@media (width >= 900px) {
+  .columns-bio > div {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}

@@ -1,0 +1,160 @@
+/* Our Leaders template — shared styles for listing and bio pages */
+
+/* Navy-dark section style for hero */
+body.our-leaders .section.navy-dark {
+  background-color: #071d49;
+  color: #fff;
+}
+
+/* Hero interior within this template */
+body.our-leaders .hero-interior-wrapper {
+  max-width: unset;
+  padding: 0;
+}
+
+body.our-leaders .hero-interior h1 {
+  font-size: 2.5rem;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0 0 8px;
+}
+
+body.our-leaders .hero-interior p {
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: #555;
+  margin: 0;
+}
+
+/* Cards-leaders block styling */
+body.our-leaders .cards-leaders > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+body.our-leaders .cards-leaders > ul > li {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  transition: box-shadow 0.2s ease;
+}
+
+body.our-leaders .cards-leaders > ul > li:hover {
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+body.our-leaders .cards-leaders .cards-leaders-card-image img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+body.our-leaders .cards-leaders .cards-leaders-card-body {
+  padding: 16px 20px;
+}
+
+body.our-leaders .cards-leaders .cards-leaders-card-body h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: #071d49;
+}
+
+body.our-leaders .cards-leaders .cards-leaders-card-body p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #555;
+  margin: 0 0 12px;
+}
+
+body.our-leaders .cards-leaders .cards-leaders-card-body a {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #071d49;
+  text-decoration: none;
+}
+
+body.our-leaders .cards-leaders .cards-leaders-card-body a:hover {
+  text-decoration: underline;
+}
+
+/* Columns-bio block styling */
+body.our-leaders .columns-bio > div {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 0;
+}
+
+body.our-leaders .columns-bio > div > div {
+  flex: 1;
+}
+
+body.our-leaders .columns-bio .columns-bio-img-col img {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 8px;
+}
+
+body.our-leaders .columns-bio p {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #333;
+  margin: 0 0 16px;
+}
+
+body.our-leaders .columns-bio a {
+  color: #071d49;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+body.our-leaders .columns-bio a:hover {
+  text-decoration: underline;
+}
+
+@media (width >= 900px) {
+  body.our-leaders .columns-bio > div {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  body.our-leaders .hero-interior h1 {
+    font-size: 3rem;
+  }
+}
+
+/* Board of Directors & Committee sections — default content */
+body.our-leaders .default-content-wrapper h2 {
+  font-size: 1.75rem;
+  font-weight: 500;
+  color: #071d49;
+  margin: 0 0 16px;
+}
+
+body.our-leaders .default-content-wrapper p {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #333;
+}
+
+body.our-leaders .default-content-wrapper strong {
+  color: #071d49;
+}
+
+/* Section spacing */
+body.our-leaders .section {
+  padding: 40px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+body.our-leaders .section.navy-dark {
+  max-width: unset;
+  padding: 60px 24px;
+}

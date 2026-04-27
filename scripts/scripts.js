@@ -1,5 +1,6 @@
 import {
   buildBlock,
+  getMetadata,
   loadHeader,
   loadFooter,
   decorateIcons,
@@ -647,6 +648,20 @@ export function decorateMain(main) {
  * Loads everything needed to get to LCP.
  * @param {Element} doc The container element
  */
+async function loadTemplate(doc) {
+  const template = getMetadata('template');
+  if (!template) return;
+  const name = template.toLowerCase().replace(/\s+/g, '-');
+  try {
+    const cssLoaded = loadCSS(`${window.hlx.codeBasePath}/templates/${name}/${name}.css`);
+    const mod = await import(`../templates/${name}/${name}.js`);
+    if (mod.default) await mod.default(doc);
+    await cssLoaded;
+  } catch {
+    // template files are optional
+  }
+}
+
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
   decorateTemplateAndTheme();
@@ -715,6 +730,7 @@ async function addArticleDate(main) {
  * @param {Element} doc The container element
  */
 async function loadLazy(doc) {
+  await loadTemplate(doc);
   loadHeader(doc.querySelector('header'));
 
   const main = doc.querySelector('main');
