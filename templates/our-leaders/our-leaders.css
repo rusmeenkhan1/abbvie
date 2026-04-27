@@ -1,93 +1,165 @@
-/* Our Leaders template — shared styles for listing and bio pages */
+/* Our Leaders template — matches abbvie.com /who-we-are/our-leaders styling */
 
-/* Navy-dark section style for hero */
+/* ── Navy hero section ── */
 body.our-leaders .section.navy-dark {
   background-color: #071d49;
   color: #fff;
+  max-width: unset;
+  padding: 0;
+  margin: 0;
 }
 
-/* Hero interior within this template */
+/* ── Hero interior — full-width navy bg with curved border + overlap ── */
 body.our-leaders .hero-interior-wrapper {
   max-width: unset;
   padding: 0;
 }
 
-body.our-leaders .hero-interior h1 {
-  font-size: 2.5rem;
-  font-weight: 500;
-  line-height: 1.2;
-  margin: 0 0 8px;
+body.our-leaders .hero-interior-container {
+  max-width: unset;
+  padding: 0;
 }
 
-body.our-leaders .hero-interior p {
-  font-size: 1.125rem;
-  line-height: 1.6;
-  color: #555;
+body.our-leaders .hero-interior {
+  position: relative;
+}
+
+body.our-leaders .hero-interior .hero-interior-image {
+  background-color: #071d49;
+  min-height: 12rem;
+  border-top-left-radius: 3.2rem;
+  width: 100%;
+}
+
+body.our-leaders .hero-interior .hero-interior-image picture,
+body.our-leaders .hero-interior .hero-interior-image img {
+  display: none;
+}
+
+body.our-leaders .hero-interior .hero-interior-content {
+  background-color: #fff;
+  border-top-right-radius: 2.4rem;
+  margin-top: -4.8rem;
+  position: relative;
+  z-index: 1;
+  padding: 3.2rem 2rem 2.4rem;
+  max-width: 1200px;
+}
+
+body.our-leaders .hero-interior h1 {
+  font-family: "F37 Lineca Medium", helvetica, arial, sans-serif;
+  font-size: 3.2rem;
+  font-weight: 500;
+  line-height: 1.15;
+  color: #071d49;
+  margin: 0 0 0.8rem;
+}
+
+body.our-leaders .hero-interior .hero-interior-content p,
+body.our-leaders .hero-interior .hero-interior-subtitle p {
+  font-family: "Roboto Light", helvetica, arial, sans-serif;
+  font-weight: 300;
+  font-size: 1.8rem;
+  line-height: 2.4rem;
+  color: #071d49;
   margin: 0;
 }
 
-/* Cards-leaders block styling */
+/* ── Cards-leaders — 3-col leader profile grid ── */
+body.our-leaders .cards-leaders-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
 body.our-leaders .cards-leaders > ul {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.4rem;
 }
 
 body.our-leaders .cards-leaders > ul > li {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid #a6b5e0;
+  border-radius: 0;
   overflow: hidden;
   background: #fff;
   transition: box-shadow 0.2s ease;
 }
 
 body.our-leaders .cards-leaders > ul > li:hover {
-  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 15%);
+}
+
+body.our-leaders .cards-leaders .cards-leaders-card-image {
+  overflow: hidden;
+  width: 100%;
+  margin-bottom: 0;
 }
 
 body.our-leaders .cards-leaders .cards-leaders-card-image img {
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
+  display: block;
 }
 
 body.our-leaders .cards-leaders .cards-leaders-card-body {
-  padding: 16px 20px;
+  padding: 1.6rem 2rem 2rem;
 }
 
 body.our-leaders .cards-leaders .cards-leaders-card-body h4 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 0 0 4px;
+  font-family: "F37 Lineca Medium", helvetica, arial, sans-serif;
+  font-size: 2rem;
+  font-weight: 500;
+  line-height: 2.4rem;
+  margin: 0 0 0.4rem;
   color: #071d49;
 }
 
 body.our-leaders .cards-leaders .cards-leaders-card-body p {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: #555;
-  margin: 0 0 12px;
+  font-family: "Roboto Regular", helvetica, arial, sans-serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+  line-height: 2rem;
+  color: #071d49;
+  margin: 0 0 1.2rem;
 }
 
 body.our-leaders .cards-leaders .cards-leaders-card-body a {
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-family: "Roboto Bold", helvetica, arial, sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 2rem;
   color: #071d49;
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+body.our-leaders .cards-leaders .cards-leaders-card-body a::after {
+  content: "→";
+  font-size: 1.2rem;
 }
 
 body.our-leaders .cards-leaders .cards-leaders-card-body a:hover {
   text-decoration: underline;
 }
 
-/* Columns-bio block styling */
+/* ── Columns-bio — headshot + biography 2-col layout ── */
+body.our-leaders .columns-bio-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
 body.our-leaders .columns-bio > div {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 3.2rem;
   padding: 0;
 }
 
@@ -95,66 +167,180 @@ body.our-leaders .columns-bio > div > div {
   flex: 1;
 }
 
-body.our-leaders .columns-bio .columns-bio-img-col img {
+body.our-leaders .columns-bio > div > div:first-child {
+  flex: 0 0 41.66%;
+  max-width: 41.66%;
+}
+
+body.our-leaders .columns-bio > div > div:last-child {
+  flex: 0 0 41.66%;
+  max-width: 50%;
+}
+
+body.our-leaders .columns-bio .columns-bio-img-col img,
+body.our-leaders .columns-bio > div > div:first-child img {
   width: 100%;
-  max-width: 400px;
-  border-radius: 8px;
+  border-radius: 0;
+  display: block;
 }
 
 body.our-leaders .columns-bio p {
-  font-size: 1rem;
-  line-height: 1.7;
-  color: #333;
-  margin: 0 0 16px;
+  font-family: "Roboto Regular", helvetica, arial, sans-serif;
+  font-size: 1.6rem;
+  font-weight: 400;
+  line-height: 2.4rem;
+  color: #071d49;
+  margin: 0 0 1.6rem;
 }
 
 body.our-leaders .columns-bio a {
-  color: #071d49;
-  font-weight: 600;
+  font-family: "Roboto Bold", helvetica, arial, sans-serif;
+  font-weight: 700;
+  font-size: 1.6rem;
+  line-height: 2rem;
+  color: #0066f5;
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid #0066f5;
+  border-radius: 2.4rem;
+  padding: 1.2rem 3.2rem;
 }
 
 body.our-leaders .columns-bio a:hover {
-  text-decoration: underline;
+  background-color: #0066f5;
+  color: #fff;
 }
 
-@media (width >= 900px) {
-  body.our-leaders .columns-bio > div {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-
-  body.our-leaders .hero-interior h1 {
-    font-size: 3rem;
-  }
-}
-
-/* Board of Directors & Committee sections — default content */
+/* ── Board of Directors & Committee sections ── */
 body.our-leaders .default-content-wrapper h2 {
-  font-size: 1.75rem;
+  font-family: "F37 Lineca Medium", helvetica, arial, sans-serif;
+  font-size: 3.2rem;
   font-weight: 500;
+  line-height: 3.8rem;
   color: #071d49;
-  margin: 0 0 16px;
+  margin: 0 0 1.6rem;
 }
 
 body.our-leaders .default-content-wrapper p {
-  font-size: 1rem;
-  line-height: 1.7;
-  color: #333;
-}
-
-body.our-leaders .default-content-wrapper strong {
+  font-family: "Roboto Regular", helvetica, arial, sans-serif;
+  font-size: 1.6rem;
+  font-weight: 400;
+  line-height: 2.4rem;
   color: #071d49;
 }
 
-/* Section spacing */
+body.our-leaders .default-content-wrapper strong {
+  font-family: "Roboto Bold", helvetica, arial, sans-serif;
+  font-weight: 700;
+  color: #071d49;
+}
+
+/* ── Section layout ── */
 body.our-leaders .section {
-  padding: 40px 24px;
+  padding: 4rem 2rem;
   max-width: 1200px;
   margin: 0 auto;
 }
 
+body.our-leaders .section:first-child {
+  padding-top: 0;
+}
+
 body.our-leaders .section.navy-dark {
   max-width: unset;
-  padding: 60px 24px;
+  padding: 0;
+}
+
+/* ── Responsive ── */
+@media (width >= 600px) {
+  body.our-leaders .cards-leaders > ul {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (width >= 900px) {
+  body.our-leaders .hero-interior .hero-interior-image {
+    min-height: 26rem;
+  }
+
+  body.our-leaders .hero-interior .hero-interior-content {
+    margin-top: -6.4rem;
+    padding: 4rem 7rem 3.2rem;
+    max-width: 80%;
+  }
+
+  body.our-leaders .hero-interior h1 {
+    font-size: 5.5rem;
+    line-height: 1.1;
+  }
+
+  body.our-leaders .hero-interior .hero-interior-content p,
+  body.our-leaders .hero-interior .hero-interior-subtitle p {
+    font-size: 2.4rem;
+    line-height: 3rem;
+  }
+
+  body.our-leaders .cards-leaders > ul {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  body.our-leaders .cards-leaders .cards-leaders-card-body h4 {
+    font-size: 2.8rem;
+    line-height: 3.2rem;
+  }
+
+  body.our-leaders .cards-leaders .cards-leaders-card-body p {
+    font-size: 1.8rem;
+    line-height: 2.4rem;
+  }
+
+  body.our-leaders .columns-bio > div {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8.33%;
+  }
+
+  body.our-leaders .columns-bio a {
+    padding: 1.6rem 4rem;
+  }
+
+  body.our-leaders .default-content-wrapper h2 {
+    font-size: 4rem;
+    line-height: 4.8rem;
+  }
+
+  body.our-leaders .section {
+    padding: 6.4rem 7rem;
+  }
+}
+
+@media (width >= 1200px) {
+  body.our-leaders .hero-interior .hero-interior-image {
+    min-height: 28.8rem;
+    border-top-left-radius: 6.4rem;
+  }
+
+  body.our-leaders .hero-interior .hero-interior-content {
+    margin-top: -6.4rem;
+    border-top-right-radius: 3.2rem;
+  }
+}
+
+/* ── Mobile: stack cards single column ── */
+@media (width < 600px) {
+  body.our-leaders .cards-leaders > ul {
+    grid-template-columns: 1fr;
+  }
+
+  body.our-leaders .columns-bio > div > div:first-child,
+  body.our-leaders .columns-bio > div > div:last-child {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
+  body.our-leaders .hero-interior h1 {
+    font-size: 3.2rem;
+  }
 }
