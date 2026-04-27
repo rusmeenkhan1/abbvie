@@ -526,29 +526,42 @@ export default async function decorate(block) {
     if (section) section.classList.add(`nav-${c}`);
   });
 
-  // Brand / Logo
+  // Brand / Logo — always use project wordmark (matches abbvie.com header)
   const navBrand = nav.querySelector('.nav-brand');
   if (navBrand) {
     const brandLink = navBrand.querySelector('a');
     if (brandLink) {
       brandLink.className = 'nav-brand-link';
       brandLink.setAttribute('aria-label', 'AbbVie Home');
-      // Remove button classes added by decorateButtons
       brandLink.classList.remove('button', 'primary', 'secondary', 'accent');
       const p = brandLink.closest('p');
       if (p) {
         p.className = '';
         p.classList.remove('button-wrapper');
       }
-      // Replace processed picture element with direct SVG img
+      const logoSrc = `${window.hlx.codeBasePath}/icons/abbvie-logo.svg`;
       const picture = brandLink.querySelector('picture');
+      const existingImg = brandLink.querySelector('img');
       if (picture) {
         const img = document.createElement('img');
-        img.src = '/icons/abbvie-logo.svg';
+        img.src = logoSrc;
         img.alt = 'AbbVie';
-        img.width = 88;
-        img.height = 16;
+        img.className = 'nav-brand-logo-img';
+        img.decoding = 'async';
         picture.replaceWith(img);
+      } else if (existingImg) {
+        existingImg.src = logoSrc;
+        existingImg.alt = 'AbbVie';
+        existingImg.classList.add('nav-brand-logo-img');
+        existingImg.removeAttribute('width');
+        existingImg.removeAttribute('height');
+      } else {
+        const img = document.createElement('img');
+        img.src = logoSrc;
+        img.alt = 'AbbVie';
+        img.className = 'nav-brand-logo-img';
+        img.decoding = 'async';
+        brandLink.replaceChildren(img);
       }
     }
   }

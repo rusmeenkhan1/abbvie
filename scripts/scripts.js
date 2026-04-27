@@ -645,13 +645,23 @@ export function decorateMain(main) {
 }
 
 /**
- * Loads everything needed to get to LCP.
- * @param {Element} doc The container element
+ * True for listing and individual leader URLs under /who-we-are/our-leaders.
+ * Used to load our-leaders template and body class when metadata is missing (e.g. fetch 401).
  */
+function isOurLeadersPath() {
+  const path = window.location.pathname.replace(/\.html$/i, '').replace(/\/$/, '');
+  return /\/who-we-are\/our-leaders(?:\/|$)/.test(path);
+}
+
 async function loadTemplate(doc) {
-  const template = getMetadata('template');
-  if (!template) return;
-  const name = template.toLowerCase().replace(/\s+/g, '-');
+  let name;
+  if (isOurLeadersPath()) {
+    name = 'our-leaders';
+  } else {
+    const template = getMetadata('template');
+    if (!template) return;
+    name = template.toLowerCase().replace(/\s+/g, '-');
+  }
   try {
     const cssLoaded = loadCSS(`${window.hlx.codeBasePath}/templates/${name}/${name}.css`);
     const mod = await import(`../templates/${name}/${name}.js`);
@@ -662,9 +672,16 @@ async function loadTemplate(doc) {
   }
 }
 
+/**
+ * Loads everything needed to get to LCP.
+ * @param {Element} doc The container element
+ */
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
   decorateTemplateAndTheme();
+  if (isOurLeadersPath()) {
+    document.body.classList.add('our-leaders');
+  }
   const main = doc.querySelector('main');
   if (main) {
     decorateMain(main);

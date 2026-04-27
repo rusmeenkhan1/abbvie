@@ -1,22 +1,188 @@
-/* Our Leaders template — matches abbvie.com /who-we-are/our-leaders styling */
+/* Our Leaders template — matches abbvie.com /who-we-are/our-leaders (listing + profile e.g. robert-michael) */
+/* stylelint-disable no-descending-specificity -- page-scoped overrides follow global section/block rules */
+
+/* Align all rails with header: --header-max-width 1330px + 35px gutters (header.css) */
+body.our-leaders {
+  --ol-max: 1330px;
+
+  /* Match header/footer horizontal inset: header bar + footer .footer padding */
+  --ol-inline: 35px;
+  --ol-card-radius: 1.5rem;
+}
+
+@media (width >= 600px) {
+  body.our-leaders {
+    /* footer .footer padding matches 70px LR (footer.css >=600px) */
+    --ol-inline: 70px;
+  }
+}
+
+@media (width >= 900px) {
+  body.our-leaders {
+    /* footer .footer padding 55px LR (footer.css >=900px) — same rail as rounded footer */
+    --ol-inline: 55px;
+    --ol-card-radius: 2.4rem;
+  }
+}
+
+/* Page canvas: remove grey / blue-grey cast behind the card (vs abbvie.com) */
+body.our-leaders,
+body.our-leaders main {
+  background-color: var(--background-color);
+}
+
+/* Main: no extra horizontal padding — sections use same 1330px center as header bar + footer card */
+body.our-leaders main {
+  box-sizing: border-box;
+
+  /* Footer uses negative margin-top to tuck under content; add air above the grey card */
+  padding-bottom: 4rem;
+}
+
+@media (width >= 900px) {
+  body.our-leaders main {
+    padding-bottom: 5rem;
+  }
+}
+
+body.our-leaders main > div.section {
+  margin: 40px auto;
+}
+
+/* Pull hero + bio into one vertical stack (no double gutter between bands) */
+body.our-leaders main > .section.navy-dark + .section {
+  margin-top: 0;
+}
+
+/*
+ * Same width as header bar + footer .footer (1330px): class set in our-leaders.js
+ * !important beats late-loaded rules that set section width/max-width elsewhere
+ */
+body.our-leaders main .section.our-leaders-contained {
+  box-sizing: border-box;
+  width: min(100%, var(--ol-max)) !important;
+  max-width: var(--ol-max) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+body.our-leaders main .section.our-leaders-contained-top {
+  border-top-left-radius: var(--ol-card-radius);
+  border-top-right-radius: var(--ol-card-radius);
+  overflow: hidden;
+}
+
+body.our-leaders main .section.our-leaders-contained-bottom {
+  border-bottom-left-radius: var(--ol-card-radius);
+  border-bottom-right-radius: var(--ol-card-radius);
+  overflow: hidden;
+}
+
+body.our-leaders main .section.our-leaders-contained-top.our-leaders-contained-bottom {
+  border-radius: var(--ol-card-radius);
+}
+
+/* Navy fill is on .hero-interior-image — round it or the blue bar stays square */
+body.our-leaders main .section.our-leaders-contained-top .hero-interior-image,
+body.our-leaders main .section.hero-interior-container .hero-interior-image {
+  border-top-left-radius: var(--ol-card-radius);
+  border-top-right-radius: var(--ol-card-radius);
+}
+
+/* Always cap hero section width (even if .our-leaders-contained JS missed) */
+body.our-leaders main .section.hero-interior-container {
+  width: min(100%, var(--ol-max)) !important;
+  max-width: var(--ol-max) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-top-left-radius: var(--ol-card-radius);
+  border-top-right-radius: var(--ol-card-radius);
+}
+
+/* Full-bleed hero within the rail (beats main > .section > div content-padding on some builds) */
+body.our-leaders main .section.hero-interior-container > .hero-interior-wrapper {
+  max-width: 100% !important;
+  width: 100%;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  box-sizing: border-box;
+}
+
+body.our-leaders main .section.hero-interior-container > .default-content-wrapper {
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: var(--ol-inline) !important;
+  padding-right: var(--ol-inline) !important;
+}
+
+body.our-leaders main > .section.navy-dark > div,
+body.our-leaders main > .section.columns-bio-container > div {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Leader profile: biography band (original abbvie.com uses white, not lavender) */
+body.our-leaders main > .section.columns-bio-container {
+  background-color: var(--background-color);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+body.our-leaders main > .section.columns-bio-container .columns-bio-wrapper {
+  box-sizing: border-box;
+  max-width: var(--ol-max);
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--ol-inline);
+  padding-right: var(--ol-inline);
+}
+
+/* Centered sections (listing cards, board copy, etc.) — same rail as header */
+body.our-leaders main > .section:not(.navy-dark, .columns-bio-container) {
+  box-sizing: border-box;
+  max-width: var(--ol-max);
+  margin-left: auto;
+  margin-right: auto;
+  padding: 4rem var(--ol-inline);
+}
+
+body.our-leaders main > .section:not(.navy-dark, .columns-bio-container) > div {
+  box-sizing: border-box;
+  max-width: var(--ol-max);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 0;
+  padding-right: 0;
+}
 
 /* ── Navy hero section ── */
 body.our-leaders .section.navy-dark {
   background-color: #071d49;
   color: #fff;
-  max-width: unset;
+  max-width: var(--ol-max);
   padding: 0;
-  margin: 0;
 }
 
 /* ── Hero interior — full-width navy bg with curved border + overlap ── */
 body.our-leaders .hero-interior-wrapper {
-  max-width: unset;
+  max-width: 100%;
   padding: 0;
 }
 
 body.our-leaders .hero-interior-container {
-  max-width: unset;
+  max-width: var(--ol-max);
+  margin-left: auto;
+  margin-right: auto;
   padding: 0;
 }
 
@@ -24,11 +190,11 @@ body.our-leaders .hero-interior {
   position: relative;
 }
 
+/* Navy strip: shorter than generic hero-interior (no photo on leaders; closer to abbvie.com profile) */
 body.our-leaders .hero-interior .hero-interior-image {
   background-color: #071d49;
-  min-height: 12rem;
-  border-top-left-radius: 3.2rem;
   width: 100%;
+  min-height: 180px;
 }
 
 body.our-leaders .hero-interior .hero-interior-image picture,
@@ -36,40 +202,147 @@ body.our-leaders .hero-interior .hero-interior-image img {
   display: none;
 }
 
+/* White band: match blocks/hero-interior/hero-interior.css width + type scale (abbvie interior hero) */
 body.our-leaders .hero-interior .hero-interior-content {
+  box-sizing: border-box;
   background-color: #fff;
-  border-top-right-radius: 2.4rem;
-  margin-top: -4.8rem;
+  border-top-left-radius: var(--ol-card-radius);
+  border-top-right-radius: var(--ol-card-radius);
+  margin: -40px 0 0;
   position: relative;
   z-index: 1;
-  padding: 3.2rem 2rem 2.4rem;
-  max-width: 1200px;
+  padding: 32px 40px 40px;
+  width: auto;
+  max-width: 100%;
 }
 
-body.our-leaders .hero-interior h1 {
-  font-family: "F37 Lineca Medium", helvetica, arial, sans-serif;
-  font-size: 3.2rem;
-  font-weight: 500;
-  line-height: 1.15;
+/* Breadcrumb: WHO WE ARE > OUR LEADERS > [name] (injected in our-leaders.js) */
+body.our-leaders .our-leaders-breadcrumb {
+  margin: 0 0 1.6rem;
+}
+
+body.our-leaders .our-leaders-breadcrumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0 0.4rem;
+  font-family: var(--body-font-family);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body.our-leaders .our-leaders-breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   color: #071d49;
-  margin: 0 0 0.8rem;
+}
+
+body.our-leaders .our-leaders-breadcrumb-item + .our-leaders-breadcrumb-item::before {
+  content: '>';
+  font-weight: 700;
+  color: #071d49;
+  margin-right: 0.4rem;
+}
+
+body.our-leaders .our-leaders-breadcrumb-item a:any-link {
+  color: #071d49;
+  text-decoration: none;
+}
+
+body.our-leaders .our-leaders-breadcrumb-item a:hover {
+  text-decoration: underline;
+}
+
+body.our-leaders .our-leaders-breadcrumb-current {
+  color: #666b7a;
+}
+
+body.our-leaders .hero-interior h1,
+body.our-leaders .hero-interior .hero-interior-heading h1 {
+  font-family: var(--heading-font-family);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 34px;
+  letter-spacing: -0.02em;
+  color: #071d49;
+  margin: 0 0 16px;
 }
 
 body.our-leaders .hero-interior .hero-interior-content p,
 body.our-leaders .hero-interior .hero-interior-subtitle p {
-  font-family: "Roboto Light", helvetica, arial, sans-serif;
-  font-weight: 300;
-  font-size: 1.8rem;
-  line-height: 2.4rem;
+  font-family: var(--body-font-family);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.5;
   color: #071d49;
   margin: 0;
 }
 
+body.our-leaders .hero-interior .hero-interior-subtitle {
+  font-family: var(--body-font-family);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.5;
+  color: #071d49;
+}
+
+/* Fallback: first section is default H1 + intro (no hero-interior block in Word doc) */
+body.our-leaders .section.navy-dark.our-leaders-text-hero {
+  padding-top: 180px;
+  padding-bottom: 0;
+}
+
+body.our-leaders .section.navy-dark.our-leaders-text-hero > .default-content-wrapper {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: auto;
+  max-width: 100%;
+  background-color: #fff;
+  border-top-left-radius: var(--ol-card-radius);
+  border-top-right-radius: var(--ol-card-radius);
+  margin: -40px 0 0;
+  padding: 32px 40px 40px;
+  color: #071d49;
+}
+
+body.our-leaders .section.navy-dark.our-leaders-text-hero > .default-content-wrapper h1 {
+  font-family: var(--heading-font-family);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 34px;
+  letter-spacing: -0.02em;
+  color: #071d49;
+  margin: 0 0 16px;
+}
+
+body.our-leaders .section.navy-dark.our-leaders-text-hero > .default-content-wrapper > p {
+  font-family: var(--body-font-family);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.5;
+  color: #071d49;
+  margin: 0 0 0.8rem;
+}
+
+body.our-leaders .section.navy-dark.our-leaders-text-hero > .default-content-wrapper > p:last-child {
+  margin-bottom: 0;
+}
+
 /* ── Cards-leaders — 3-col leader profile grid ── */
 body.our-leaders .cards-leaders-wrapper {
-  max-width: 1200px;
+  box-sizing: border-box;
+  max-width: var(--ol-max);
+  width: 100%;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 var(--ol-inline);
 }
 
 body.our-leaders .cards-leaders > ul {
@@ -149,11 +422,17 @@ body.our-leaders .cards-leaders .cards-leaders-card-body a:hover {
   text-decoration: underline;
 }
 
+body.our-leaders .cards-leaders > ul > li:has(.cards-leaders-card-cover-link:focus-visible) {
+  box-shadow: 0 0 0 3px var(--link-color);
+}
+
 /* ── Columns-bio — headshot + biography 2-col layout ── */
 body.our-leaders .columns-bio-wrapper {
-  max-width: 1200px;
+  box-sizing: border-box;
+  max-width: var(--ol-max);
+  width: 100%;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 var(--ol-inline);
 }
 
 body.our-leaders .columns-bio > div {
@@ -193,24 +472,34 @@ body.our-leaders .columns-bio p {
   margin: 0 0 1.6rem;
 }
 
-body.our-leaders .columns-bio a {
-  font-family: "Roboto Bold", helvetica, arial, sans-serif;
-  font-weight: 700;
-  font-size: 1.6rem;
-  line-height: 2rem;
-  color: #0066f5;
-  text-decoration: none;
+/* LinkedIn CTA: same outline treatment as a.button (styles.css), not a pill */
+body.our-leaders .columns-bio a[href*="linkedin.com" i] {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  gap: 0.8rem;
-  border: 1px solid #0066f5;
-  border-radius: 2.4rem;
-  padding: 1.2rem 3.2rem;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 0.8rem;
+  border: 1px solid var(--link-color);
+  border-radius: 0;
+  padding: 16px 40px;
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--link-color);
+  background-color: transparent;
+  transition: background-color var(--transition-speed), color var(--transition-speed), border-color var(--transition-speed);
 }
 
-body.our-leaders .columns-bio a:hover {
-  background-color: #0066f5;
-  color: #fff;
+body.our-leaders .columns-bio a[href*="linkedin.com" i]:hover,
+body.our-leaders .columns-bio a[href*="linkedin.com" i]:focus-visible {
+  background-color: var(--link-color);
+  color: var(--background-color);
+  border-color: var(--link-color);
 }
 
 /* ── Board of Directors & Committee sections ── */
@@ -237,20 +526,8 @@ body.our-leaders .default-content-wrapper strong {
   color: #071d49;
 }
 
-/* ── Section layout ── */
-body.our-leaders .section {
-  padding: 4rem 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-body.our-leaders .section:first-child {
+body.our-leaders main > .section:first-child:not(.columns-bio-container, .our-leaders-text-hero) {
   padding-top: 0;
-}
-
-body.our-leaders .section.navy-dark {
-  max-width: unset;
-  padding: 0;
 }
 
 /* ── Responsive ── */
@@ -258,28 +535,102 @@ body.our-leaders .section.navy-dark {
   body.our-leaders .cards-leaders > ul {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  body.our-leaders .hero-interior .hero-interior-content {
+    margin: -80px 70px 0;
+    padding: 56px 70px 0;
+    border-top-left-radius: var(--ol-card-radius);
+    border-top-right-radius: var(--ol-card-radius);
+    max-width: 1330px;
+  }
+
+  body.our-leaders .hero-interior h1,
+  body.our-leaders .hero-interior .hero-interior-heading h1 {
+    font-size: 40px;
+    line-height: 44px;
+    letter-spacing: -0.8px;
+  }
+
+  body.our-leaders .section.navy-dark.our-leaders-text-hero > .default-content-wrapper {
+    margin: -80px 70px 0;
+    padding: 56px 70px 0;
+    max-width: 1330px;
+  }
+
+  body.our-leaders .section.navy-dark.our-leaders-text-hero > .default-content-wrapper h1 {
+    font-size: 40px;
+    line-height: 44px;
+    letter-spacing: -0.8px;
+  }
+
+  body.our-leaders .section.navy-dark.our-leaders-text-hero {
+    padding-top: 220px;
+  }
+
+  body.our-leaders .hero-interior .hero-interior-image img {
+    display: none;
+  }
+
+  body.our-leaders .hero-interior .hero-interior-image {
+    min-height: 220px;
+  }
 }
 
 @media (width >= 900px) {
+  body.our-leaders .our-leaders-breadcrumb {
+    max-width: 920px;
+  }
+
   body.our-leaders .hero-interior .hero-interior-image {
-    min-height: 26rem;
+    min-height: 260px;
+    max-height: 280px;
   }
 
   body.our-leaders .hero-interior .hero-interior-content {
-    margin-top: -6.4rem;
-    padding: 4rem 7rem 3.2rem;
-    max-width: 80%;
+    margin: -112px 55px 0;
+    padding: 80px 204px 24px;
+    max-width: 1330px;
+    border-top-left-radius: var(--ol-card-radius);
+    border-top-right-radius: var(--ol-card-radius);
   }
 
-  body.our-leaders .hero-interior h1 {
-    font-size: 5.5rem;
-    line-height: 1.1;
+  body.our-leaders .hero-interior h1,
+  body.our-leaders .hero-interior .hero-interior-heading h1 {
+    font-size: 64px;
+    line-height: 68px;
+    letter-spacing: -1.28px;
+    max-width: 920px;
   }
 
   body.our-leaders .hero-interior .hero-interior-content p,
-  body.our-leaders .hero-interior .hero-interior-subtitle p {
-    font-size: 2.4rem;
-    line-height: 3rem;
+  body.our-leaders .hero-interior .hero-interior-subtitle p,
+  body.our-leaders .hero-interior .hero-interior-subtitle {
+    font-size: 18px;
+    line-height: 24px;
+    max-width: 920px;
+  }
+
+  body.our-leaders .hero-interior .hero-interior-subtitle {
+    margin-top: 24px;
+  }
+
+  body.our-leaders .section.navy-dark.our-leaders-text-hero > .default-content-wrapper {
+    margin: -112px 55px 0;
+    padding: 80px 204px 24px;
+    max-width: 1330px;
+  }
+
+  body.our-leaders .section.navy-dark.our-leaders-text-hero > .default-content-wrapper h1 {
+    font-size: 64px;
+    line-height: 68px;
+    letter-spacing: -1.28px;
+    max-width: 920px;
+  }
+
+  body.our-leaders .section.navy-dark.our-leaders-text-hero > .default-content-wrapper > p {
+    font-size: 18px;
+    line-height: 24px;
+    max-width: 920px;
   }
 
   body.our-leaders .cards-leaders > ul {
@@ -302,29 +653,40 @@ body.our-leaders .section.navy-dark {
     gap: 8.33%;
   }
 
-  body.our-leaders .columns-bio a {
-    padding: 1.6rem 4rem;
-  }
-
   body.our-leaders .default-content-wrapper h2 {
     font-size: 4rem;
     line-height: 4.8rem;
   }
 
-  body.our-leaders .section {
-    padding: 6.4rem 7rem;
+  body.our-leaders main > .section:not(.navy-dark, .columns-bio-container) {
+    padding-top: 6.4rem;
+    padding-bottom: 6.4rem;
   }
+
+  body.our-leaders .section.navy-dark.our-leaders-text-hero {
+    padding-top: 260px;
+  }
+
 }
 
 @media (width >= 1200px) {
+  body.our-leaders {
+    --ol-card-radius: 3.2rem;
+  }
+
   body.our-leaders .hero-interior .hero-interior-image {
-    min-height: 28.8rem;
-    border-top-left-radius: 6.4rem;
+    border-top-left-radius: var(--ol-card-radius);
+    border-top-right-radius: var(--ol-card-radius);
   }
 
   body.our-leaders .hero-interior .hero-interior-content {
-    margin-top: -6.4rem;
-    border-top-right-radius: 3.2rem;
+    border-top-left-radius: var(--ol-card-radius);
+    border-top-right-radius: var(--ol-card-radius);
+  }
+
+  body.our-leaders .section.navy-dark.our-leaders-text-hero > .default-content-wrapper {
+    border-top-left-radius: var(--ol-card-radius);
+    border-top-right-radius: var(--ol-card-radius);
   }
 }
 
@@ -340,7 +702,9 @@ body.our-leaders .section.navy-dark {
     max-width: 100%;
   }
 
-  body.our-leaders .hero-interior h1 {
-    font-size: 3.2rem;
+  body.our-leaders .hero-interior h1,
+  body.our-leaders .hero-interior .hero-interior-heading h1 {
+    font-size: 30px;
+    line-height: 34px;
   }
 }

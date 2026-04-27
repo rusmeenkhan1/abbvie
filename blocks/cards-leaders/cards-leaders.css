@@ -8,8 +8,27 @@
 }
 
 .cards-leaders > ul > li {
+  position: relative;
   border: 1px solid #dadada;
   background-color: var(--background-color);
+}
+
+/* Full-card link (Our Leaders listing); inner CTA stays visible, cover receives image/title clicks */
+.cards-leaders-card-cover-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.cards-leaders > ul > li .cards-leaders-card-image,
+.cards-leaders > ul > li .cards-leaders-card-body {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.cards-leaders > ul > li .cards-leaders-card-body a[href] {
+  pointer-events: auto;
 }
 
 .cards-leaders .cards-leaders-card-body {
