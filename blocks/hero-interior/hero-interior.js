@@ -15,13 +15,13 @@ export default function decorate(block) {
   const contentRow = rows[1];
 
   // Build the hero structure
+  const heroImage = document.createElement('div');
+  heroImage.className = 'hero-interior-image';
   if (img) {
-    const heroImage = document.createElement('div');
-    heroImage.className = 'hero-interior-image';
     const picture = img.closest('picture') || img;
     heroImage.append(picture);
-    imageRow.replaceWith(heroImage);
   }
+  imageRow.replaceWith(heroImage);
 
   if (contentRow) {
     contentRow.className = 'hero-interior-content';

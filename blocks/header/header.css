@@ -105,9 +105,13 @@ header .nav-brand-link {
   text-decoration: none;
 }
 
-header .nav-brand img {
+header .nav-brand img,
+header .nav-brand .nav-brand-logo-img {
+  display: block;
   width: 110px;
   height: auto;
+  max-width: 110px;
+  object-fit: contain;
 }
 
 /* --- Hamburger (staggered lines like original) --- */
@@ -184,9 +188,12 @@ header nav .nav-brand a {
   font-weight: 700;
 }
 
-header nav .nav-brand img {
+header nav .nav-brand img,
+header nav .nav-brand .nav-brand-logo-img {
   width: 110px;
   height: auto;
+  max-width: 110px;
+  object-fit: contain;
 }
 
 /* sections - merged with mobile animation rules below */
@@ -817,6 +824,7 @@ header .mega-expand-link:hover {
     --header-nav-height: 88px;
   }
 
+  /* Logo aligns with outer edge of 1330px content rail (same as hero / abbvie.com leader profiles) */
   header .nav-header-bar {
     padding: 0;
   }

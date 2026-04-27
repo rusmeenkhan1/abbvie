@@ -21,6 +21,7 @@
 .hero-interior .hero-interior-image {
   width: 100%;
   overflow: hidden;
+  min-height: 250px;
 }
 
 .hero-interior .hero-interior-image picture,
@@ -30,6 +31,10 @@
   height: auto;
   min-height: 250px;
   object-fit: cover;
+}
+
+.hero-interior .hero-interior-image:empty {
+  min-height: 250px;
 }
 
 .hero-interior .hero-interior-content {

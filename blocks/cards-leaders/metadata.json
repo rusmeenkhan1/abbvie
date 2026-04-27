@@ -1,0 +1,10 @@
+{
+  "variantName": "cards-leaders",
+  "baseBlock": "cards",
+  "description": "Leader profile cards with headshot image, name, title, and CTA link in a 3-column grid",
+  "sourceUrl": "https://www.abbvie.com/who-we-are/our-leaders.html",
+  "createdAt": "2026-04-27",
+  "usedBy": [
+    "https://www.abbvie.com/who-we-are/our-leaders.html"
+  ]
+}
