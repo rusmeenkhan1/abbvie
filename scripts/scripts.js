@@ -11,7 +11,6 @@ import {
   loadSection,
   loadSections,
   loadCSS,
-  getMetadata,
   toClassName,
 } from './aem.js';
 
@@ -655,7 +654,11 @@ function isOurLeadersPath() {
   return /\/who-we-are\/our-leaders(?:\/|$)/.test(path);
 }
 
-async function loadTemplate(doc) {
+/**
+ * Loads template JS/CSS before sections (metadata or /who-we-are/our-leaders path).
+ * @param {Document} doc
+ */
+async function loadTemplateBeforeSections(doc) {
   let name;
   if (isOurLeadersPath()) {
     name = 'our-leaders';
@@ -724,11 +727,11 @@ function resolveTemplate() {
 }
 
 /**
- * Loads a template module (JS + CSS) based on the page's template metadata.
- * Templates live in /templates/{name}/{name}.js and .css.
+ * Loads a template module after sections (path fallbacks e.g. stories-article, or metadata).
+ * Passes `main` to the template default; assets live in `templates/<name>/`.
  * @param {Element} main The main element
  */
-async function loadTemplate(main) {
+async function loadTemplateAfterSections(main) {
   const template = resolveTemplate();
   if (!template) return;
   try {
@@ -746,13 +749,13 @@ async function loadTemplate(main) {
  * @param {Element} doc The container element
  */
 async function loadLazy(doc) {
-  await loadTemplate(doc);
+  await loadTemplateBeforeSections(doc);
   loadHeader(doc.querySelector('header'));
 
   const main = doc.querySelector('main');
   await loadSections(main);
 
-  loadTemplate(main);
+  loadTemplateAfterSections(main);
 
   const { hash } = window.location;
   const element = hash ? doc.getElementById(hash.substring(1)) : false;
