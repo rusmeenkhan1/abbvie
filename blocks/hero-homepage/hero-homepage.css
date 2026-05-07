@@ -6,13 +6,8 @@
 
 .hero-homepage {
   position: relative;
-  isolation: isolate;
   box-sizing: border-box;
-  padding: 60px 24px 200px;
   min-height: 520px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
   overflow: hidden;
   background-color: var(--color-navy);
 }
@@ -23,12 +18,14 @@
   inset: 0;
   background: linear-gradient(
     to top,
-    rgb(7 29 73 / 85%) 0%,
-    rgb(7 29 73 / 50%) 40%,
-    rgb(7 29 73 / 20%) 70%,
+    rgb(7 29 73 / 90%) 0%,
+    rgb(7 29 73 / 70%) 30%,
+    rgb(7 29 73 / 40%) 55%,
+    rgb(7 29 73 / 20%) 75%,
     transparent 100%
   );
-  z-index: 1;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .hero-homepage p {
@@ -41,41 +38,14 @@
   width: 100%;
   height: 100%;
   display: block;
-}
-
-/* Single slide fallback (no carousel) */
-.hero-homepage > div:first-child {
   position: absolute;
   inset: 0;
-  z-index: 0;
 }
 
-.hero-homepage > div:last-child {
-  position: relative;
-  z-index: 2;
-  max-width: var(--content-max-width);
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
-  padding: 0 8px;
-}
-
-.hero-homepage > div:first-child div {
-  height: 100%;
-}
-
-.hero-homepage > div:first-child p {
-  margin: 0;
-  height: 100%;
-}
-
-/* Carousel slide positioning */
+/* All slides are absolute, filling the hero */
 .hero-homepage .hero-homepage-slide {
   position: absolute;
   inset: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr;
   opacity: 0;
   transition: opacity 1s ease-in-out;
   pointer-events: none;
@@ -84,50 +54,36 @@
 .hero-homepage .hero-homepage-slide.hero-homepage-slide-active {
   opacity: 1;
   pointer-events: auto;
-  position: relative;
 }
 
+/* Image container fills the slide */
 .hero-homepage .hero-homepage-slide > div:first-child {
   position: absolute;
   inset: 0;
   z-index: 0;
 }
 
+/* Content container at bottom */
 .hero-homepage .hero-homepage-slide > div:last-child {
-  position: relative;
-  z-index: 2;
+  position: absolute;
+  bottom: 180px;
+  left: 24px;
+  right: 24px;
+  z-index: 3;
   max-width: var(--content-max-width);
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
-  padding: 0 8px;
-  align-self: end;
-}
-
-.hero-homepage .hero-homepage-slide > div:first-child div {
-  height: 100%;
-}
-
-.hero-homepage .hero-homepage-slide > div:first-child p {
-  margin: 0;
-  height: 100%;
 }
 
 .hero-homepage h1 {
   font-size: var(--heading-font-size-xxl);
   font-weight: 800;
-  line-height: 1.06;
+  line-height: 1.1;
   letter-spacing: -0.02em;
   margin: 0 0 24px;
   color: var(--background-color);
   max-width: 700px;
 }
 
-.hero-homepage .button-wrapper {
-  margin-top: 16px;
-}
-
-.hero-homepage a.button:any-link {
+.hero-homepage a:any-link {
   color: var(--link-color-light);
   border: none;
   background: transparent;
@@ -138,9 +94,10 @@
   text-transform: uppercase;
   text-decoration: none;
   position: relative;
+  display: inline-block;
 }
 
-.hero-homepage a.button:any-link::after {
+.hero-homepage a:any-link::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -151,23 +108,30 @@
   transition: background-color var(--transition-speed);
 }
 
-.hero-homepage a.button:hover {
+.hero-homepage a:hover {
   background: transparent;
   color: var(--background-color);
+  text-decoration: none;
 }
 
-.hero-homepage a.button:hover::after {
+.hero-homepage a:hover::after {
   background-color: var(--background-color);
 }
 
 @media (width >= 900px) {
   .hero-homepage {
-    padding: 80px 55px 280px;
     min-height: 720px;
+  }
+
+  .hero-homepage .hero-homepage-slide > div:last-child {
+    bottom: 240px;
+    left: 55px;
+    right: 55px;
   }
 
   .hero-homepage h1 {
     font-size: 56px;
+    line-height: 60px;
     max-width: 650px;
   }
 }
@@ -175,12 +139,18 @@
 @media (width >= 1200px) {
   .hero-homepage {
     min-height: 810px;
-    padding: 80px 55px 310px;
+  }
+
+  .hero-homepage .hero-homepage-slide > div:last-child {
+    bottom: 310px;
+    left: 110px;
+    right: 110px;
   }
 
   .hero-homepage h1 {
     font-size: 64px;
     line-height: 68px;
+    letter-spacing: -1.28px;
     max-width: none;
   }
 }

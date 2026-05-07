@@ -2,6 +2,25 @@ import { createOptimizedPicture } from '../../scripts/aem.js';
 import { moveInstrumentation } from '../../scripts/scripts.js';
 
 export default function decorate(block) {
+  // Convert image links to img elements before classification
+  block.querySelectorAll('a[href]').forEach((link) => {
+    const href = link.href || '';
+    const isImage = /\.(jpg|jpeg|png|gif|webp|svg)/i.test(href)
+      || href.includes('scene7');
+    if (isImage && !link.closest('picture')) {
+      const parent = link.closest('p') || link.parentElement;
+      const isSoleChild = parent && parent.children.length === 1
+        && parent.textContent.trim() === link.textContent.trim();
+      if (isSoleChild) {
+        const img = document.createElement('img');
+        img.src = href;
+        img.alt = link.textContent.trim() || '';
+        img.loading = 'lazy';
+        parent.replaceWith(img);
+      }
+    }
+  });
+
   const pressReleases = [];
   const featured = [];
 
@@ -56,7 +75,8 @@ export default function decorate(block) {
     moveInstrumentation(row, card);
     while (row.firstElementChild) card.append(row.firstElementChild);
     [...card.children].forEach((div) => {
-      if (div.children.length === 1 && div.querySelector('picture')) {
+      const hasPic = div.querySelector('picture') || div.querySelector('img');
+      if (div.children.length === 1 && hasPic) {
         div.className = 'cards-news-card-image';
       } else {
         div.className = 'cards-news-card-body';
