@@ -1,5 +1,7 @@
 {
   "type": "da",
   "libraryUrl": "https://main--sta-boilerplate--aemdemos.aem.page/tools/sidekick/library.json",
-  "contentHostUrl": "content.da.live"
+  "contentHostUrl": "https://content.da.live/rusmeenkhan1/abbvie/",
+  "previewOrg": "rusmeenkhan1",
+  "previewSite": "abbvie"
 }

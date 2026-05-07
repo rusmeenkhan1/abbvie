@@ -43,6 +43,7 @@
   display: block;
 }
 
+/* Single slide fallback (no carousel) */
 .hero-homepage > div:first-child {
   position: absolute;
   inset: 0;
@@ -64,6 +65,50 @@
 }
 
 .hero-homepage > div:first-child p {
+  margin: 0;
+  height: 100%;
+}
+
+/* Carousel slide positioning */
+.hero-homepage .hero-homepage-slide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+  pointer-events: none;
+}
+
+.hero-homepage .hero-homepage-slide.hero-homepage-slide-active {
+  opacity: 1;
+  pointer-events: auto;
+  position: relative;
+}
+
+.hero-homepage .hero-homepage-slide > div:first-child {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.hero-homepage .hero-homepage-slide > div:last-child {
+  position: relative;
+  z-index: 2;
+  max-width: var(--content-max-width);
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  padding: 0 8px;
+  align-self: end;
+}
+
+.hero-homepage .hero-homepage-slide > div:first-child div {
+  height: 100%;
+}
+
+.hero-homepage .hero-homepage-slide > div:first-child p {
   margin: 0;
   height: 100%;
 }

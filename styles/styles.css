@@ -29,7 +29,7 @@
 
   /* fonts */
   --body-font-family: roboto, roboto-fallback, helvetica, arial, sans-serif;
-  --heading-font-family: roboto, roboto-fallback, helvetica, arial, sans-serif;
+  --heading-font-family: f37lineca, f37lineca-fallback, helvetica, arial, sans-serif;
 
   /* body sizes */
   --body-font-size-l: 20px;
@@ -45,6 +45,9 @@
   --heading-font-size-m: 22px;
   --heading-font-size-s: 18px;
   --heading-font-size-xs: 16px;
+
+  /* button */
+  --button-font-family: roboto, roboto-fallback, helvetica, arial, sans-serif;
 
   /* spacing */
   --section-padding: 48px 0;
@@ -65,13 +68,20 @@
   src: local('Arial');
 }
 
+@font-face {
+  font-family: "f37lineca-fallback";
+  size-adjust: 105%;
+  ascent-override: 90%;
+  src: local('Arial');
+}
+
 @media (width >= 900px) {
   :root {
-    --heading-font-size-xxl: 56px;
+    --heading-font-size-xxl: 48px;
     --heading-font-size-xl: 40px;
-    --heading-font-size-l: 28px;
-    --heading-font-size-m: 22px;
-    --heading-font-size-s: 18px;
+    --heading-font-size-l: 30px;
+    --heading-font-size-m: 30px;
+    --heading-font-size-s: 28px;
     --heading-font-size-xs: 16px;
     --content-padding: 0 32px;
   }
@@ -80,11 +90,6 @@
 @media (width >= 1200px) {
   :root {
     --nav-height: 88px;
-  }
-}
-
-@media (width >= 1200px) {
-  :root {
     --heading-font-size-xxl: 64px;
   }
 }
@@ -130,30 +135,39 @@ h6 {
   line-height: 1.1;
   scroll-margin: 40px;
   color: var(--color-navy);
-  letter-spacing: -0.02em;
+  letter-spacing: normal;
 }
 
 h1 {
   font-size: var(--heading-font-size-xxl);
+  line-height: 1.1;
 }
 
 h2 { font-size: var(--heading-font-size-xl); }
-h3 { font-size: var(--heading-font-size-l); }
+
+h3 {
+  font-size: var(--heading-font-size-l);
+  font-weight: 650;
+  line-height: 1.13;
+}
 
 h4 {
   font-size: var(--heading-font-size-m);
-  font-weight: 700;
+  font-weight: 800;
+  line-height: 1.13;
 }
 
 h5 {
   font-size: var(--heading-font-size-s);
-  font-weight: 700;
+  font-weight: 650;
+  line-height: 1.14;
   letter-spacing: 0;
 }
 
 h6 {
   font-size: var(--heading-font-size-xs);
   font-weight: 700;
+  font-family: var(--body-font-family);
   letter-spacing: 0;
 }
 
@@ -220,11 +234,11 @@ button.button {
   margin: 0;
   border: 1px solid var(--link-color);
   border-radius: 0;
-  padding: 16px 40px;
-  font-family: var(--body-font-family);
+  padding: 12px 32px;
+  font-family: var(--button-font-family);
   font-size: var(--body-font-size-xs);
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.43;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   text-decoration: none;

@@ -521,8 +521,9 @@ export default async function decorate(block) {
   while (fragment.firstElementChild) nav.append(fragment.firstElementChild);
 
   const classes = ['brand', 'sections', 'tools'];
+  const sections = [...nav.querySelectorAll(':scope > .section')];
   classes.forEach((c, i) => {
-    const section = nav.children[i];
+    const section = sections[i];
     if (section) section.classList.add(`nav-${c}`);
   });
 

@@ -1,0 +1,64 @@
+.columns-cta-wrapper {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--content-padding);
+}
+
+.columns-cta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.columns-cta > div > div {
+  flex: 1;
+}
+
+.columns-cta > div > div p {
+  font-size: var(--body-font-size-s);
+  color: var(--text-color);
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+
+.columns-cta > div > div p:last-child {
+  margin-bottom: 0;
+}
+
+.columns-cta > div > div p a {
+  font-size: var(--body-font-size-xs);
+  color: var(--color-blue);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  position: relative;
+  padding-bottom: 4px;
+  display: inline-block;
+}
+
+.columns-cta > div > div p a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-blue);
+  transition: background-color var(--transition-speed);
+}
+
+.columns-cta > div > div p a:hover {
+  color: var(--color-navy);
+}
+
+.columns-cta > div > div p a:hover::after {
+  background-color: var(--color-navy);
+}
+
+@media (width >= 900px) {
+  .columns-cta > div {
+    flex-direction: row;
+    gap: 48px;
+  }
+}

@@ -10,6 +10,11 @@ header {
   --header-max-width: 1330px;
 }
 
+/* Hide orphaned section wrappers that remain after JS processing */
+header nav > .section {
+  display: none;
+}
+
 /* --- Wrapper --- */
 header .nav-wrapper {
   background-color: #fff;
