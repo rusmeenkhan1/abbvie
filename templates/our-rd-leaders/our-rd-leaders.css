@@ -208,11 +208,11 @@ body.our-rd-leaders .rd-leaders-breadcrumb-list {
   margin: 0;
   padding: 0;
   gap: 0 0.4rem;
-  font-family: var(--body-font-family);
-  font-size: 1.2rem;
+  font-family: "Roboto Bold", helvetica, arial, sans-serif;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.5;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.84px;
   text-transform: uppercase;
 }
 
@@ -334,7 +334,7 @@ body.our-rd-leaders .cards-leaders > ul {
 }
 
 body.our-rd-leaders .cards-leaders > ul > li {
-  border: 1px solid #a6b5e0;
+  border: none;
   border-radius: 0;
   overflow: hidden;
   background: #fff;
@@ -353,7 +353,7 @@ body.our-rd-leaders .cards-leaders .cards-leaders-card-image {
 
 body.our-rd-leaders .cards-leaders .cards-leaders-card-image img {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
   display: block;
 }
@@ -363,29 +363,29 @@ body.our-rd-leaders .cards-leaders .cards-leaders-card-body {
 }
 
 body.our-rd-leaders .cards-leaders .cards-leaders-card-body h4 {
-  font-family: "F37 Lineca Medium", helvetica, arial, sans-serif;
-  font-size: 2rem;
-  font-weight: 500;
-  line-height: 2.4rem;
+  font-family: "Roboto Regular", helvetica, arial, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 24px;
   margin: 0 0 0.4rem;
   color: #071d49;
 }
 
 body.our-rd-leaders .cards-leaders .cards-leaders-card-body p {
   font-family: "Roboto Regular", helvetica, arial, sans-serif;
-  font-size: 1.4rem;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 2rem;
+  line-height: 20px;
   color: #071d49;
   margin: 0 0 1.2rem;
 }
 
 body.our-rd-leaders .cards-leaders .cards-leaders-card-body a {
   font-family: "Roboto Bold", helvetica, arial, sans-serif;
-  font-size: 1.4rem;
+  font-size: 14px;
   font-weight: 700;
-  line-height: 2rem;
-  color: #071d49;
+  line-height: 20px;
+  color: #0066f5;
   text-decoration: none;
   display: flex;
   align-items: center;
@@ -481,7 +481,7 @@ body.our-rd-leaders .columns-bio a[href*="linkedin.com" i]:focus-visible {
 }
 
 /* ── Default content (intro text on listing page) ── */
-body.our-rd-leaders .default-content-wrapper h2 {
+body.our-rd-leaders main .default-content-wrapper h2 {
   font-family: "F37 Lineca Medium", helvetica, arial, sans-serif;
   font-size: 3.2rem;
   font-weight: 500;
@@ -490,7 +490,7 @@ body.our-rd-leaders .default-content-wrapper h2 {
   margin: 0 0 1.6rem;
 }
 
-body.our-rd-leaders .default-content-wrapper p {
+body.our-rd-leaders main .default-content-wrapper p {
   font-family: "Roboto Regular", helvetica, arial, sans-serif;
   font-size: 1.6rem;
   font-weight: 400;
@@ -498,7 +498,7 @@ body.our-rd-leaders .default-content-wrapper p {
   color: #071d49;
 }
 
-body.our-rd-leaders .default-content-wrapper strong {
+body.our-rd-leaders main .default-content-wrapper strong {
   font-family: "Roboto Bold", helvetica, arial, sans-serif;
   font-weight: 700;
   color: #071d49;
@@ -616,13 +616,13 @@ body.our-rd-leaders main > .section:first-child:not(.columns-bio-container, .rd-
   }
 
   body.our-rd-leaders .cards-leaders .cards-leaders-card-body h4 {
-    font-size: 2.8rem;
-    line-height: 3.2rem;
+    font-size: 20px;
+    line-height: 24px;
   }
 
   body.our-rd-leaders .cards-leaders .cards-leaders-card-body p {
-    font-size: 1.8rem;
-    line-height: 2.4rem;
+    font-size: 14px;
+    line-height: 20px;
   }
 
   body.our-rd-leaders .columns-bio > div {
@@ -631,7 +631,7 @@ body.our-rd-leaders main > .section:first-child:not(.columns-bio-container, .rd-
     gap: 8.33%;
   }
 
-  body.our-rd-leaders .default-content-wrapper h2 {
+  body.our-rd-leaders main .default-content-wrapper h2 {
     font-size: 4rem;
     line-height: 4.8rem;
   }
