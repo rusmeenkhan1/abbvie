@@ -59,13 +59,14 @@
   letter-spacing: 0.06em;
 }
 
-/* Stats cards (2nd and 3rd) */
+/* Stats cards (2nd and 3rd) - navy background with white/blue text */
 .cards-dashboard > ul > li:nth-child(n+2) {
-  background-color: var(--color-light-blue-bg);
+  background-color: var(--color-navy);
   padding: 32px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  color: #fff;
 }
 
 .cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body p:first-child {
@@ -73,15 +74,14 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-color);
-  opacity: 0.6;
+  color: var(--link-color);
   margin: 0 0 4px;
 }
 
 .cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body h4 {
   font-size: 72px;
   font-weight: 800;
-  color: var(--color-navy);
+  color: var(--link-color);
   margin: 0 0 8px;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -89,7 +89,7 @@
 
 .cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body p:last-child {
   font-size: var(--body-font-size-s);
-  color: var(--text-color);
+  color: #fff;
   line-height: 1.4;
   margin: 0;
 }
@@ -97,24 +97,6 @@
 /* Hide empty image containers in stats cards */
 .cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-image:empty {
   display: none;
-}
-
-/* Third card: dark navy background with white/blue text */
-.cards-dashboard > ul > li:nth-child(3) {
-  background-color: var(--color-navy);
-}
-
-.cards-dashboard > ul > li:nth-child(3) .cards-dashboard-card-body p:first-child {
-  color: var(--background-color);
-  opacity: 0.7;
-}
-
-.cards-dashboard > ul > li:nth-child(3) .cards-dashboard-card-body h4 {
-  color: var(--link-color);
-}
-
-.cards-dashboard > ul > li:nth-child(3) .cards-dashboard-card-body p:last-child {
-  color: var(--background-color);
 }
 
 @media (width >= 900px) {

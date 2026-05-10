@@ -22,4 +22,18 @@ export default function decorate(block) {
   if (firstDiv && !firstDiv.querySelector('picture') && !firstDiv.querySelector('img')) {
     block.classList.add('no-image');
   }
+
+  // Convert "Watch" text paragraph into a play button
+  const contentDiv = block.querySelector(':scope > div:last-child');
+  if (contentDiv) {
+    const paragraphs = contentDiv.querySelectorAll('p');
+    paragraphs.forEach((p) => {
+      if (p.textContent.trim().toLowerCase().startsWith('watch') && !p.querySelector('a')) {
+        const btn = document.createElement('button');
+        btn.className = 'hero-video-play-btn';
+        btn.textContent = p.textContent.trim();
+        p.replaceWith(btn);
+      }
+    });
+  }
 }

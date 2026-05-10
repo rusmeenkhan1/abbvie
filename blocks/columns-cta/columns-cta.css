@@ -16,8 +16,8 @@
 
 .columns-cta > div > div p {
   font-size: var(--body-font-size-s);
-  color: var(--text-color);
-  line-height: 1.6;
+  color: var(--color-navy);
+  line-height: 1.5;
   margin: 0 0 16px;
 }
 
@@ -59,6 +59,6 @@
 @media (width >= 900px) {
   .columns-cta > div {
     flex-direction: row;
-    gap: 48px;
+    gap: 32px;
   }
 }
