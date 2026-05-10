@@ -426,20 +426,22 @@ body.our-rd-leaders .columns-bio > div > div {
 }
 
 body.our-rd-leaders .columns-bio > div > div:first-child {
-  flex: 0 0 41.66%;
-  max-width: 41.66%;
+  flex: 0 0 37.5%;
+  max-width: 37.5%;
 }
 
 body.our-rd-leaders .columns-bio > div > div:last-child {
-  flex: 0 0 41.66%;
-  max-width: 50%;
+  flex: 1;
+  max-width: none;
 }
 
 body.our-rd-leaders .columns-bio .columns-bio-img-col img,
 body.our-rd-leaders .columns-bio > div > div:first-child img {
   width: 100%;
+  height: auto;
   border-radius: 0;
   display: block;
+  object-fit: fill;
 }
 
 body.our-rd-leaders .columns-bio p {
@@ -452,32 +454,29 @@ body.our-rd-leaders .columns-bio p {
 }
 
 body.our-rd-leaders .columns-bio a[href*="linkedin.com" i] {
-  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
   margin-top: 0.8rem;
-  border: 1px solid var(--link-color);
+  border: none;
   border-radius: 0;
-  padding: 16px 40px;
-  font-family: var(--body-font-family);
-  font-size: var(--body-font-size-xs);
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  padding: 0;
+  font-family: "Roboto Bold", helvetica, arial, sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 20px;
+  letter-spacing: normal;
+  text-transform: none;
   text-decoration: none;
-  color: var(--link-color);
+  color: #0066f5;
   background-color: transparent;
-  transition: background-color var(--transition-speed), color var(--transition-speed), border-color var(--transition-speed);
 }
 
 body.our-rd-leaders .columns-bio a[href*="linkedin.com" i]:hover,
 body.our-rd-leaders .columns-bio a[href*="linkedin.com" i]:focus-visible {
-  background-color: var(--link-color);
-  color: var(--background-color);
-  border-color: var(--link-color);
+  text-decoration: underline;
+  color: #0066f5;
+  background-color: transparent;
 }
 
 /* ── Default content (intro text on listing page) ── */
