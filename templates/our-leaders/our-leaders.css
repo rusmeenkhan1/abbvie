@@ -503,7 +503,7 @@ body.our-leaders .columns-bio a[href*="linkedin.com" i]:focus-visible {
 }
 
 /* ── Board of Directors & Committee sections ── */
-body.our-leaders .default-content-wrapper h2 {
+body.our-leaders main .default-content-wrapper h2 {
   font-family: "F37 Lineca Medium", helvetica, arial, sans-serif;
   font-size: 3.2rem;
   font-weight: 500;
@@ -512,7 +512,7 @@ body.our-leaders .default-content-wrapper h2 {
   margin: 0 0 1.6rem;
 }
 
-body.our-leaders .default-content-wrapper p {
+body.our-leaders main .default-content-wrapper p {
   font-family: "Roboto Regular", helvetica, arial, sans-serif;
   font-size: 1.6rem;
   font-weight: 400;
@@ -520,7 +520,7 @@ body.our-leaders .default-content-wrapper p {
   color: #071d49;
 }
 
-body.our-leaders .default-content-wrapper strong {
+body.our-leaders main .default-content-wrapper strong {
   font-family: "Roboto Bold", helvetica, arial, sans-serif;
   font-weight: 700;
   color: #071d49;
@@ -653,7 +653,7 @@ body.our-leaders main > .section:first-child:not(.columns-bio-container, .our-le
     gap: 8.33%;
   }
 
-  body.our-leaders .default-content-wrapper h2 {
+  body.our-leaders main .default-content-wrapper h2 {
     font-size: 4rem;
     line-height: 4.8rem;
   }
