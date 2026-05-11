@@ -409,13 +409,14 @@ body.our-rd-leaders .cards-leaders .cards-leaders-card-body a {
   font-size: 14px;
   font-weight: 700;
   line-height: 20px;
-  color: #0066f5;
+  color: #071d49;
   text-decoration: none;
   text-transform: uppercase;
   letter-spacing: 0.84px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  transition: color 0.2s ease;
 }
 
 body.our-rd-leaders .cards-leaders .cards-leaders-card-body a::after {
@@ -423,8 +424,8 @@ body.our-rd-leaders .cards-leaders .cards-leaders-card-body a::after {
   font-size: 14px;
 }
 
-body.our-rd-leaders .cards-leaders .cards-leaders-card-body a:hover {
-  text-decoration: underline;
+body.our-rd-leaders .cards-leaders > ul > li:hover .cards-leaders-card-body a {
+  color: #0066f5;
 }
 
 body.our-rd-leaders .cards-leaders > ul > li {
@@ -589,7 +590,7 @@ body.our-rd-leaders main > .section:first-child {
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .cards-leaders-wrapper {
     margin: 0;
-    padding: 60px 70px 80px;
+    padding: 60px 40px 80px;
     max-width: 100%;
     background-color: #fff;
   }
@@ -666,7 +667,7 @@ body.our-rd-leaders main > .section:first-child {
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .cards-leaders-wrapper {
     margin: 0;
-    padding: 80px 55px 80px;
+    padding: 80px 35px 80px;
     max-width: 100%;
     box-sizing: border-box;
     background-color: #fff;
@@ -705,7 +706,7 @@ body.our-rd-leaders main > .section:first-child {
   }
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero {
-    padding-top: 260px;
+    padding-top: 290px;
   }
 }
 
