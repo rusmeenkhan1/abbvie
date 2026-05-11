@@ -8,6 +8,16 @@ function isRdLeadersListingPath() {
   return p === '/science/our-people/our-rd-leaders';
 }
 
+function isOurLeadersProfilePath() {
+  const p = window.location.pathname.replace(/\.html$/i, '').replace(/\/$/, '');
+  return /\/who-we-are\/our-leaders\/[^/]+$/.test(p);
+}
+
+function isOurLeadersListingPath() {
+  const p = window.location.pathname.replace(/\.html$/i, '').replace(/\/$/, '');
+  return p === '/who-we-are/our-leaders';
+}
+
 function topLevelSectionsUnderMain(mainEl) {
   const candidates = [...mainEl.querySelectorAll('.section')];
   return candidates.filter((sec) => {
@@ -29,8 +39,12 @@ function titleCaseFromSlug(slug) {
 }
 
 function insertBreadcrumb(main, attempt = 0) {
-  const onListing = isRdLeadersListingPath();
-  const onProfile = isRdLeaderProfilePath();
+  const onRdListing = isRdLeadersListingPath();
+  const onRdProfile = isRdLeaderProfilePath();
+  const onOlListing = isOurLeadersListingPath();
+  const onOlProfile = isOurLeadersProfilePath();
+  const onListing = onRdListing || onOlListing;
+  const onProfile = onRdProfile || onOlProfile;
   if (!onListing && !onProfile) return;
   if (main.querySelector('.rd-leaders-breadcrumb')) return;
 
@@ -77,20 +91,35 @@ function insertBreadcrumb(main, attempt = 0) {
     ol.append(li);
   };
 
-  addItem('/science', 'Science', false);
-  addItem('/science/our-people', 'Our People', false);
-
-  if (onProfile) {
-    addItem('/science/our-people/our-rd-leaders', 'Our R&D Leaders', false);
-    const h1 = main.querySelector(
-      '.hero-interior-heading h1, .hero-interior .hero-interior-heading h1, .hero-interior-content h1',
-    ) || main.querySelector('.section.navy-dark.rd-leaders-text-hero h1');
-    const path = window.location.pathname.replace(/\.html$/i, '').replace(/\/$/, '');
-    const slug = path.split('/').pop() || '';
-    const name = (h1?.textContent?.trim()) || titleCaseFromSlug(slug);
-    addItem(null, name, true);
+  if (onOlListing || onOlProfile) {
+    addItem('/who-we-are', 'Who We Are', false);
+    if (onOlProfile) {
+      addItem('/who-we-are/our-leaders', 'Our Leaders', false);
+      const h1 = main.querySelector(
+        '.hero-interior-heading h1, .hero-interior .hero-interior-heading h1, .hero-interior-content h1',
+      ) || main.querySelector('.section.navy-dark.rd-leaders-text-hero h1');
+      const path = window.location.pathname.replace(/\.html$/i, '').replace(/\/$/, '');
+      const slug = path.split('/').pop() || '';
+      const name = (h1?.textContent?.trim()) || titleCaseFromSlug(slug);
+      addItem(null, name, true);
+    } else {
+      addItem(null, 'Our Leaders', true);
+    }
   } else {
-    addItem(null, 'Our R&D Leaders', true);
+    addItem('/science', 'Science', false);
+    addItem('/science/our-people', 'Our People', false);
+    if (onRdProfile) {
+      addItem('/science/our-people/our-rd-leaders', 'Our R&D Leaders', false);
+      const h1 = main.querySelector(
+        '.hero-interior-heading h1, .hero-interior .hero-interior-heading h1, .hero-interior-content h1',
+      ) || main.querySelector('.section.navy-dark.rd-leaders-text-hero h1');
+      const path = window.location.pathname.replace(/\.html$/i, '').replace(/\/$/, '');
+      const slug = path.split('/').pop() || '';
+      const name = (h1?.textContent?.trim()) || titleCaseFromSlug(slug);
+      addItem(null, name, true);
+    } else {
+      addItem(null, 'Our R&D Leaders', true);
+    }
   }
 
   nav.append(ol);
@@ -109,7 +138,9 @@ export default function decorate(doc) {
     heroSection.classList.add('navy-dark');
   }
 
-  if (!heroSection && (isRdLeaderProfilePath() || isRdLeadersListingPath())) {
+  const isProfileOrListing = isRdLeaderProfilePath() || isRdLeadersListingPath()
+    || isOurLeadersProfilePath() || isOurLeadersListingPath();
+  if (!heroSection && isProfileOrListing) {
     const first = roots[0] || main.querySelector('.section');
     const hasPlainTitle = first?.querySelector(
       ':scope > .default-content-wrapper h1',

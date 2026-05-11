@@ -665,9 +665,7 @@ function isOurRdLeadersPath() {
  */
 async function loadTemplateBeforeSections(doc) {
   let name;
-  if (isOurLeadersPath()) {
-    name = 'our-leaders';
-  } else if (isOurRdLeadersPath()) {
+  if (isOurLeadersPath() || isOurRdLeadersPath()) {
     name = 'our-rd-leaders';
   } else {
     const template = getMetadata('template');
@@ -691,10 +689,7 @@ async function loadTemplateBeforeSections(doc) {
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
   decorateTemplateAndTheme();
-  if (isOurLeadersPath()) {
-    document.body.classList.add('our-leaders');
-  }
-  if (isOurRdLeadersPath()) {
+  if (isOurLeadersPath() || isOurRdLeadersPath()) {
     document.body.classList.add('our-rd-leaders');
   }
   const main = doc.querySelector('main');
