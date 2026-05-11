@@ -37,7 +37,7 @@ body.our-rd-leaders main {
 }
 
 body.our-rd-leaders main > div.section {
-  margin: 40px auto;
+  margin: 0 auto;
 }
 
 body.our-rd-leaders main > .section.navy-dark + .section {
@@ -46,7 +46,7 @@ body.our-rd-leaders main > .section.navy-dark + .section {
 
 body.our-rd-leaders main .section.rd-leaders-contained {
   box-sizing: border-box;
-  width: min(100%, var(--rdl-max)) !important;
+  width: 100% !important;
   max-width: var(--rdl-max) !important;
   margin-left: auto !important;
   margin-right: auto !important;
@@ -56,7 +56,7 @@ body.our-rd-leaders main .section.rd-leaders-contained {
 
 body.our-rd-leaders main .section.rd-leaders-contained-top {
   border-top-left-radius: var(--rdl-card-radius);
-  border-top-right-radius: var(--rdl-card-radius);
+  border-top-right-radius: 0;
   overflow: hidden;
 }
 
@@ -152,6 +152,9 @@ body.our-rd-leaders .section.navy-dark {
   color: #fff;
   max-width: var(--rdl-max);
   padding: 0;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-bottom: 80px !important;
 }
 
 /* ── Hero interior ── */
@@ -285,8 +288,8 @@ body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-w
   width: auto;
   max-width: 100%;
   background-color: #fff;
-  border-top-left-radius: var(--rdl-card-radius);
-  border-top-right-radius: var(--rdl-card-radius);
+  border-top-left-radius: 40px;
+  border-top-right-radius: 0;
   margin: -40px 0 0;
   padding: 32px 40px 40px;
   color: #071d49;
@@ -305,14 +308,27 @@ body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-w
 body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper > p {
   font-family: var(--body-font-family);
   font-weight: 400;
-  font-size: 18px;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: 22px;
   color: #071d49;
   margin: 0 0 0.8rem;
 }
 
 body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper > p:last-child {
   margin-bottom: 0;
+}
+
+/* Listing page: cards-leaders section inside text-hero */
+body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .cards-leaders-wrapper {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: auto;
+  max-width: 100%;
+  background-color: var(--color-light-blue-bg);
+  border-top-left-radius: 40px;
+  padding: 60px 40px 80px;
+  margin: 0;
 }
 
 /* ── Cards-leaders — 3-col leader profile grid ── */
@@ -330,7 +346,7 @@ body.our-rd-leaders .cards-leaders > ul {
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 2.4rem;
+  gap: 48px 20px;
 }
 
 body.our-rd-leaders .cards-leaders > ul > li {
@@ -356,45 +372,48 @@ body.our-rd-leaders .cards-leaders .cards-leaders-card-image img {
   aspect-ratio: 16 / 9;
   object-fit: cover;
   display: block;
+  border-radius: 8px;
 }
 
 body.our-rd-leaders .cards-leaders .cards-leaders-card-body {
-  padding: 1.6rem 2rem 2rem;
+  padding: 16px 0 24px;
 }
 
 body.our-rd-leaders .cards-leaders .cards-leaders-card-body h4 {
-  font-family: "Roboto Regular", helvetica, arial, sans-serif;
-  font-size: 20px;
-  font-weight: 400;
-  line-height: 24px;
-  margin: 0 0 0.4rem;
+  font-family: var(--heading-font-family);
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 32px;
+  margin: 0 0 8px;
   color: #071d49;
 }
 
 body.our-rd-leaders .cards-leaders .cards-leaders-card-body p {
-  font-family: "Roboto Regular", helvetica, arial, sans-serif;
+  font-family: var(--body-font-family);
   font-size: 14px;
   font-weight: 400;
   line-height: 20px;
   color: #071d49;
-  margin: 0 0 1.2rem;
+  margin: 0 0 12px;
 }
 
 body.our-rd-leaders .cards-leaders .cards-leaders-card-body a {
-  font-family: "Roboto Bold", helvetica, arial, sans-serif;
+  font-family: var(--body-font-family);
   font-size: 14px;
   font-weight: 700;
   line-height: 20px;
   color: #0066f5;
   text-decoration: none;
-  display: flex;
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  display: inline-flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 4px;
 }
 
 body.our-rd-leaders .cards-leaders .cards-leaders-card-body a::after {
   content: "\2192";
-  font-size: 1.2rem;
+  font-size: 14px;
 }
 
 body.our-rd-leaders .cards-leaders .cards-leaders-card-body a:hover {
@@ -503,7 +522,8 @@ body.our-rd-leaders main .default-content-wrapper strong {
   color: #071d49;
 }
 
-body.our-rd-leaders main > .section:first-child:not(.columns-bio-container, .rd-leaders-text-hero) {
+body.our-rd-leaders main > .section:first-child {
+  margin-top: 0;
   padding-top: 0;
 }
 
@@ -511,6 +531,7 @@ body.our-rd-leaders main > .section:first-child:not(.columns-bio-container, .rd-
 @media (width >= 600px) {
   body.our-rd-leaders .cards-leaders > ul {
     grid-template-columns: repeat(2, 1fr);
+    gap: 48px 20px;
   }
 
   body.our-rd-leaders .hero-interior .hero-interior-content {
@@ -529,9 +550,11 @@ body.our-rd-leaders main > .section:first-child:not(.columns-bio-container, .rd-
   }
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper {
-    margin: -80px 70px 0;
-    padding: 56px 70px 0;
-    max-width: 1330px;
+    margin: -80px 0 0;
+    padding: 56px 70px 40px;
+    max-width: 100%;
+    border-top-left-radius: 40px;
+    border-top-right-radius: 0;
   }
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper h1 {
@@ -542,6 +565,14 @@ body.our-rd-leaders main > .section:first-child:not(.columns-bio-container, .rd-
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero {
     padding-top: 220px;
+  }
+
+  body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .cards-leaders-wrapper {
+    margin: 0;
+    padding: 60px 70px 80px;
+    max-width: 100%;
+    background-color: var(--color-light-blue-bg);
+    border-top-left-radius: 40px;
   }
 
   body.our-rd-leaders .hero-interior .hero-interior-image img {
@@ -592,31 +623,45 @@ body.our-rd-leaders main > .section:first-child:not(.columns-bio-container, .rd-
   }
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper {
-    margin: -112px 55px 0;
-    padding: 80px 204px 24px;
-    max-width: 1330px;
+    margin: -112px 0 0;
+    padding: 80px 55px 24px;
+    max-width: 100%;
+    box-sizing: border-box;
+    border-top-left-radius: 40px;
+    border-top-right-radius: 0;
   }
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper h1 {
-    font-size: 64px;
-    line-height: 68px;
-    letter-spacing: -1.28px;
+    font-size: 40px;
+    line-height: 44px;
+    letter-spacing: -0.8px;
     max-width: 920px;
   }
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper > p {
-    font-size: 18px;
-    line-height: 24px;
+    font-size: 16px;
+    line-height: 22px;
     max-width: 920px;
+  }
+
+  body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .cards-leaders-wrapper {
+    margin: 0;
+    padding: 80px 55px 80px;
+    max-width: 100%;
+    box-sizing: border-box;
+    background-color: var(--color-light-blue-bg);
+    border-top-left-radius: 40px;
   }
 
   body.our-rd-leaders .cards-leaders > ul {
     grid-template-columns: repeat(3, 1fr);
+    gap: 56px 20px;
   }
 
   body.our-rd-leaders .cards-leaders .cards-leaders-card-body h4 {
-    font-size: 20px;
-    line-height: 24px;
+    font-size: 28px;
+    font-weight: 650;
+    line-height: 32px;
   }
 
   body.our-rd-leaders .cards-leaders .cards-leaders-card-body p {

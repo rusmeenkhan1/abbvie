@@ -109,7 +109,7 @@ export default function decorate(doc) {
     heroSection.classList.add('navy-dark');
   }
 
-  if (!heroSection && isRdLeaderProfilePath()) {
+  if (!heroSection && (isRdLeaderProfilePath() || isRdLeadersListingPath())) {
     const first = roots[0] || main.querySelector('.section');
     const hasPlainTitle = first?.querySelector(
       ':scope > .default-content-wrapper h1',
