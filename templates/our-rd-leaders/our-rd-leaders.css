@@ -486,9 +486,10 @@ body.our-rd-leaders .columns-bio .columns-bio-img-col img,
 body.our-rd-leaders .columns-bio > div > div:first-child img {
   width: 100%;
   height: auto;
+  aspect-ratio: 1 / 1;
   border-radius: 0;
   display: block;
-  object-fit: fill;
+  object-fit: cover;
 }
 
 body.our-rd-leaders .columns-bio p {
@@ -518,6 +519,22 @@ body.our-rd-leaders main a[href*="linkedin.com" i] {
   text-decoration: none;
   color: #0066f5;
   background-color: transparent;
+}
+
+body.our-rd-leaders .columns-bio a[href*="linkedin.com" i]::after,
+body.our-rd-leaders main a[href*="linkedin.com" i]::after {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 4px;
+  background-color: currentcolor;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1 11L11 1M11 1H3M11 1v8' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1 11L11 1M11 1H3M11 1v8' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
 }
 
 body.our-rd-leaders .columns-bio a[href*="linkedin.com" i]:hover,
