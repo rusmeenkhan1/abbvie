@@ -409,7 +409,7 @@ body.our-rd-leaders .cards-leaders .cards-leaders-card-body a {
   font-size: 14px;
   font-weight: 700;
   line-height: 20px;
-  color: #071d49;
+  color: #0066f5;
   text-decoration: none;
   text-transform: uppercase;
   letter-spacing: 0.84px;
@@ -425,7 +425,7 @@ body.our-rd-leaders .cards-leaders .cards-leaders-card-body a::after {
 }
 
 body.our-rd-leaders .cards-leaders > ul > li:hover .cards-leaders-card-body a {
-  color: #0066f5;
+  color: #071d49;
 }
 
 body.our-rd-leaders .cards-leaders > ul > li {
