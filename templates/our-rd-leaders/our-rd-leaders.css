@@ -55,7 +55,10 @@ body.our-rd-leaders main .section.rd-leaders-contained {
 }
 
 body.our-rd-leaders main .section.rd-leaders-contained-top {
-  border-radius: 0;
+  border-top-left-radius: 80px;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
   overflow: hidden;
 }
 
@@ -284,12 +287,12 @@ body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-w
   position: relative;
   z-index: 1;
   box-sizing: border-box;
-  width: 100%;
-  max-width: 100%;
+  width: calc(100% - 70px);
+  max-width: 1220px;
   background-color: #fff;
   border-top-left-radius: 40px;
   border-top-right-radius: 0;
-  margin: -40px 0 0;
+  margin: -40px auto 0;
   padding: 32px 40px 40px;
   color: #071d49;
 }
@@ -424,6 +427,18 @@ body.our-rd-leaders .cards-leaders .cards-leaders-card-body a:hover {
   text-decoration: underline;
 }
 
+body.our-rd-leaders .cards-leaders > ul > li {
+  position: relative;
+  cursor: pointer;
+}
+
+body.our-rd-leaders .cards-leaders .cards-leaders-card-cover-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  text-decoration: none;
+}
+
 body.our-rd-leaders .cards-leaders > ul > li:has(.cards-leaders-card-cover-link:focus-visible) {
   box-shadow: 0 0 0 3px var(--link-color);
 }
@@ -554,10 +569,10 @@ body.our-rd-leaders main > .section:first-child {
   }
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper {
-    margin: -80px 0 0;
+    margin: -80px auto 0;
     padding: 56px 70px 40px;
-    width: 100%;
-    max-width: 100%;
+    width: calc(100% - 100px);
+    max-width: 1220px;
     border-top-left-radius: 40px;
     border-top-right-radius: 0;
   }
@@ -627,10 +642,10 @@ body.our-rd-leaders main > .section:first-child {
   }
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper {
-    margin: -112px 0 0;
+    margin: -112px auto 0;
     padding: 80px 55px 24px;
-    width: 100%;
-    max-width: 100%;
+    width: calc(100% - 110px);
+    max-width: 1220px;
     box-sizing: border-box;
     border-top-left-radius: 40px;
     border-top-right-radius: 0;
