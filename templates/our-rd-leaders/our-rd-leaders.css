@@ -117,7 +117,7 @@ body.our-rd-leaders main > .section.columns-bio-container > div {
 
 body.our-rd-leaders main > .section.columns-bio-container {
   background-color: var(--background-color);
-  padding-top: 0;
+  padding-top: 80px;
   padding-bottom: 0;
 }
 
@@ -298,7 +298,7 @@ body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-w
 }
 
 body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper h1 {
-  font-family: var(--heading-font-family);
+  font-family: "F37 Lineca Medium", helvetica, arial, sans-serif;
   font-size: 30px;
   font-weight: 800;
   line-height: 34px;
@@ -493,9 +493,9 @@ body.our-rd-leaders .columns-bio > div > div:first-child img {
 
 body.our-rd-leaders .columns-bio p {
   font-family: "Roboto Regular", helvetica, arial, sans-serif;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 400;
-  line-height: 20px;
+  line-height: 24px;
   color: #071d49;
   margin: 0 0 16px;
 }
@@ -590,6 +590,7 @@ body.our-rd-leaders main > .section:first-child {
   }
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper h1 {
+    font-family: "F37 Lineca Medium", helvetica, arial, sans-serif;
     font-size: 40px;
     line-height: 44px;
     letter-spacing: -0.8px;
@@ -664,9 +665,10 @@ body.our-rd-leaders main > .section:first-child {
   }
 
   body.our-rd-leaders .section.navy-dark.rd-leaders-text-hero > .default-content-wrapper h1 {
-    font-size: 40px;
-    line-height: 44px;
-    letter-spacing: -0.8px;
+    font-family: "F37 Lineca Medium", helvetica, arial, sans-serif;
+    font-size: 64px;
+    line-height: 68px;
+    letter-spacing: -1.28px;
     max-width: 920px;
   }
 
