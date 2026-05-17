@@ -22,6 +22,22 @@
   flex-direction: column;
 }
 
+/* Card image */
+.columns-cta .columns-cta-image {
+  margin: 0 0 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.columns-cta .columns-cta-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  aspect-ratio: 3 / 4;
+}
+
 /* Paragraph text -- source: 18px/24px, navy, Roboto, weight 400, margin 0 */
 .columns-cta > div > div p {
   font-size: var(--body-font-size-m);
