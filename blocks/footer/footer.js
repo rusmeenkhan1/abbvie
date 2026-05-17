@@ -72,14 +72,13 @@ export default async function decorate(block) {
   block.textContent = '';
 
   if (fragment) {
-    // Extract all section wrappers from the fragment
+    // Extract only .section wrappers from the fragment (skip head tags like meta/script/link)
     const sections = [];
-    while (fragment.firstElementChild) {
-      const section = fragment.firstElementChild;
+    fragment.querySelectorAll(':scope > .section').forEach((section) => {
       const wrapper = section.querySelector('.default-content-wrapper');
       sections.push(wrapper || section);
-      if (section.parentElement) section.remove();
-    }
+      section.remove();
+    });
 
     // sections[0]: Logo + Nav links + Social links
     // sections[1]: Popular pages (h2 + ul)

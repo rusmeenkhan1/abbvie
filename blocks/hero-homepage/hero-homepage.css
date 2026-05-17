@@ -1,38 +1,47 @@
+/* hero-homepage wrapper - full width, no padding */
 .hero-homepage-wrapper {
   max-width: unset;
   padding: 0;
   background-color: transparent;
 }
 
+/* Block container - dark background, rounded top-left corner */
 .hero-homepage {
   position: relative;
   box-sizing: border-box;
   min-height: 520px;
   overflow: hidden;
   background-color: var(--color-navy);
+  border-radius: 40px 0 0;
 }
 
-.hero-homepage::before {
+/* Gradient overlay - black-based, matching source computed style:
+   linear-gradient(0deg, rgba(0,0,0,0.9) 42.91%, rgba(0,0,0,0)) */
+.hero-homepage::after {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    to top,
-    rgb(7 29 73 / 90%) 0%,
-    rgb(7 29 73 / 70%) 30%,
-    rgb(7 29 73 / 40%) 55%,
-    rgb(7 29 73 / 20%) 75%,
-    transparent 100%
+    0deg,
+    rgb(0 0 0 / 90%) 0%,
+    rgb(0 0 0 / 70%) 25%,
+    rgb(0 0 0 / 40%) 43%,
+    rgb(0 0 0 / 0%) 70%
   );
   z-index: 2;
   pointer-events: none;
 }
 
+/* Paragraphs - white text, no margin (extracted: color rgb(255,255,255), margin 0) */
 .hero-homepage p {
   color: var(--background-color);
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-s);
+  line-height: 22px;
   margin: 0;
 }
 
+/* Images - cover the slide absolutely (extracted: object-fit cover, position absolute) */
 .hero-homepage img {
   object-fit: cover;
   width: 100%;
@@ -66,23 +75,27 @@
 /* Content container at bottom */
 .hero-homepage .hero-homepage-slide > div:last-child {
   position: absolute;
-  bottom: 180px;
+  bottom: 140px;
   left: 24px;
   right: 24px;
   z-index: 3;
   max-width: var(--content-max-width);
 }
 
+/* Heading - white, bold (extracted: 64px/68px at 1440, 40px/44px at 780px) */
 .hero-homepage h1 {
+  font-family: var(--heading-font-family);
   font-size: var(--heading-font-size-xxl);
   font-weight: 800;
   line-height: 1.1;
-  letter-spacing: -0.02em;
+  letter-spacing: normal;
   margin: 0 0 24px;
   color: var(--background-color);
   max-width: 700px;
 }
 
+/* Links - light blue, uppercase, underline via ::after
+   (extracted: color rgb(71,159,248), 14px, 700, uppercase, letter-spacing 0.84px) */
 .hero-homepage a:any-link {
   color: var(--link-color-light);
   border: none;
@@ -118,15 +131,53 @@
   background-color: var(--background-color);
 }
 
+/* Navigation dots */
+.hero-homepage .hero-homepage-nav {
+  position: absolute;
+  bottom: 48px;
+  left: 24px;
+  z-index: 4;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.hero-homepage .hero-homepage-nav button {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / 70%);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: background-color var(--transition-speed), border-color var(--transition-speed);
+}
+
+.hero-homepage .hero-homepage-nav button[aria-selected="true"] {
+  background-color: var(--background-color);
+  border-color: var(--background-color);
+}
+
+.hero-homepage .hero-homepage-nav button:hover {
+  border-color: var(--background-color);
+}
+
+/* Tablet */
 @media (width >= 900px) {
   .hero-homepage {
     min-height: 720px;
+    border-radius: 60px 0 0;
   }
 
   .hero-homepage .hero-homepage-slide > div:last-child {
-    bottom: 240px;
+    bottom: 220px;
     left: 55px;
     right: 55px;
+  }
+
+  .hero-homepage .hero-homepage-nav {
+    bottom: 60px;
+    left: 55px;
   }
 
   .hero-homepage h1 {
@@ -136,15 +187,22 @@
   }
 }
 
+/* Desktop */
 @media (width >= 1200px) {
   .hero-homepage {
     min-height: 810px;
+    border-radius: 80px 0 0;
   }
 
   .hero-homepage .hero-homepage-slide > div:last-child {
-    bottom: 310px;
+    bottom: 300px;
     left: 110px;
     right: 110px;
+  }
+
+  .hero-homepage .hero-homepage-nav {
+    bottom: 80px;
+    left: 110px;
   }
 
   .hero-homepage h1 {
