@@ -15,7 +15,7 @@
   align-items: center;
   text-align: center;
   overflow: hidden;
-  border-radius: 0;
+  border-radius: 40px 0 0;
   margin: 0 auto;
   max-width: 1330px;
   background-color: var(--color-navy);
@@ -25,7 +25,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgb(7 29 73 / 65%) 0%, rgb(7 29 73 / 35%) 40%, rgb(7 29 73 / 15%) 70%, transparent 100%);
+  background: linear-gradient(0deg, rgb(0 0 0 / 90%) 0%, rgb(0 0 0 / 60%) 42.91%, transparent 100%);
   z-index: 1;
 }
 
@@ -94,8 +94,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 2px solid var(--background-color);
-  padding: 14px 36px;
+  border: 1px solid var(--background-color);
+  padding: 16px 40px;
   margin-top: 20px;
   background: transparent;
   text-decoration: none;
@@ -107,6 +107,44 @@
   text-decoration: none;
 }
 
+.hero-video .hero-video-play-btn {
+  z-index: 2;
+  position: relative;
+  color: var(--background-color);
+  font-weight: 700;
+  font-size: var(--body-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--background-color);
+  padding: 16px 40px;
+  margin-top: 20px;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--body-font-family);
+}
+
+.hero-video .hero-video-play-btn::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent #fff;
+}
+
+.hero-video .hero-video-play-btn:hover {
+  background-color: var(--background-color);
+  color: var(--color-navy);
+}
+
+.hero-video .hero-video-play-btn:hover::before {
+  border-color: transparent transparent transparent var(--color-navy);
+}
+
 @media (width >= 900px) {
   .hero-video-wrapper {
     padding: 0 55px;
@@ -115,6 +153,7 @@
   .hero-video {
     padding: 80px 64px;
     min-height: 560px;
+    border-radius: 80px 0 0;
   }
 
   .hero-video h1,
@@ -127,6 +166,6 @@
 
 @media (width >= 1200px) {
   .hero-video {
-    min-height: 640px;
+    min-height: 660px;
   }
 }

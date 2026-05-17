@@ -1,0 +1,109 @@
+/* Banner CTA -- extracted from source: abbvie.com */
+
+/* Source outer container: bg rgb(166, 181, 224), border-radius 40px 0 0, padding 80px 55px 0 */
+
+/* Source heading: 40px / 650 / white / line-height 44px */
+
+/* Source paragraph: 18px / 400 / white / line-height 24px */
+
+/* Source button: 1px solid white, padding 16px 40px, 14px / 700 / uppercase / letter-spacing 0.84px */
+
+.banner-cta-wrapper {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--content-padding);
+}
+
+.banner-cta {
+  background: linear-gradient(135deg, var(--color-navy) 0%, #0a3a8f 60%, var(--color-blue) 100%);
+  border-radius: 16px;
+  padding: 40px 24px;
+}
+
+.banner-cta > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+/* Heading: source 40px / 650 / white / 44px line-height */
+.banner-cta h4 {
+  font-family: var(--heading-font-family);
+  font-size: var(--heading-font-size-l);
+  color: var(--background-color);
+  margin: 0;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+/* Description text: source 18px / 400 / white / 24px line-height */
+.banner-cta > div > div:nth-child(2) {
+  color: var(--background-color);
+  font-size: var(--body-font-size-m);
+  line-height: 24px;
+}
+
+.banner-cta > div > div:nth-child(2) p {
+  margin: 0;
+  color: var(--background-color);
+}
+
+.banner-cta > div > div:last-child p {
+  margin: 0;
+}
+
+/* Button: source 1px solid white, padding 16px 40px, 14px / 700 / uppercase / 0.84px spacing */
+.banner-cta > div > div:last-child a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--background-color);
+  color: var(--background-color);
+  background: transparent;
+  padding: 16px 40px;
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.84px;
+  text-decoration: none;
+  border-radius: 0;
+  line-height: 20px;
+  transition: background-color var(--transition-speed), color var(--transition-speed);
+  white-space: nowrap;
+}
+
+.banner-cta > div > div:last-child a:hover {
+  background-color: var(--background-color);
+  color: var(--color-navy);
+}
+
+@media (width >= 900px) {
+  .banner-cta {
+    padding: 56px 64px;
+    border-radius: 80px 16px 16px;
+  }
+
+  .banner-cta > div {
+    flex-direction: row;
+    align-items: center;
+    gap: 48px;
+  }
+
+  .banner-cta > div > div:first-child {
+    flex: 0 0 auto;
+  }
+
+  .banner-cta h4 {
+    font-size: 40px;
+    line-height: 44px;
+  }
+
+  .banner-cta > div > div:nth-child(2) {
+    flex: 1 1 auto;
+  }
+
+  .banner-cta > div > div:last-child {
+    flex: 0 0 auto;
+  }
+}

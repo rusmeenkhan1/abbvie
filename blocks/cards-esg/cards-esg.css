@@ -1,3 +1,7 @@
+/* Block: cards-esg
+   ESG section with full background image, dark navy overlay, and white card grid.
+   Source: padding 80px 55px 0, border-radius 80px 0 0, min-height 448px */
+
 .cards-esg-wrapper {
   padding: 0;
   max-width: unset;
@@ -7,6 +11,7 @@
   position: relative;
   overflow: hidden;
   min-height: 400px;
+  border-radius: 80px 0 0;
 }
 
 /* Background image covering the full block */
@@ -21,16 +26,17 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 50%;
   display: block;
 }
 
-/* Gradient overlay on background */
+/* Dark navy overlay on background - source uses semi-transparent navy tint */
 .cards-esg::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgb(255 255 255 / 20%) 0%, rgb(255 255 255 / 10%) 100%);
-  z-index: 0;
+  background: rgb(7 29 73 / 65%);
+  z-index: 1;
   pointer-events: none;
 }
 
@@ -38,12 +44,16 @@
 .cards-esg > ul {
   list-style: none;
   margin: 0;
-  padding: 32px 24px;
+  padding: 48px 24px;
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
   position: relative;
-  z-index: 1;
+  z-index: 2;
+}
+
+.cards-esg > ul:empty {
+  display: none;
 }
 
 .cards-esg > ul > li {
@@ -52,7 +62,7 @@
   padding: 32px;
 }
 
-/* First card: Stats card */
+/* First card: Stats card — eyebrow + large stat number + description */
 .cards-esg > ul > li:first-child .cards-esg-card-body p:first-child {
   font-size: var(--body-font-size-xxs);
   font-weight: 700;
@@ -74,7 +84,7 @@
 
 .cards-esg > ul > li:first-child .cards-esg-card-body p:last-child {
   font-size: var(--body-font-size-s);
-  line-height: 1.4;
+  line-height: 1.25;
   margin: 0;
   color: var(--text-color);
 }
@@ -114,17 +124,18 @@
 
 .cards-esg > ul > li:nth-child(2) .cards-esg-card-body h4 {
   font-size: var(--heading-font-size-m);
-  font-weight: 700;
+  font-weight: 650;
   color: var(--color-navy);
-  margin: 0 0 12px;
-  line-height: 1.2;
+  margin: 0 0 8px;
+  line-height: 36px;
 }
 
 /* stylelint-disable-next-line no-descending-specificity */
 .cards-esg > ul > li:nth-child(2) .cards-esg-card-body p {
   font-size: var(--body-font-size-s);
-  line-height: 1.5;
+  line-height: 20px;
   margin: 0 0 8px;
+  color: var(--color-navy);
 }
 
 .cards-esg > ul > li:nth-child(2) .cards-esg-card-body p:last-child a {
@@ -147,9 +158,10 @@
 
 .cards-esg > ul > li:nth-child(3) .cards-esg-card-body h5 {
   font-size: var(--heading-font-size-s);
-  font-weight: 700;
+  font-weight: 650;
   color: var(--color-navy);
   margin: 0 0 16px;
+  line-height: 36px;
 }
 
 /* stylelint-disable-next-line no-descending-specificity */
@@ -170,22 +182,33 @@
   border-bottom: 1px solid var(--color-grey-border);
 }
 
+/* Responsive: desktop layout */
 @media (width >= 900px) {
   .cards-esg {
-    min-height: 500px;
+    min-height: 448px;
   }
 
   .cards-esg > ul {
-    grid-template-columns: repeat(3, 1fr);
-    padding: 80px 70px;
-    gap: 24px;
+    grid-template-columns: 1fr 1fr 2fr;
+    padding: 80px 55px 0;
+    gap: 20px;
   }
 
   .cards-esg > ul > li {
-    padding: 40px;
+    padding: 32px;
   }
 
   .cards-esg > ul > li:first-child .cards-esg-card-body h4 {
     font-size: 80px;
+  }
+
+  .cards-esg > ul > li:nth-child(2) .cards-esg-card-body h4 {
+    font-size: 32px;
+    line-height: 36px;
+  }
+
+  .cards-esg > ul > li:nth-child(3) .cards-esg-card-body h5 {
+    font-size: 32px;
+    line-height: 36px;
   }
 }

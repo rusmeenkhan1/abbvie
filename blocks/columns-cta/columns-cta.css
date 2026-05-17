@@ -1,0 +1,112 @@
+/* Block: columns-cta -- 3-column card layout (image + text + CTA link) */
+
+/* Source: AbbVie "Culture of Curiosity" section */
+
+.columns-cta-wrapper {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--content-padding);
+}
+
+/* Row: single row containing 3 column cells */
+.columns-cta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* Card column */
+.columns-cta > div > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Card image */
+.columns-cta .columns-cta-image {
+  margin: 0 0 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.columns-cta .columns-cta-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  aspect-ratio: 3 / 4;
+}
+
+/* Paragraph text -- source: 18px/24px, navy, Roboto, weight 400, margin 0 */
+.columns-cta > div > div p {
+  font-size: var(--body-font-size-m);
+  line-height: 24px;
+  color: var(--color-navy);
+  font-family: var(--body-font-family);
+  font-weight: 400;
+  margin: 0 0 24px;
+}
+
+/* Last paragraph (link container) -- remove bottom margin */
+.columns-cta > div > div p:last-child {
+  margin-top: auto;
+  margin-bottom: 0;
+}
+
+/* CTA links -- source: 14px, 700, blue, uppercase, letter-spacing 0.84px */
+.columns-cta > div > div a {
+  font-size: var(--body-font-size-xs);
+  font-weight: 700;
+  color: var(--color-blue);
+  font-family: var(--body-font-family);
+  text-transform: uppercase;
+  text-decoration: none;
+  letter-spacing: 0.84px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  padding-bottom: 4px;
+  transition: color var(--transition-speed) ease;
+}
+
+/* Chevron arrow after link text -- source has ::after with ~9px wide arrow */
+.columns-cta > div > div a::after {
+  content: '\203A';
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Underline effect on links */
+.columns-cta > div > div a::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-blue);
+  transition: background-color var(--transition-speed) ease;
+}
+
+.columns-cta > div > div a:hover {
+  color: var(--color-navy);
+  text-decoration: none;
+}
+
+.columns-cta > div > div a:hover::before {
+  background-color: var(--color-navy);
+}
+
+/* Desktop: 3 columns in a row */
+
+/* Source: display: grid, grid-template-columns: 3 equal, gap: 20px */
+@media (width >= 900px) {
+  .columns-cta > div {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+}

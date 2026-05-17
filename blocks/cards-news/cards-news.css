@@ -1,113 +1,203 @@
+/* Block: cards-news
+ * Two-column layout: Press Releases carousel (left) + Featured (right)
+ * Overlaps hero section with white background and rounded top-left corner.
+ * Extracted values from source computed styles at 1440px viewport.
+ */
+
+/* Wrapper: full-width, overlaps hero, white bg covers hero's navy */
 .cards-news-wrapper {
   max-width: unset;
   padding: 0;
-  background-color: transparent;
+  background-color: var(--background-color);
   position: relative;
   z-index: 2;
 }
 
+/* Base (mobile) - stacked layout */
 .cards-news {
-  max-width: 1330px;
-  margin: -180px auto 0;
+  max-width: var(--content-max-width);
+  margin: -200px auto 0;
   padding: 0 24px;
   display: flex;
   flex-direction: column;
   gap: 0;
   position: relative;
   z-index: 1;
+  background-color: var(--background-color);
+  border-radius: 24px 0 0;
 }
 
-/* Press Releases column */
+/* ========================================
+   Press Releases column
+   ======================================== */
 .cards-news .cards-news-press {
   background-color: var(--background-color);
-  padding: 32px;
+  padding: 32px 0;
   flex: 1;
 }
 
 .cards-news .cards-news-press h2 {
   font-size: var(--body-font-size-xs);
   font-weight: 700;
+  font-family: var(--body-font-family);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-navy);
   margin: 0 0 16px;
+  line-height: 20px;
 }
 
 .cards-news .cards-news-press hr {
   border: none;
-  border-top: 3px solid var(--link-color);
+  border-top: 1px solid rgb(185 180 180);
   margin: 0 0 8px;
 }
 
-.cards-news .cards-news-press ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* ========================================
+   Carousel: viewport + slides
+   ======================================== */
+.cards-news .cards-news-carousel-viewport {
+  position: relative;
+  overflow: hidden;
 }
 
-.cards-news .cards-news-press ul li {
-  padding: 20px 0;
-  border-bottom: 1px solid var(--color-grey-border);
+.cards-news .cards-news-carousel-slide {
+  display: none;
+  padding: 20px 0 0;
 }
 
-.cards-news .cards-news-press ul li:last-child {
-  border-bottom: none;
+.cards-news .cards-news-carousel-slide.active {
+  display: block;
 }
 
+/* Hide the empty first card-body div in each press release item */
+.cards-news .cards-news-press .cards-news-card-body:first-child:empty {
+  display: none;
+}
+
+/* Date text – extracted: 14px, 700, rgb(102,107,122), uppercase, 0.84px spacing */
+/* stylelint-disable-next-line no-descending-specificity */
 .cards-news .cards-news-press .cards-news-card-body p:first-child {
-  font-size: var(--body-font-size-xxs);
+  font-size: var(--body-font-size-xs);
   font-weight: 700;
-  color: var(--link-color);
+  font-family: var(--body-font-family);
+  color: rgb(102 107 122);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin: 0 0 4px;
+  line-height: 20px;
+  margin: 0 0 12px;
 }
 
+/* Headline text – extracted: 20px, 400, rgb(7,29,73), 24px line-height */
 .cards-news .cards-news-press .cards-news-card-body h4 {
-  font-size: var(--body-font-size-s);
+  font-size: 20px;
   font-weight: 400;
+  font-family: var(--body-font-family);
   color: var(--color-navy);
   margin: 0 0 8px;
-  line-height: 1.4;
+  line-height: 24px;
   letter-spacing: 0;
 }
 
+/* Hide the repeated link text below each headline */
 .cards-news .cards-news-press .cards-news-card-body p:last-child {
-  margin: 0;
+  display: none;
 }
 
-.cards-news .cards-news-press .cards-news-card-body p:last-child a {
-  font-size: var(--body-font-size-xxs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+/* ========================================
+   Carousel navigation: arrows + dots
+   ======================================== */
+.cards-news .cards-news-carousel-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 0 0;
 }
 
-/* Featured column */
+/* Arrow buttons */
+.cards-news .cards-news-carousel-prev,
+.cards-news .cards-news-carousel-next {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-navy);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+
+.cards-news .cards-news-carousel-prev:hover,
+.cards-news .cards-news-carousel-next:hover {
+  opacity: 0.6;
+}
+
+.cards-news .cards-news-carousel-prev svg,
+.cards-news .cards-news-carousel-next svg {
+  display: block;
+}
+
+/* Dot indicators */
+.cards-news .cards-news-carousel-dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cards-news .cards-news-carousel-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background-color: rgb(166 181 224);
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.cards-news .cards-news-carousel-dot.active {
+  background-color: var(--color-navy);
+}
+
+.cards-news .cards-news-carousel-dot:hover {
+  background-color: var(--color-navy);
+}
+
+/* ========================================
+   Featured column
+   ======================================== */
 .cards-news .cards-news-featured {
   background-color: var(--background-color);
-  padding: 32px;
+  padding: 32px 0;
   flex: 1;
 }
 
 .cards-news .cards-news-featured h2 {
   font-size: var(--body-font-size-xs);
   font-weight: 700;
+  font-family: var(--body-font-family);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-navy);
   margin: 0 0 16px;
+  line-height: 20px;
 }
 
 .cards-news .cards-news-featured hr {
   border: none;
-  border-top: 3px solid var(--link-color);
+  border-top: 1px solid rgb(185 180 180);
   margin: 0 0 24px;
 }
 
 .cards-news .cards-news-featured-card {
   display: flex;
   flex-direction: column;
+  gap: 20px;
 }
 
 .cards-news .cards-news-card-image {
@@ -117,95 +207,128 @@
 
 .cards-news .cards-news-card-image img {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: auto;
   object-fit: cover;
   display: block;
 }
 
+/* stylelint-disable-next-line no-descending-specificity */
 .cards-news .cards-news-featured .cards-news-card-body {
-  padding: 20px 0 0;
+  padding: 0;
 }
 
-.cards-news .cards-news-featured .cards-news-card-body p:first-child {
-  font-size: var(--body-font-size-xxs);
-  font-weight: 400;
-  color: var(--text-color);
-  opacity: 0.6;
-  letter-spacing: 0.04em;
-  margin: 0 0 4px;
-  text-transform: uppercase;
+/* Featured heading – extracted: 32px, 650, F37 Lineca, 36px line-height, navy */
+.cards-news .cards-news-featured .cards-news-card-body h4 {
+  font-size: var(--heading-font-size-l);
+  font-weight: 650;
+  font-family: var(--heading-font-family);
+  color: var(--color-navy);
+  margin: 0 0 16px;
+  line-height: 1.13;
+  letter-spacing: 0;
 }
 
-.cards-news .cards-news-featured .cards-news-card-body p:nth-child(2) {
-  font-size: var(--body-font-size-xxs);
+/* Featured link – extracted: 14px, 700, blue, uppercase, 0.84px spacing */
+/* stylelint-disable-next-line no-descending-specificity */
+.cards-news .cards-news-featured .cards-news-card-body p:last-child {
+  margin: 0;
+}
+
+.cards-news .cards-news-featured .cards-news-card-body p:last-child a {
+  font-size: var(--body-font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--link-color);
-  margin: 0 0 8px;
+  text-decoration: none;
 }
 
-.cards-news .cards-news-featured .cards-news-card-body h4 {
-  font-size: var(--heading-font-size-l);
-  font-weight: 800;
-  color: var(--color-navy);
-  margin: 0 0 12px;
-  line-height: 1.2;
+/* Reset EDS button styles on featured link */
+main .cards-news .cards-news-featured .cards-news-card-body p.button-wrapper {
+  margin: 0;
 }
 
-/* stylelint-disable-next-line no-descending-specificity */
-.cards-news .cards-news-featured .cards-news-card-body p {
-  font-size: var(--body-font-size-s);
-  color: var(--text-color);
-  line-height: 1.5;
-  margin: 0 0 8px;
-}
-
-.cards-news .cards-news-featured .cards-news-card-body p:last-child a {
-  font-size: var(--body-font-size-xxs);
+main .cards-news .cards-news-featured a.button:any-link {
+  border: none;
+  padding: 0;
+  background-color: transparent;
+  color: var(--link-color);
+  font-size: var(--body-font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  display: inline;
+  white-space: normal;
 }
 
+main .cards-news .cards-news-featured a.button:hover {
+  background-color: transparent;
+  color: var(--link-hover-color);
+  text-decoration: underline;
+}
+
+/* ========================================
+   Desktop layout
+   Extracted column ratios: press ~33%, gap ~7%, featured ~58%
+   ======================================== */
 @media (width >= 900px) {
   .cards-news {
     flex-direction: row;
-    margin: -276px 55px 80px;
+    margin: -276px auto 80px;
     padding: 0;
-    max-width: 1330px;
-    margin-left: auto;
-    margin-right: auto;
+    max-width: var(--content-max-width);
+    background-color: var(--background-color);
+    border-radius: 40px 0 0;
   }
 
   .cards-news .cards-news-press {
-    flex: 0 0 50%;
-    padding: 40px 48px;
+    flex: 0 0 33%;
+    padding: 56px 0 40px 55px;
   }
 
   .cards-news .cards-news-featured {
-    flex: 0 0 50%;
-    padding: 40px 48px;
+    flex: 1;
+    padding: 56px 55px 40px 0;
+    margin-left: 55px;
   }
 
   .cards-news .cards-news-featured-card {
     flex-direction: row;
     gap: 20px;
+    align-items: flex-start;
   }
 
   .cards-news .cards-news-card-image {
-    flex: 0 0 200px;
+    flex: 0 0 40%;
+    max-width: 260px;
   }
 
   .cards-news .cards-news-card-image img {
-    aspect-ratio: 1 / 1;
-    width: 200px;
-    height: 200px;
+    width: 100%;
+    height: auto;
+    aspect-ratio: auto;
   }
 
   .cards-news .cards-news-featured .cards-news-card-body {
-    padding: 0;
     flex: 1;
     min-width: 0;
+    padding: 0;
+  }
+
+  .cards-news .cards-news-featured .cards-news-card-body h4 {
+    font-size: 32px;
+    line-height: 36px;
+  }
+
+  .cards-news .cards-news-press .cards-news-card-body h4 {
+    font-size: 20px;
+    line-height: 24px;
+  }
+}
+
+/* Large desktop – source uses 80px radius at wider viewports */
+@media (width >= 1200px) {
+  .cards-news {
+    border-radius: 80px 0 0;
   }
 }

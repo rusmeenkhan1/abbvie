@@ -1,5 +1,9 @@
+/* Block: cards-dashboard
+   Dashboard-style card layout: main clickable card with image + stat cards.
+   Extracted from https://www.abbvie.com/ source computed styles. */
+
 .cards-dashboard-wrapper {
-  background-color: var(--background-color);
+  max-width: var(--content-max-width);
   padding: 0;
 }
 
@@ -9,10 +13,13 @@
   padding: 0;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 0;
 }
 
-/* First card: image + text overlay, blue bg */
+/* ============================
+   Card 0: Main clickable card (image + text)
+   Source: bg rgb(241, 243, 255), flex row, image 50% + body 50%
+   ============================ */
 .cards-dashboard > ul > li:first-child {
   background-color: var(--color-light-blue-bg);
   overflow: hidden;
@@ -35,6 +42,7 @@
   padding: 24px 32px;
 }
 
+/* Eyebrow: "Science" - source: 12px, 700, uppercase, 0.06em, blue */
 .cards-dashboard > ul > li:first-child .cards-dashboard-card-body p:first-child {
   font-size: var(--body-font-size-xxs);
   font-weight: 700;
@@ -44,23 +52,72 @@
   margin: 0 0 8px;
 }
 
+/* Title: source: 32px, 650, navy, line-height 36px */
 .cards-dashboard > ul > li:first-child .cards-dashboard-card-body h4 {
   font-size: var(--heading-font-size-m);
-  font-weight: 700;
+  font-weight: 650;
   color: var(--color-navy);
   margin: 0 0 12px;
-  line-height: 1.2;
+  line-height: 1.13;
+}
+
+/* Description paragraph */
+.cards-dashboard > ul > li:first-child .cards-dashboard-card-body p:nth-child(3) {
+  font-size: var(--body-font-size-s);
+  font-weight: 400;
+  color: var(--color-navy);
+  line-height: 1.25;
+  margin: 0 0 16px;
+}
+
+/* "Learn More" CTA link - source: 14px, 700, uppercase, 0.84px spacing, blue */
+.cards-dashboard > ul > li:first-child .cards-dashboard-card-body p:last-child {
+  margin: 0;
 }
 
 .cards-dashboard > ul > li:first-child .cards-dashboard-card-body p:last-child a {
-  font-size: var(--body-font-size-xxs);
+  font-size: var(--body-font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  color: var(--link-color);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
 }
 
-/* Stats cards (2nd and 3rd) */
-.cards-dashboard > ul > li:nth-child(n+2) {
+.cards-dashboard > ul > li:first-child .cards-dashboard-card-body p:last-child a::after {
+  content: '\203A';
+  font-size: 18px;
+  line-height: 1;
+}
+
+.cards-dashboard > ul > li:first-child .cards-dashboard-card-body p:last-child a:hover {
+  color: var(--link-hover-color);
+  text-decoration: none;
+}
+
+/* If EDS auto-decorates the link as a button, reset it */
+main .cards-dashboard > ul > li:first-child .cards-dashboard-card-body a.button:any-link {
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* ============================
+   Stats cards (2nd and 3rd items) - navy / light-blue backgrounds
+   Source: min-height 270px, stat 80px/650/blue, desc 16px/400
+   ============================ */
+
+/* Hide empty card-body divs in stat cards (from empty image cells) */
+.cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body:empty {
+  display: none;
+}
+
+/* Stat card 1 (75+) - light blue background, navy text */
+.cards-dashboard > ul > li:nth-child(2) {
   background-color: var(--color-light-blue-bg);
   padding: 32px;
   display: flex;
@@ -68,62 +125,70 @@
   justify-content: center;
 }
 
+/* Stat card 2 (~57k) - navy background, white text */
+.cards-dashboard > ul > li:nth-child(3) {
+  background-color: var(--color-navy);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Eyebrow in stat cards: source 12px, 700, uppercase, 0.06em */
 .cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body p:first-child {
   font-size: var(--body-font-size-xxs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-color);
-  opacity: 0.6;
+  color: var(--link-color);
   margin: 0 0 4px;
 }
 
+/* Stat number (h4): source 80px, 650, blue, line-height 84px, letter-spacing -2.4px */
 .cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body h4 {
-  font-size: 72px;
-  font-weight: 800;
-  color: var(--color-navy);
-  margin: 0 0 8px;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-
-.cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body p:last-child {
-  font-size: var(--body-font-size-s);
-  color: var(--text-color);
-  line-height: 1.4;
-  margin: 0;
-}
-
-/* Hide empty image containers in stats cards */
-.cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-image:empty {
-  display: none;
-}
-
-/* Third card: dark navy background with white/blue text */
-.cards-dashboard > ul > li:nth-child(3) {
-  background-color: var(--color-navy);
-}
-
-.cards-dashboard > ul > li:nth-child(3) .cards-dashboard-card-body p:first-child {
-  color: var(--background-color);
-  opacity: 0.7;
-}
-
-.cards-dashboard > ul > li:nth-child(3) .cards-dashboard-card-body h4 {
+  font-size: 80px;
+  font-weight: 650;
   color: var(--link-color);
+  margin: 0 0 8px;
+  line-height: 84px;
+  letter-spacing: -2.4px;
 }
 
+/* Description: source 16px, 400, line-height 20px -- Card 1 desc: color navy */
+.cards-dashboard > ul > li:nth-child(2) .cards-dashboard-card-body p:last-child {
+  font-size: var(--body-font-size-s);
+  color: var(--color-navy);
+  line-height: 1.25;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Card 2 desc: color white */
 .cards-dashboard > ul > li:nth-child(3) .cards-dashboard-card-body p:last-child {
-  color: var(--background-color);
+  font-size: var(--body-font-size-s);
+  color: #fff;
+  line-height: 1.25;
+  margin: 0;
+  font-weight: 400;
 }
 
+/* ============================
+   Desktop layout (>= 900px)
+   Source: 12-col grid with gap 20px, card0 spans 6, stats each span 3
+   Total width 1330px, height ~272px
+   All 3 cards in a single row: 50% | 25% | 25%
+   ============================ */
 @media (width >= 900px) {
   .cards-dashboard > ul {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-rows: auto;
     gap: 0;
   }
 
+  /* Card 0: left half, flex row (image + text side by side) */
   .cards-dashboard > ul > li:first-child {
+    grid-column: 1;
+    grid-row: 1;
     display: flex;
     flex-direction: row;
   }
@@ -148,11 +213,16 @@
     padding: 32px;
   }
 
-  .cards-dashboard > ul > li:nth-child(n+2) {
-    padding: 40px;
+  /* Stat cards: each in their own column */
+  .cards-dashboard > ul > li:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 32px 40px;
   }
 
-  .cards-dashboard > ul > li:nth-child(n+2) .cards-dashboard-card-body h4 {
-    font-size: 80px;
+  .cards-dashboard > ul > li:nth-child(3) {
+    grid-column: 3;
+    grid-row: 1;
+    padding: 32px 40px;
   }
 }
