@@ -7,7 +7,7 @@ import { createOptimizedPicture } from '../../scripts/aem.js';
  * @param {HTMLUListElement} ul
  */
 function wireCardNavigation(ul) {
-  if (!document.body.classList.contains('our-leaders')) return;
+  if (!document.body.classList.contains('our-leaders') && !document.body.classList.contains('our-rd-leaders')) return;
 
   ul.querySelectorAll(':scope > li').forEach((li) => {
     const imageCol = li.querySelector('.cards-leaders-card-image');

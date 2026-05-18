@@ -683,14 +683,19 @@ function isOurLeadersPath() {
   return /\/who-we-are\/our-leaders(?:\/|$)/.test(path);
 }
 
+function isOurRdLeadersPath() {
+  const path = window.location.pathname.replace(/\.html$/i, '').replace(/\/$/, '');
+  return /\/science\/our-people\/our-rd-leaders(?:\/|$)/.test(path);
+}
+
 /**
  * Loads template JS/CSS before sections (metadata or /who-we-are/our-leaders path).
  * @param {Document} doc
  */
 async function loadTemplateBeforeSections(doc) {
   let name;
-  if (isOurLeadersPath()) {
-    name = 'our-leaders';
+  if (isOurLeadersPath() || isOurRdLeadersPath()) {
+    name = 'our-rd-leaders';
   } else {
     const template = getMetadata('template');
     if (!template) return;
@@ -713,8 +718,8 @@ async function loadTemplateBeforeSections(doc) {
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
   decorateTemplateAndTheme();
-  if (isOurLeadersPath()) {
-    document.body.classList.add('our-leaders');
+  if (isOurLeadersPath() || isOurRdLeadersPath()) {
+    document.body.classList.add('our-rd-leaders');
   }
   const main = doc.querySelector('main');
   if (main) {
@@ -739,6 +744,7 @@ async function loadEager(doc) {
  */
 const TEMPLATE_PATH_MAP = [
   { pattern: /^\/who-we-are\/our-stories\/.+/, template: 'stories-article' },
+  { pattern: /^\/science\/our-people\/our-rd-leaders(\/.*)?$/, template: 'our-rd-leaders' },
 ];
 
 /**
