@@ -1,4 +1,11 @@
 /* Cards Related - horizontal card layout for related content */
+.cards-related-container .default-content-wrapper h5 {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--color-navy);
+  margin: 0 0 32px;
+}
+
 .cards-related-wrapper {
   max-width: 1330px;
   padding: 0 24px;
@@ -130,6 +137,10 @@
 }
 
 @media (width >= 900px) {
+  .cards-related-container .default-content-wrapper h5 {
+    font-size: 32px;
+  }
+
   .cards-related-wrapper {
     padding: 0;
   }

@@ -67,17 +67,16 @@
 }
 
 .hero-interior.hero-interior-no-image .hero-interior-image {
-  min-height: 160px;
+  min-height: 120px;
   background-color: var(--color-navy);
-  border-radius: 0 0 0 40px;
+  border-radius: 40px 0 0;
 }
 
 .hero-interior.hero-interior-no-image .hero-interior-content {
   background-color: var(--background-color);
-  margin: -40px 24px 0;
-  padding: 32px 40px 40px;
+  margin: -30px 24px 0;
+  padding: 32px 24px;
   border-radius: 40px 0 0;
-  max-width: 920px;
 }
 
 .hero-interior.hero-interior-no-image .hero-interior-heading h1 {
@@ -110,11 +109,13 @@
 
   .hero-interior.hero-interior-no-image .hero-interior-image {
     min-height: 200px;
+    border-radius: 60px 0 0;
   }
 
   .hero-interior.hero-interior-no-image .hero-interior-content {
-    margin: -60px 70px 0;
-    padding: 56px 70px 40px;
+    margin: -60px auto 0 12%;
+    padding: 40px 0;
+    max-width: 700px;
   }
 }
 
@@ -139,16 +140,14 @@
   }
 
   .hero-interior.hero-interior-no-image .hero-interior-image {
-    min-height: 280px;
-    border-radius: 0 0 0 64px;
-    width: 82%;
-    margin-left: auto;
+    min-height: 288px;
+    border-radius: 80px 0 0;
   }
 
   .hero-interior.hero-interior-no-image .hero-interior-content {
-    margin: -100px auto 0 10%;
-    padding: 80px 80px 48px;
-    max-width: 750px;
+    margin: -100px auto 0 18%;
+    padding: 0;
+    max-width: 920px;
   }
 
   .hero-interior.hero-interior-no-image .hero-interior-heading p {
