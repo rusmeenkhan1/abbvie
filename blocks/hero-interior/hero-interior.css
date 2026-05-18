@@ -34,7 +34,8 @@
 }
 
 .hero-interior .hero-interior-image:empty {
-  min-height: 250px;
+  min-height: 200px;
+  background: linear-gradient(135deg, var(--color-navy) 0%, #1a3a6b 100%);
 }
 
 .hero-interior .hero-interior-content {

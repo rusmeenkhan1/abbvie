@@ -40,7 +40,22 @@ function buildCardFromRow(row) {
       cardBodyDiv.append(title);
     } else if (p.textContent.trim()) {
       const text = p.textContent.trim();
-      if (text.length < 30 && !text.includes('.')) {
+      const dateMatch = text.match(/^([A-Z][a-z]+ \d{1,2}, \d{4})\s*(.*)/);
+      if (dateMatch) {
+        const dateMeta = document.createElement('div');
+        dateMeta.className = 'cards-related-meta';
+        const dateEl = document.createElement('span');
+        dateEl.className = 'cards-related-date';
+        [, dateEl.textContent] = dateMatch;
+        dateMeta.append(dateEl);
+        if (dateMatch[2]) {
+          const catEl = document.createElement('span');
+          catEl.className = 'cards-related-category';
+          [,, catEl.textContent] = dateMatch;
+          dateMeta.append(catEl);
+        }
+        cardBodyDiv.append(dateMeta);
+      } else if (text.length < 30 && !text.includes('.')) {
         const cat = document.createElement('p');
         cat.className = 'cards-related-category';
         cat.textContent = text;

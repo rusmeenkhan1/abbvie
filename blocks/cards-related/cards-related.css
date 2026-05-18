@@ -63,13 +63,24 @@
   justify-content: center;
 }
 
+.cards-related .cards-related-meta {
+  margin: 0 0 12px;
+}
+
+.cards-related .cards-related-date {
+  font-size: 14px;
+  font-weight: 400;
+  color: rgb(102 107 122);
+  margin-right: 8px;
+}
+
 .cards-related .cards-related-category {
   font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.84px;
   color: var(--color-navy);
-  margin: 0 0 8px;
+  margin: 0 0 12px;
 }
 
 .cards-related .cards-related-title {
