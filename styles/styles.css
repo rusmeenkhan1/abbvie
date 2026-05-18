@@ -1491,6 +1491,10 @@ main > .section.hero-article-container ~ .section > .default-content-wrapper .ar
   transform: translate(2px, -2px);
 }
 
+main > .section:empty:last-child {
+  display: none;
+}
+
 /* Ensure related content and email sections don't go behind footer on mobile/tablet */
 main > .section.hero-article-container ~ .section {
   position: relative;
@@ -1508,7 +1512,8 @@ main > .section.article-with-sidebar {
 }
 
 /* Related content section (standalone) - ensure proper spacing before footer */
-main > .section.cards-related-container:last-child {
+main > .section.cards-related-container:last-child,
+main > .section.cards-related-container:has(~ .section:last-child:empty) {
   padding-bottom: 80px;
 }
 
