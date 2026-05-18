@@ -7,7 +7,16 @@ function buildCardFromRow(row) {
 
   // Image column
   const imgCol = cols[0];
-  const img = imgCol.querySelector('img');
+  let img = imgCol.querySelector('img');
+  if (!img) {
+    const imgLink = imgCol.querySelector('a[href*="scene7.com/is/image"]');
+    if (imgLink) {
+      img = document.createElement('img');
+      img.src = imgLink.href;
+      img.alt = imgLink.title || imgLink.textContent || '';
+      img.loading = 'lazy';
+    }
+  }
   const cardImageDiv = document.createElement('div');
   cardImageDiv.className = 'cards-related-image';
   if (img) {
