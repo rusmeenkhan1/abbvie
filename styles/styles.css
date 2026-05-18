@@ -403,6 +403,7 @@ main > .section > .columns-media-wrapper {
 main > .section > .hero-video-wrapper,
 main > .section > .cards-dashboard-wrapper,
 main > .section > .cards-stories-wrapper,
+main > .section > .cards-feature-wrapper,
 main > .section > .columns-wrapper,
 main > .section > .columns-cta-wrapper,
 main > .section > .banner-cta-wrapper,
@@ -428,6 +429,11 @@ main > .section > .cards-related-wrapper {
 }
 
 main > .section > .accordion-principles-wrapper {
+  max-width: 1330px;
+  padding: 0 35px;
+}
+
+main > .section > .cards-feature-wrapper {
   max-width: 1330px;
   padding: 0 35px;
 }
