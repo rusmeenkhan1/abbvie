@@ -142,6 +142,8 @@
   .hero-interior.hero-interior-no-image .hero-interior-image {
     min-height: 288px;
     border-radius: 80px 0 0;
+    max-width: 1440px;
+    margin: 0 auto;
   }
 
   .hero-interior.hero-interior-no-image .hero-interior-content {
