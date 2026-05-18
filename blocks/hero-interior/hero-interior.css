@@ -61,6 +61,29 @@
   color: var(--color-navy);
 }
 
+/* No-image variant: navy strip background with overlapping content box */
+.hero-interior.hero-interior-no-image .hero-interior-image {
+  min-height: 100px;
+  background-color: var(--color-navy);
+}
+
+.hero-interior.hero-interior-no-image .hero-interior-content {
+  background-color: var(--background-color);
+  margin: -40px 0 0;
+  padding: 32px 40px 24px;
+}
+
+.hero-interior.hero-interior-no-image .hero-interior-heading h1 {
+  margin-bottom: 16px;
+}
+
+.hero-interior.hero-interior-no-image .hero-interior-heading p {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-navy);
+  max-width: 640px;
+}
+
 @media (width >= 600px) {
   .hero-interior .hero-interior-image img {
     min-height: 350px;
