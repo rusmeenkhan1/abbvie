@@ -145,9 +145,9 @@
   }
 
   .hero-interior.hero-interior-no-image .hero-interior-content {
-    margin: -100px auto 0 18%;
-    padding: 0;
-    max-width: 920px;
+    margin: -100px 55px 0;
+    padding: 80px 204px 40px;
+    max-width: 1330px;
   }
 
   .hero-interior.hero-interior-no-image .hero-interior-heading p {
