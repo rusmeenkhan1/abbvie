@@ -1,11 +1,11 @@
 /* Accordion Principles */
 .accordion-principles-wrapper {
   max-width: 1330px;
-  padding: 0 35px;
+  padding: 40px 35px;
 }
 
 .accordion-principles {
-  margin: 24px 0 0;
+  margin: 0;
 }
 
 .accordion-principles .accordion-principles-container {

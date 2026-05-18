@@ -1,7 +1,20 @@
+function resolveImageLink(container) {
+  const link = container.querySelector('a[href*="scene7"], a[href*="/media_"]');
+  if (link) {
+    const img = document.createElement('img');
+    img.src = link.href;
+    img.alt = link.textContent || '';
+    img.loading = 'eager';
+    return img;
+  }
+  const img = container.querySelector('img');
+  if (img) return img.closest('picture') || img;
+  return null;
+}
+
 export default function decorate(block) {
   const rows = [...block.children];
 
-  // If block is empty (the second empty hero-interior in the HTML), hide it
   if (rows.length === 0) {
     block.style.display = 'none';
     return;
@@ -9,7 +22,7 @@ export default function decorate(block) {
 
   // Row 0: image column
   const imageRow = rows[0];
-  const img = imageRow?.querySelector('img');
+  const imgEl = resolveImageLink(imageRow);
 
   // Row 1: content with h1 + subtitle columns
   const contentRow = rows[1];
@@ -17,9 +30,8 @@ export default function decorate(block) {
   // Build the hero structure
   const heroImage = document.createElement('div');
   heroImage.className = 'hero-interior-image';
-  if (img) {
-    const picture = img.closest('picture') || img;
-    heroImage.append(picture);
+  if (imgEl) {
+    heroImage.append(imgEl);
   }
   imageRow.replaceWith(heroImage);
 

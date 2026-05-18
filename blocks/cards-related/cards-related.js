@@ -1,3 +1,17 @@
+function resolveImageLink(container) {
+  const link = container.querySelector('a[href*="scene7"], a[href*="/media_"]');
+  if (link) {
+    const img = document.createElement('img');
+    img.src = link.href;
+    img.alt = link.textContent || '';
+    img.loading = 'lazy';
+    return img;
+  }
+  const img = container.querySelector('img');
+  if (img) return img.closest('picture') || img;
+  return null;
+}
+
 function buildCardFromRow(row) {
   const cols = [...row.children];
   if (cols.length < 2) return null;
@@ -7,12 +21,11 @@ function buildCardFromRow(row) {
 
   // Image column
   const imgCol = cols[0];
-  const img = imgCol.querySelector('img');
+  const imgEl = resolveImageLink(imgCol);
   const cardImageDiv = document.createElement('div');
   cardImageDiv.className = 'cards-related-image';
-  if (img) {
-    const picture = img.closest('picture') || img;
-    cardImageDiv.append(picture);
+  if (imgEl) {
+    cardImageDiv.append(imgEl);
   }
 
   // Text column
@@ -147,6 +160,11 @@ async function fetchRelatedByPath(relatedPath) {
 
 export default async function decorate(block) {
   const rows = [...block.children];
+
+  const heading = document.createElement('h3');
+  heading.className = 'cards-related-heading';
+  heading.textContent = 'Related Content';
+
   const ul = document.createElement('ul');
   ul.className = 'cards-related-list';
 
@@ -156,7 +174,7 @@ export default async function decorate(block) {
     if (card) ul.append(card);
   });
 
-  block.replaceChildren(ul);
+  block.replaceChildren(heading, ul);
 
   // Check if authored content produced valid cards
   const hasImages = ul.querySelector('img');

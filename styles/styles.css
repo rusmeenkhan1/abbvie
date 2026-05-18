@@ -398,6 +398,11 @@ main > .section > .quote-ceo-wrapper {
 }
 
 main > .section > .cards-related-wrapper {
+  max-width: unset;
+  padding: 0;
+}
+
+main > .section > .cards-feature-wrapper {
   max-width: 1330px;
   padding: 0 35px;
 }
@@ -830,8 +835,8 @@ main .section.cards-news-container > .default-content-wrapper > p:first-child {
   }
 }
 
-/* Related Content section - light grey background (connects with footer below) */
-main .section.cards-related-container {
+/* Related Content section - light grey background only when it's a standalone section */
+main .section.cards-related-container:not(.hero-interior-container, .cards-feature-container, .accordion-principles-container) {
   max-width: 100%;
   background-color: #f4f4f4;
 }
@@ -857,25 +862,18 @@ main .section.cards-related-container > .default-content-wrapper h3 {
     padding: 0;
   }
 
-  main > .section > .cards-related-wrapper {
-    max-width: 466px;
-    margin-left: 70px;
-    margin-right: auto;
-    padding: 0;
-  }
-
-  main .section.cards-related-container > .default-content-wrapper h3 {
+  main .section.cards-related-container:not(.hero-interior-container) > .default-content-wrapper h3 {
     font-size: 28px;
   }
 }
 
 @media (width >= 900px) {
-  main > .section.cards-related-container {
+  main > .section.cards-related-container:not(.hero-interior-container) {
     padding-top: 80px;
   }
 
   main > .section > .cards-related-wrapper {
-    max-width: 1330px;
+    max-width: unset;
     margin-left: auto;
     margin-right: auto;
     padding: 0;
@@ -1508,6 +1506,7 @@ main > .section.article-with-sidebar {
 }
 
 /* Related content section (standalone) - ensure proper spacing before footer */
+/* stylelint-disable-next-line no-descending-specificity */
 main > .section.cards-related-container:last-child {
   padding-bottom: 80px;
 }
