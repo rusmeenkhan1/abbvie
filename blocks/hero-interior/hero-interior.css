@@ -141,10 +141,12 @@
   .hero-interior.hero-interior-no-image .hero-interior-image {
     min-height: 280px;
     border-radius: 0 0 0 64px;
+    width: 82%;
+    margin-left: auto;
   }
 
   .hero-interior.hero-interior-no-image .hero-interior-content {
-    margin: -100px 55px 0;
+    margin: -100px auto 0 10%;
     padding: 80px 80px 48px;
     max-width: 750px;
   }
