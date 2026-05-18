@@ -1,27 +1,28 @@
 export default function decorate(block) {
   const rows = [...block.children];
 
-  // If block is empty (the second empty hero-interior in the HTML), hide it
   if (rows.length === 0) {
     block.style.display = 'none';
     return;
   }
 
-  // Row 0: image column
-  const imageRow = rows[0];
-  const img = imageRow?.querySelector('img');
+  const firstRowImg = rows[0]?.querySelector('img, picture');
+  const hasImageRow = firstRowImg && !rows[0].querySelector('h1, h2');
 
-  // Row 1: content with h1 + subtitle columns
-  const contentRow = rows[1];
-
-  // Build the hero structure
   const heroImage = document.createElement('div');
   heroImage.className = 'hero-interior-image';
-  if (img) {
-    const picture = img.closest('picture') || img;
+
+  let contentRow;
+
+  if (hasImageRow) {
+    const picture = firstRowImg.closest('picture') || firstRowImg;
     heroImage.append(picture);
+    rows[0].replaceWith(heroImage);
+    [, contentRow] = rows;
+  } else {
+    block.prepend(heroImage);
+    [contentRow] = rows;
   }
-  imageRow.replaceWith(heroImage);
 
   if (contentRow) {
     contentRow.className = 'hero-interior-content';
