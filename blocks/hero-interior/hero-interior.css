@@ -62,6 +62,10 @@
 }
 
 /* No-image variant: navy strip background with overlapping content box */
+.hero-interior-container:has(.hero-interior-no-image) .hero-interior-wrapper {
+  max-width: unset;
+}
+
 .hero-interior.hero-interior-no-image .hero-interior-image {
   min-height: 160px;
   background-color: var(--color-navy);
@@ -73,6 +77,7 @@
   margin: -40px 24px 0;
   padding: 32px 40px 40px;
   border-radius: 40px 0 0;
+  max-width: 920px;
 }
 
 .hero-interior.hero-interior-no-image .hero-interior-heading h1 {
@@ -139,9 +144,9 @@
   }
 
   .hero-interior.hero-interior-no-image .hero-interior-content {
-    margin: -100px auto 0;
-    padding: 80px 204px 48px;
-    max-width: 1330px;
+    margin: -100px 55px 0;
+    padding: 80px 80px 48px;
+    max-width: 750px;
   }
 
   .hero-interior.hero-interior-no-image .hero-interior-heading p {
