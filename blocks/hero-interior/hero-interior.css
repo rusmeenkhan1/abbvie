@@ -63,14 +63,16 @@
 
 /* No-image variant: navy strip background with overlapping content box */
 .hero-interior.hero-interior-no-image .hero-interior-image {
-  min-height: 100px;
+  min-height: 160px;
   background-color: var(--color-navy);
+  border-radius: 0 0 0 40px;
 }
 
 .hero-interior.hero-interior-no-image .hero-interior-content {
   background-color: var(--background-color);
-  margin: -40px 0 0;
-  padding: 32px 40px 24px;
+  margin: -40px 24px 0;
+  padding: 32px 40px 40px;
+  border-radius: 40px 0 0;
 }
 
 .hero-interior.hero-interior-no-image .hero-interior-heading h1 {
@@ -100,6 +102,15 @@
     line-height: 44px;
     letter-spacing: -0.8px;
   }
+
+  .hero-interior.hero-interior-no-image .hero-interior-image {
+    min-height: 200px;
+  }
+
+  .hero-interior.hero-interior-no-image .hero-interior-content {
+    margin: -60px 70px 0;
+    padding: 56px 70px 40px;
+  }
 }
 
 @media (width >= 900px) {
@@ -120,6 +131,22 @@
     line-height: 68px;
     letter-spacing: -1.28px;
     max-width: 920px;
+  }
+
+  .hero-interior.hero-interior-no-image .hero-interior-image {
+    min-height: 280px;
+    border-radius: 0 0 0 64px;
+  }
+
+  .hero-interior.hero-interior-no-image .hero-interior-content {
+    margin: -100px auto 0;
+    padding: 80px 204px 48px;
+    max-width: 1330px;
+  }
+
+  .hero-interior.hero-interior-no-image .hero-interior-heading p {
+    font-size: 18px;
+    max-width: 700px;
   }
 
   .hero-interior .hero-interior-subtitle {
