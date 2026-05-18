@@ -1,0 +1,169 @@
+/* Quote Partnership - dark section with background image, quote, author headshot, and logo */
+.quote-partnership-wrapper {
+  max-width: unset;
+  padding: 0;
+}
+
+.quote-partnership {
+  position: relative;
+  padding: 60px 35px;
+  color: #fff;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Background image with dark overlay */
+.quote-partnership .quote-partnership-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.quote-partnership .quote-partnership-bg picture,
+.quote-partnership .quote-partnership-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.quote-partnership .quote-partnership-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 60%);
+}
+
+/* Layout: quote on left, logo on right */
+.quote-partnership .quote-partnership-layout {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.quote-partnership .quote-partnership-content {
+  flex: 1;
+}
+
+.quote-partnership .quote-partnership-text-wrapper {
+  max-width: 710px;
+}
+
+.quote-partnership .quote-partnership-mark {
+  display: block;
+  font-size: 80px;
+  line-height: 1;
+  color: var(--link-color);
+  font-family: Georgia, serif;
+  margin-bottom: 8px;
+}
+
+.quote-partnership .quote-partnership-text {
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 26px;
+  color: #fff;
+  margin: 0;
+}
+
+/* Author section with headshot */
+.quote-partnership .quote-partnership-author {
+  margin-top: 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.quote-partnership .quote-partnership-headshot {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.quote-partnership .quote-partnership-headshot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.quote-partnership .quote-partnership-author-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.quote-partnership .quote-partnership-name {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.quote-partnership .quote-partnership-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 400;
+  color: #fff;
+}
+
+/* Logo section */
+.quote-partnership .quote-partnership-logo {
+  max-width: 200px;
+}
+
+.quote-partnership .quote-partnership-logo img {
+  width: 100%;
+  height: auto;
+}
+
+@media (width >= 600px) {
+  .quote-partnership {
+    padding: 60px 70px;
+  }
+
+  .quote-partnership .quote-partnership-text {
+    font-size: 24px;
+    line-height: 32px;
+  }
+}
+
+@media (width >= 900px) {
+  .quote-partnership {
+    padding: 80px 112px;
+    min-height: 468px;
+  }
+
+  .quote-partnership .quote-partnership-layout {
+    flex-direction: row;
+    align-items: center;
+    gap: 60px;
+  }
+
+  .quote-partnership .quote-partnership-content {
+    flex: 2;
+  }
+
+  .quote-partnership .quote-partnership-logo {
+    flex: 1;
+    max-width: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .quote-partnership .quote-partnership-mark {
+    font-size: 100px;
+  }
+
+  .quote-partnership .quote-partnership-text {
+    font-size: 28px;
+    line-height: 34px;
+  }
+}

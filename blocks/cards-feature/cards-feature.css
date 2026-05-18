@@ -1,0 +1,128 @@
+/* Block: cards-feature
+ * 3-column feature cards with image, eyebrow title, description, and CTA link
+ * Source: AbbVie operating-with-integrity page grid cards
+ */
+
+/* Mobile-first: single column stacked */
+.cards-feature > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+}
+
+.cards-feature > ul > li {
+  background-color: transparent;
+  min-width: 0;
+}
+
+/* Card image */
+.cards-feature .cards-feature-card-image {
+  margin-bottom: 24px;
+  line-height: 0;
+}
+
+.cards-feature .cards-feature-card-image img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+}
+
+/* Card body content */
+.cards-feature .cards-feature-card-body {
+  padding: 0;
+}
+
+/* Card title (eyebrow) - the <p><strong> pattern */
+.cards-feature .cards-feature-card-body p:first-child {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--body-font-family);
+  line-height: 16px;
+  letter-spacing: 0.56px;
+  text-transform: uppercase;
+  color: #000;
+  margin: 0 0 24px;
+}
+
+.cards-feature .cards-feature-card-body p:first-child strong {
+  font-weight: 700;
+}
+
+/* Card description */
+.cards-feature .cards-feature-card-body p:nth-child(2) {
+  font-size: 16px;
+  font-weight: 400;
+  font-family: var(--body-font-family);
+  line-height: 22px;
+  color: var(--color-navy);
+  margin: 0 0 24px;
+}
+
+/* Card CTA link - plain text link with chevron arrow */
+.cards-feature .cards-feature-card-body p:last-child {
+  margin: 0;
+}
+
+/* Handle case where EDS decorates as button */
+.cards-feature .cards-feature-card-body .button-container {
+  margin: 0;
+}
+
+.cards-feature .cards-feature-card-body p:last-child a:any-link,
+main .cards-feature .cards-feature-card-body a.button:any-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--body-font-family);
+  line-height: 20px;
+  letter-spacing: 0.84px;
+  text-transform: uppercase;
+  color: var(--link-color);
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  text-decoration: none;
+}
+
+.cards-feature .cards-feature-card-body p:last-child a:any-link::after,
+main .cards-feature .cards-feature-card-body a.button:any-link::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-top: 2px solid currentcolor;
+  border-right: 2px solid currentcolor;
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
+
+.cards-feature .cards-feature-card-body p:last-child a:hover,
+.cards-feature .cards-feature-card-body p:last-child a:focus-visible,
+main .cards-feature .cards-feature-card-body a.button:hover,
+main .cards-feature .cards-feature-card-body a.button:focus-visible {
+  background-color: transparent;
+  color: var(--link-hover-color);
+  border: none;
+  text-decoration: none;
+}
+
+/* Desktop: 3-column grid */
+@media (width >= 900px) {
+  .cards-feature > ul {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  /* Description text is slightly larger on desktop */
+  .cards-feature .cards-feature-card-body p:nth-child(2) {
+    font-size: 18px;
+    line-height: 24px;
+  }
+}

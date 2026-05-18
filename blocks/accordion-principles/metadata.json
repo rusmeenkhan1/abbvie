@@ -1,0 +1,39 @@
+{
+  "variantName": "accordion-principles",
+  "baseBlock": "accordion",
+  "version": "1.0.0",
+  "created": "2026-05-18T03:25:00.000Z",
+  "sourceContext": {
+    "originUrl": "https://www.abbvie.com/who-we-are/our-principles/positions-views.html",
+    "originPage": "positions and views principles page",
+    "blockPosition": "middle"
+  },
+  "visualCharacteristics": {
+    "colorScheme": "light",
+    "density": "spacious",
+    "purpose": "principles-accordion",
+    "imagePattern": "noimg"
+  },
+  "contentPattern": {
+    "structure": "expand-all control + multiple expandable items with title + content links",
+    "buttonCount": 0,
+    "imageCount": 0
+  },
+  "reuseGuidance": {
+    "suitableFor": [
+      "policy document listings",
+      "principles and positions pages",
+      "categorized document link collections"
+    ],
+    "notSuitableFor": [
+      "FAQ sections with short answers",
+      "product feature accordions with rich media",
+      "tabbed content interfaces"
+    ]
+  },
+  "usage": {
+    "pagesUsing": ["/who-we-are/our-principles/positions-views"],
+    "reuseCount": 1,
+    "lastUsed": "2026-05-18T03:25:00.000Z"
+  }
+}

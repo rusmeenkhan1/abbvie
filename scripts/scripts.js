@@ -48,11 +48,40 @@ async function loadFonts() {
 }
 
 /**
+ * Converts links pointing to Scene7/Dynamic Media URLs into picture/img elements.
+ * Authored as: <a href="https://abbvie.scene7.com/is/image/...">alt text</a>
+ * Rendered as: <picture><img src="..." alt="..." loading="lazy"></picture>
+ * @param {Element} main The container element
+ */
+function buildDynamicMediaImages(main) {
+  const defined = /^https?:\/\/[a-z0-9-.]*scene7\.com\/is\/image\//;
+  main.querySelectorAll('a[href]').forEach((a) => {
+    if (!defined.test(a.href)) return;
+    const alt = a.textContent.trim();
+    const src = a.href;
+    const picture = document.createElement('picture');
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = alt;
+    img.loading = 'lazy';
+    picture.append(img);
+    const parent = a.parentElement;
+    if (parent && parent.tagName === 'P' && parent.childNodes.length === 1) {
+      parent.replaceWith(picture);
+    } else {
+      a.replaceWith(picture);
+    }
+  });
+}
+
+/**
  * Builds all synthetic blocks in a container element.
  * @param {Element} main The container element
  */
 function buildAutoBlocks(main) {
   try {
+    buildDynamicMediaImages(main);
+
     // auto load `*/fragments/*` references
     const fragments = [...main.querySelectorAll('a[href*="/fragments/"]')].filter((f) => !f.closest('.fragment'));
     if (fragments.length > 0) {
@@ -654,14 +683,19 @@ function isOurLeadersPath() {
   return /\/who-we-are\/our-leaders(?:\/|$)/.test(path);
 }
 
+function isOurRdLeadersPath() {
+  const path = window.location.pathname.replace(/\.html$/i, '').replace(/\/$/, '');
+  return /\/science\/our-people\/our-rd-leaders(?:\/|$)/.test(path);
+}
+
 /**
  * Loads template JS/CSS before sections (metadata or /who-we-are/our-leaders path).
  * @param {Document} doc
  */
 async function loadTemplateBeforeSections(doc) {
   let name;
-  if (isOurLeadersPath()) {
-    name = 'our-leaders';
+  if (isOurLeadersPath() || isOurRdLeadersPath()) {
+    name = 'our-rd-leaders';
   } else {
     const template = getMetadata('template');
     if (!template) return;
@@ -684,8 +718,8 @@ async function loadTemplateBeforeSections(doc) {
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
   decorateTemplateAndTheme();
-  if (isOurLeadersPath()) {
-    document.body.classList.add('our-leaders');
+  if (isOurLeadersPath() || isOurRdLeadersPath()) {
+    document.body.classList.add('our-rd-leaders');
   }
   const main = doc.querySelector('main');
   if (main) {
@@ -710,6 +744,7 @@ async function loadEager(doc) {
  */
 const TEMPLATE_PATH_MAP = [
   { pattern: /^\/who-we-are\/our-stories\/.+/, template: 'stories-article' },
+  { pattern: /^\/science\/our-people\/our-rd-leaders(\/.*)?$/, template: 'our-rd-leaders' },
 ];
 
 /**
