@@ -5,23 +5,19 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=9';
-import {
-  getFullscreenAppUrl,
-  isLibraryEmbed,
-} from './lib/context-mode.js?v=9';
+} from './lib/api.js?v=10';
 import {
   displayFolderPath,
   displayPath,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=9';
+} from './lib/paths.js?v=10';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=9';
+} from './lib/urls.js?v=10';
 
-const TOOL_VERSION = '9';
+const TOOL_VERSION = '10';
 
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
@@ -38,11 +34,7 @@ let entries = [];
 /** @type {Set<string>} */
 const selected = new Set();
 
-/**
- * @typedef {{ helixPath: string, sourcePath: string, name: string }} PageEntry
- */
-
-/** @returns {PageEntry[]} */
+/** @returns {DocumentEntry[]} */
 function getDocuments() {
   return entries.filter((e) => e.kind === 'document');
 }
@@ -63,20 +55,15 @@ async function initSdk() {
     const mod = await import(SDK_URL);
     const sdk = await Promise.race([mod.default, timeout]);
     const { context = {}, token, actions = {} } = sdk;
-    return {
-      context,
-      token,
-      actions,
-    };
+    return { context, token, actions };
   } catch {
     const params = new URLSearchParams(window.location.search);
-    const org = params.get('org') || 'local-org';
-    const repo = params.get('repo') || 'local-repo';
-    const ref = params.get('ref') || 'main';
-    const path = params.get('path') || '';
     return {
       context: {
-        org, repo, ref, path,
+        org: params.get('org') || 'local-org',
+        repo: params.get('repo') || 'local-repo',
+        ref: params.get('ref') || 'main',
+        path: params.get('path') || '',
       },
       actions: { daFetch: fetch },
     };
@@ -92,11 +79,26 @@ function resolveSiteContext(context) {
   const org = context.org || context.owner || '';
   const site = context.repo || context.site || '';
   const ref = context.ref || params.get('ref') || 'main';
-  // Default empty (site root). Only honor explicit ?path= — not SDK app route context.
-  const folderPath = resolveContentFolderPath(params.get('path') || '');
-  return {
-    org, site, ref, folderPath,
-  };
+  const folderPath = resolveContentFolderPath(
+    params.get('path') || context.path || '',
+  );
+  return { org, site, ref, folderPath };
+}
+
+/**
+ * @param {string} ref
+ * @param {string} folderPath
+ */
+function syncUrlPath(ref, folderPath) {
+  const params = new URLSearchParams(window.location.search);
+  if (ref && ref !== 'main') params.set('ref', ref);
+  else params.delete('ref');
+  const normalized = normalizeFolderPath(folderPath);
+  if (normalized) params.set('path', normalized);
+  else params.delete('path');
+  const qs = params.toString();
+  const url = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
+  window.history.replaceState(null, '', url);
 }
 
 function el(tag, className, text) {
@@ -107,13 +109,14 @@ function el(tag, className, text) {
 }
 
 /**
- * @param {string} folderPath normalized folder path
+ * DA-style breadcrumb: Site root › dir1 › dir2
+ * @param {string} folderPath
  * @param {(path: string) => void} onNavigate
  * @returns {HTMLElement}
  */
 function buildBreadcrumb(folderPath, onNavigate) {
   const nav = el('nav', 'bulk-pp-breadcrumb');
-  nav.setAttribute('aria-label', 'Current folder');
+  nav.setAttribute('aria-label', 'Folder path');
 
   const rootBtn = el('button', 'bulk-pp-breadcrumb-segment', 'Site root');
   rootBtn.type = 'button';
@@ -122,7 +125,7 @@ function buildBreadcrumb(folderPath, onNavigate) {
 
   const segments = normalizeFolderPath(folderPath).split('/').filter(Boolean);
   segments.forEach((segment, index) => {
-    nav.append(el('span', 'bulk-pp-breadcrumb-sep', '/'));
+    nav.append(el('span', 'bulk-pp-breadcrumb-sep', '›'));
     const path = segments.slice(0, index + 1).join('/');
     const isLast = index === segments.length - 1;
     if (isLast) {
@@ -180,52 +183,30 @@ function render(root, state) {
     status,
     statusType,
     jobDetail,
-    libraryEmbed,
-    fullscreenAppUrl,
     activeTab,
     previewedPaths,
     publishedPaths,
+    includeSubfolders,
   } = state;
 
   root.replaceChildren();
 
-  if (libraryEmbed) {
-    const banner = el('section', 'bulk-pp-panel bulk-pp-library-banner');
-    banner.append(el('h2', null, 'Open from site root or any folder'));
-    banner.append(
-      el('p', null, 'The Library panel only appears while editing a single document. '
-        + 'To bulk preview or publish from the org root or document tree, use the fullscreen Apps entry.'),
-    );
-    const openBtn = el('button', 'bulk-pp-open-app', 'Open fullscreen app');
-    openBtn.type = 'button';
-    openBtn.addEventListener('click', () => state.onOpenFullscreen());
-    banner.append(openBtn);
-    const link = document.createElement('a');
-    link.href = fullscreenAppUrl;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    link.className = 'bulk-pp-apps-link';
-    link.textContent = 'Or open Apps page';
-    banner.append(link);
-    root.append(banner);
-  }
-
   const header = el('header', 'bulk-pp-header');
   header.append(
     el('h1', null, 'Bulk Preview & Publish'),
-    el('p', null, `Site: ${org} / ${site} · branch: ${ref} · v${TOOL_VERSION}`),
+    el('p', 'bulk-pp-subtitle', `${org} / ${site} · ${ref}`),
   );
   root.append(header);
 
   const browse = el('section', 'bulk-pp-panel');
-  browse.append(el('h2', null, 'Content path'));
+  browse.append(el('h2', null, 'Browse'));
   const row = el('div', 'bulk-pp-row');
 
   const pathField = el('div', 'bulk-pp-field');
-  pathField.append(el('label', null, 'Folder path'));
+  pathField.append(el('label', null, 'Jump to path'));
   const pathInput = document.createElement('input');
   pathInput.type = 'text';
-  pathInput.placeholder = 'Leave empty for site root';
+  pathInput.placeholder = '/who-we-are or leave empty for site root';
   const safeFolder = resolveContentFolderPath(folderPath);
   pathInput.value = displayFolderPath(safeFolder);
   pathInput.autocomplete = 'off';
@@ -233,8 +214,8 @@ function render(root, state) {
   pathField.append(pathInput);
   row.append(pathField);
 
-  const depthField = el('div', 'bulk-pp-field');
-  depthField.append(el('label', null, 'Subfolder depth'));
+  const depthField = el('div', 'bulk-pp-field bulk-pp-field-narrow');
+  depthField.append(el('label', null, 'Include subfolders'));
   const depthSelect = document.createElement('select');
   depthSelect.id = 'bulk-pp-depth';
   [
@@ -253,16 +234,16 @@ function render(root, state) {
   depthField.append(depthSelect);
   row.append(depthField);
 
-  const loadBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary', 'Load pages');
+  const loadBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary', 'Refresh');
   loadBtn.type = 'button';
   loadBtn.disabled = loading;
   row.append(loadBtn);
   browse.append(row);
   root.append(browse);
 
-  const contentPanel = el('section', 'bulk-pp-panel');
+  const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content');
   const tabBar = el('div', 'bulk-pp-tabs');
-  const pagesTabBtn = el('button', 'bulk-pp-tab', 'Pages');
+  const pagesTabBtn = el('button', 'bulk-pp-tab', 'Content');
   const urlsTabBtn = el('button', 'bulk-pp-tab', 'URLs');
   pagesTabBtn.type = 'button';
   urlsTabBtn.type = 'button';
@@ -276,53 +257,58 @@ function render(root, state) {
 
   pagesPane.append(buildBreadcrumb(safeFolder, (path) => state.onNavigate(path)));
 
+  if (includeSubfolders) {
+    pagesPane.append(
+      el('p', 'bulk-pp-hint', 'Showing pages from this folder and subfolders. Use breadcrumbs to move between folders.'),
+    );
+  }
+
   const topActions = el('div', 'bulk-pp-actions-top');
-  const selectAllBtn = el('button', 'bulk-pp-btn', 'Select all pages');
+  const selectAllBtn = el('button', 'bulk-pp-btn', 'Select all');
   const selectNoneBtn = el('button', 'bulk-pp-btn', 'Select none');
   selectAllBtn.type = 'button';
   selectNoneBtn.type = 'button';
+  selectAllBtn.disabled = getDocuments().length === 0;
   topActions.append(selectAllBtn, selectNoneBtn);
   pagesPane.append(topActions);
 
   const listWrap = el('div', 'bulk-pp-list-wrap');
   const list = el('ul', 'bulk-pp-list');
   const documents = getDocuments();
-  const folderCount = entries.filter((e) => e.kind === 'folder').length;
-  const dataCount = entries.filter((e) => e.kind === 'data').length;
 
   if (loading && activeTab === 'pages') {
     list.append(el('li', 'bulk-pp-list-empty', 'Loading…'));
   } else if (error && activeTab === 'pages') {
     list.append(el('li', 'bulk-pp-list-empty', error));
   } else if (entries.length === 0) {
-    list.append(el('li', 'bulk-pp-list-empty', 'This folder is empty. Go up or change the path and click Load pages.'));
+    list.append(el('li', 'bulk-pp-list-empty', 'Nothing here. Go up via breadcrumbs or change the path.'));
   } else {
     entries.forEach((entry) => {
       if (entry.kind === 'folder') {
         const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-folder');
-        const icon = el('span', 'bulk-pp-item-icon bulk-pp-item-icon-folder', '📁');
+        const icon = el('span', 'bulk-pp-item-icon', '');
         icon.setAttribute('aria-hidden', 'true');
-        icon.title = 'Folder';
-        const label = el('span', 'bulk-pp-item-label', entry.name);
-        const typeTag = el('span', 'bulk-pp-item-type', 'Folder');
-        const enterBtn = el('button', 'bulk-pp-enter-folder', '↓');
-        enterBtn.type = 'button';
-        enterBtn.title = `Open ${entry.name}`;
-        enterBtn.setAttribute('aria-label', `Open folder ${entry.name}`);
-        enterBtn.addEventListener('click', () => state.onNavigate(entry.folderPath));
-        li.append(icon, label, typeTag, enterBtn);
+        icon.classList.add('bulk-pp-icon-folder');
+        const link = el('button', 'bulk-pp-folder-link', entry.name);
+        link.type = 'button';
+        link.title = `Open ${entry.name}`;
+        link.setAttribute('aria-label', `Open folder ${entry.name}`);
+        link.addEventListener('click', () => state.onNavigate(entry.folderPath));
+        li.append(icon, link);
+        li.addEventListener('click', (e) => {
+          if (e.target === li || e.target === icon) link.click();
+        });
         list.append(li);
         return;
       }
 
       if (entry.kind === 'data') {
         const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-data');
-        const icon = el('span', 'bulk-pp-item-icon bulk-pp-item-icon-data', '🗃');
+        const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-data', '');
         icon.setAttribute('aria-hidden', 'true');
-        icon.title = 'Config / data file';
         const label = el('span', 'bulk-pp-item-label', entry.name);
-        const typeTag = el('span', 'bulk-pp-item-type', 'Config');
-        li.append(icon, label, typeTag);
+        label.title = 'Site config (not published as a page)';
+        li.append(icon, label);
         list.append(li);
         return;
       }
@@ -333,60 +319,36 @@ function render(root, state) {
       cb.value = entry.helixPath;
       cb.checked = selected.has(entry.helixPath);
       cb.id = `page-${entry.helixPath.replace(/\W/g, '_')}`;
-      const icon = el('span', 'bulk-pp-item-icon bulk-pp-item-icon-document', '📄');
+      const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-document', '');
       icon.setAttribute('aria-hidden', 'true');
-      icon.title = 'Page';
       const label = document.createElement('label');
       label.htmlFor = cb.id;
       label.className = 'bulk-pp-item-label';
-      label.textContent = displayPath(entry.helixPath);
-      const typeTag = el('span', 'bulk-pp-item-type', 'Page');
-      li.append(cb, icon, label, typeTag);
+      label.textContent = entry.name;
+      label.title = displayPath(entry.helixPath);
+      li.append(cb, icon, label);
       list.append(li);
     });
   }
 
   listWrap.append(list);
   pagesPane.append(listWrap);
-
-  const metaParts = [`${selected.size} of ${documents.length} page(s) selected`];
-  if (folderCount > 0) {
-    metaParts.push(`${folderCount} folder${folderCount === 1 ? '' : 's'}`);
-  }
-  if (dataCount > 0) {
-    metaParts.push(`${dataCount} config file${dataCount === 1 ? '' : 's'}`);
-  }
-  if (folderCount > 0) {
-    metaParts.push('use ↓ on folders to open');
-  }
-  pagesPane.append(el('p', 'bulk-pp-meta', metaParts.join(' · ')));
+  pagesPane.append(
+    el('p', 'bulk-pp-meta', `${selected.size} of ${documents.length} page(s) selected`),
+  );
   contentPanel.append(pagesPane);
 
   const urlsPane = el('div', 'bulk-pp-tab-pane');
   if (activeTab === 'urls') urlsPane.classList.add('bulk-pp-tab-pane-active');
 
   const host = buildSiteHost(org, site, ref);
-  const previewUrls = buildUrlsForPaths(previewedPaths, org, site, ref, 'preview');
-  const liveUrls = buildUrlsForPaths(publishedPaths, org, site, ref, 'live');
-
-  appendUrlSection(
-    urlsPane,
-    'Preview (.aem.page)',
-    host,
-    previewUrls,
-  );
-  appendUrlSection(
-    urlsPane,
-    'Live (.aem.live)',
-    host,
-    liveUrls,
-  );
+  appendUrlSection(urlsPane, 'Preview (.aem.page)', host, buildUrlsForPaths(previewedPaths, org, site, ref, 'preview'));
+  appendUrlSection(urlsPane, 'Live (.aem.live)', host, buildUrlsForPaths(publishedPaths, org, site, ref, 'live'));
   contentPanel.append(urlsPane);
   root.append(contentPanel);
 
   const runPanel = el('section', 'bulk-pp-panel');
   runPanel.append(el('h2', null, 'Actions'));
-
   const options = el('div', 'bulk-pp-options');
   const forceLabel = document.createElement('label');
   const forceCb = document.createElement('input');
@@ -401,23 +363,22 @@ function render(root, state) {
   const publishBtn = el('button', 'bulk-pp-btn bulk-pp-btn-danger', 'Publish selected');
   previewBtn.type = 'button';
   publishBtn.type = 'button';
-  previewBtn.disabled = loading || getDocuments().length === 0 || selected.size === 0;
-  publishBtn.disabled = loading || getDocuments().length === 0 || selected.size === 0;
+  previewBtn.disabled = loading || documents.length === 0 || selected.size === 0;
+  publishBtn.disabled = loading || documents.length === 0 || selected.size === 0;
   runRow.append(previewBtn, publishBtn);
   runPanel.append(runRow);
   root.append(runPanel);
 
   if (status) {
     const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType || 'info'}`);
-    const title = el('strong', null, status);
-    statusEl.append(title);
-    if (jobDetail) {
-      const pre = el('pre', 'bulk-pp-error-detail', jobDetail);
-      statusEl.append(pre);
-    }
+    statusEl.append(el('strong', null, status));
+    if (jobDetail) statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
     root.append(statusEl);
   }
 
+  pathInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') state.onLoad();
+  });
   pathInput.addEventListener('change', () => {
     state.folderPath = normalizeFolderPath(pathInput.value.trim());
   });
@@ -437,7 +398,6 @@ function render(root, state) {
 
   previewBtn.addEventListener('click', () => state.onRun('preview'));
   publishBtn.addEventListener('click', () => state.onRun('live'));
-
   pagesTabBtn.addEventListener('click', () => state.onTab('pages'));
   urlsTabBtn.addEventListener('click', () => state.onTab('urls'));
 }
@@ -447,17 +407,9 @@ async function main() {
   if (!app) return;
 
   const { context, actions } = await initSdk();
-  const { daFetch: sdkFetch, setHref } = actions;
-  const daFetch = typeof sdkFetch === 'function' ? sdkFetch : fetch;
+  const daFetch = typeof actions.daFetch === 'function' ? actions.daFetch : fetch;
   const ctx = resolveSiteContext(context);
   ctx.folderPath = resolveContentFolderPath(ctx.folderPath);
-  const libraryEmbed = isLibraryEmbed(context);
-  const fullscreenAppUrl = getFullscreenAppUrl(
-    ctx.org,
-    ctx.site,
-    ctx.ref,
-    ctx.folderPath,
-  );
 
   /** @type {Record<string, unknown>} */
   const state = {
@@ -465,9 +417,8 @@ async function main() {
     site: ctx.site,
     ref: ctx.ref,
     folderPath: ctx.folderPath,
-    libraryEmbed,
-    fullscreenAppUrl,
     maxDepth: 0,
+    includeSubfolders: false,
     loading: false,
     error: null,
     status: null,
@@ -482,20 +433,11 @@ async function main() {
       render(app, state);
     },
 
-    onOpenFullscreen() {
-      if (typeof setHref === 'function') {
-        setHref(fullscreenAppUrl);
-        return;
-      }
-      window.open(fullscreenAppUrl, '_blank', 'noopener');
-    },
-
     async onNavigate(targetPath) {
       state.folderPath = resolveContentFolderPath(targetPath);
-      const pathInput = document.getElementById('bulk-pp-path');
-      if (pathInput instanceof HTMLInputElement) {
-        pathInput.value = displayFolderPath(state.folderPath);
-      }
+      state.maxDepth = 0;
+      state.includeSubfolders = false;
+      syncUrlPath(state.ref, state.folderPath);
       await state.onLoad();
     },
 
@@ -510,6 +452,8 @@ async function main() {
       state.maxDepth = depthSelect instanceof HTMLSelectElement
         ? Number(depthSelect.value)
         : 0;
+      state.includeSubfolders = state.maxDepth !== 0;
+      syncUrlPath(state.ref, state.folderPath);
 
       if (!state.org || !state.site) {
         state.error = 'Missing org or site in DA context. Open this app from Document Authoring.';
@@ -520,22 +464,12 @@ async function main() {
 
       state.loading = true;
       state.error = null;
-      state.status = 'Loading pages…';
+      state.status = 'Loading…';
       state.statusType = 'info';
       render(app, state);
 
       try {
-        const browseEntries = await listFolderEntries(
-          daFetch,
-          state.org,
-          state.site,
-          state.folderPath,
-        );
-
-        /** @type {BrowseEntry[]} */
-        let merged = [...browseEntries];
-
-        if (state.maxDepth !== 0) {
+        if (state.includeSubfolders) {
           const nestedPages = await collectPages(
             daFetch,
             state.org,
@@ -543,40 +477,42 @@ async function main() {
             state.folderPath,
             state.maxDepth,
           );
-          const existingPaths = new Set(
-            merged.filter((e) => e.kind === 'document').map((e) => e.helixPath),
+          entries = nestedPages.map((page) => ({
+            kind: 'document',
+            name: page.name,
+            sourcePath: page.sourcePath,
+            helixPath: page.helixPath,
+          }));
+        } else {
+          entries = await listFolderEntries(
+            daFetch,
+            state.org,
+            state.site,
+            state.folderPath,
           );
-          nestedPages.forEach((page) => {
-            if (!existingPaths.has(page.helixPath)) {
-              merged.push({ kind: 'document', ...page });
-              existingPaths.add(page.helixPath);
-            }
-          });
-          merged.sort((a, b) => {
-            if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1;
-            const aKey = a.kind === 'folder' ? a.name : a.helixPath;
-            const bKey = b.kind === 'folder' ? b.name : b.helixPath;
-            return aKey.localeCompare(bKey);
-          });
         }
 
-        entries = merged;
         selected.clear();
         getDocuments().forEach((p) => selected.add(p.helixPath));
+
         const docCount = getDocuments().length;
-        const folders = entries.filter((e) => e.kind === 'folder').length;
+        const location = displayFolderPath(state.folderPath) || 'site root';
         state.error = null;
-        const dataFiles = entries.filter((e) => e.kind === 'data').length;
+
         if (entries.length === 0) {
-          state.status = 'This folder is empty. Try another path or go up a level.';
+          state.status = `No content in ${location}.`;
           state.statusType = 'info';
+        } else if (state.includeSubfolders) {
+          state.status = `Found ${docCount} page(s) under ${location} (including subfolders).`;
+          state.statusType = 'success';
         } else {
+          const folders = entries.filter((e) => e.kind === 'folder').length;
           const parts = [`${docCount} page(s)`];
           if (folders) parts.push(`${folders} folder(s)`);
-          if (dataFiles) parts.push(`${dataFiles} config file(s)`);
-          state.status = `Loaded ${parts.join(', ')} in ${displayFolderPath(state.folderPath) || 'site root'}.`;
+          state.status = `Loaded ${parts.join(', ')} in ${location}.`;
           state.statusType = 'success';
         }
+
         if (new URLSearchParams(window.location.search).has('debug')) {
           // eslint-disable-next-line no-console
           console.debug('[bulk-pp] entries', entries);
@@ -584,7 +520,7 @@ async function main() {
       } catch (err) {
         entries = [];
         selected.clear();
-        state.error = err.message || 'Failed to load pages.';
+        state.error = err.message || 'Failed to load content.';
         state.status = null;
       } finally {
         state.loading = false;
@@ -653,9 +589,7 @@ async function main() {
           if (progress && typeof progress === 'object') {
             const {
               total, processed, failed,
-            } = /** @type {{ total?: number, processed?: number, failed?: number }} */ (
-              progress
-            );
+            } = /** @type {{ total?: number, processed?: number, failed?: number }} */ (progress);
             state.status = `Job: ${job.state || 'running'} — ${processed ?? 0}/${total ?? '?'} processed (${failed ?? 0} failed)`;
             render(app, state);
           }
@@ -666,18 +600,13 @@ async function main() {
         state.status = `${action} ${outcome.message}`;
         state.statusType = outcome.statusType;
         if (outcome.statusType === 'success') {
-          if (topic === 'preview') {
-            state.previewedPaths = [...paths];
-          } else {
-            state.publishedPaths = [...paths];
-          }
+          if (topic === 'preview') state.previewedPaths = [...paths];
+          else state.publishedPaths = [...paths];
+          state.activeTab = 'urls';
         }
         const showDetail = outcome.statusType === 'error'
           || new URLSearchParams(window.location.search).has('debug');
         state.jobDetail = showDetail ? JSON.stringify(finalJob, null, 2) : null;
-        if (outcome.statusType === 'success') {
-          state.activeTab = 'urls';
-        }
       } catch (err) {
         state.status = err.message || 'Operation failed.';
         state.statusType = 'error';
@@ -690,13 +619,11 @@ async function main() {
   };
 
   if (!ctx.org || !ctx.site) {
-    state.error = 'Open from DA (da.live) so org and site are provided, or use ?org=&repo=&ref= for local UI testing.';
+    state.error = 'Open from DA (da.live) so org and site are provided, or use ?org=&repo=&ref= for local testing.';
     render(app, state);
     return;
   }
 
-  state.status = 'Leave folder path empty for site root, then click Load pages.';
-  render(app, state);
   await state.onLoad();
 }
 
