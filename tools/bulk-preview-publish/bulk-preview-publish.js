@@ -1,38 +1,50 @@
 import {
   collectPages,
   getJobPollUrl,
+  listFolderEntries,
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=6';
+} from './lib/api.js?v=7';
 import {
   getFullscreenAppUrl,
   isLibraryEmbed,
-} from './lib/context-mode.js?v=6';
+} from './lib/context-mode.js?v=7';
 import {
   displayFolderPath,
   displayPath,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=6';
+} from './lib/paths.js?v=7';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=6';
+} from './lib/urls.js?v=7';
 
-const TOOL_VERSION = '6';
+const TOOL_VERSION = '7';
 
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 
-/** @type {PageEntry[]} */
-let pages = [];
+/**
+ * @typedef {{ kind: 'folder', name: string, folderPath: string }} FolderEntry
+ * @typedef {{ kind: 'document', helixPath: string, sourcePath: string, name: string }} DocumentEntry
+ * @typedef {FolderEntry | DocumentEntry} BrowseEntry
+ */
+
+/** @type {BrowseEntry[]} */
+let entries = [];
 /** @type {Set<string>} */
 const selected = new Set();
 
 /**
  * @typedef {{ helixPath: string, sourcePath: string, name: string }} PageEntry
  */
+
+/** @returns {PageEntry[]} */
+function getDocuments() {
+  return entries.filter((e) => e.kind === 'document');
+}
 
 /**
  * @returns {Promise<{
@@ -91,6 +103,38 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text != null) node.textContent = text;
   return node;
+}
+
+/**
+ * @param {string} folderPath normalized folder path
+ * @param {(path: string) => void} onNavigate
+ * @returns {HTMLElement}
+ */
+function buildBreadcrumb(folderPath, onNavigate) {
+  const nav = el('nav', 'bulk-pp-breadcrumb');
+  nav.setAttribute('aria-label', 'Current folder');
+
+  const rootBtn = el('button', 'bulk-pp-breadcrumb-segment', 'Site root');
+  rootBtn.type = 'button';
+  rootBtn.addEventListener('click', () => onNavigate(''));
+  nav.append(rootBtn);
+
+  const segments = normalizeFolderPath(folderPath).split('/').filter(Boolean);
+  segments.forEach((segment, index) => {
+    nav.append(el('span', 'bulk-pp-breadcrumb-sep', '/'));
+    const path = segments.slice(0, index + 1).join('/');
+    const isLast = index === segments.length - 1;
+    if (isLast) {
+      nav.append(el('span', 'bulk-pp-breadcrumb-current', segment));
+    } else {
+      const btn = el('button', 'bulk-pp-breadcrumb-segment', segment);
+      btn.type = 'button';
+      btn.addEventListener('click', () => onNavigate(path));
+      nav.append(btn);
+    }
+  });
+
+  return nav;
 }
 
 /**
@@ -229,8 +273,10 @@ function render(root, state) {
   const pagesPane = el('div', 'bulk-pp-tab-pane');
   if (activeTab === 'pages') pagesPane.classList.add('bulk-pp-tab-pane-active');
 
+  pagesPane.append(buildBreadcrumb(safeFolder, (path) => state.onNavigate(path)));
+
   const topActions = el('div', 'bulk-pp-actions-top');
-  const selectAllBtn = el('button', 'bulk-pp-btn', 'Select all');
+  const selectAllBtn = el('button', 'bulk-pp-btn', 'Select all pages');
   const selectNoneBtn = el('button', 'bulk-pp-btn', 'Select none');
   selectAllBtn.type = 'button';
   selectNoneBtn.type = 'button';
@@ -239,34 +285,61 @@ function render(root, state) {
 
   const listWrap = el('div', 'bulk-pp-list-wrap');
   const list = el('ul', 'bulk-pp-list');
+  const documents = getDocuments();
+  const folderCount = entries.filter((e) => e.kind === 'folder').length;
 
   if (loading && activeTab === 'pages') {
-    list.append(el('li', null, 'Loading pages…'));
+    list.append(el('li', 'bulk-pp-list-empty', 'Loading…'));
   } else if (error && activeTab === 'pages') {
-    list.append(el('li', null, error));
-  } else if (pages.length === 0) {
-    list.append(el('li', null, 'No pages found. Adjust the path or depth and click Load pages.'));
+    list.append(el('li', 'bulk-pp-list-empty', error));
+  } else if (entries.length === 0) {
+    list.append(el('li', 'bulk-pp-list-empty', 'This folder is empty. Go up or change the path and click Load pages.'));
   } else {
-    pages.forEach((page) => {
-      const li = el('li');
+    entries.forEach((entry) => {
+      if (entry.kind === 'folder') {
+        const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-folder');
+        const icon = el('span', 'bulk-pp-item-icon bulk-pp-item-icon-folder', '📁');
+        icon.setAttribute('aria-hidden', 'true');
+        icon.title = 'Folder';
+        const label = el('span', 'bulk-pp-item-label', entry.name);
+        const typeTag = el('span', 'bulk-pp-item-type', 'Folder');
+        const enterBtn = el('button', 'bulk-pp-enter-folder', '↓');
+        enterBtn.type = 'button';
+        enterBtn.title = `Open ${entry.name}`;
+        enterBtn.setAttribute('aria-label', `Open folder ${entry.name}`);
+        enterBtn.addEventListener('click', () => state.onNavigate(entry.folderPath));
+        li.append(icon, label, typeTag, enterBtn);
+        list.append(li);
+        return;
+      }
+
+      const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-document');
       const cb = document.createElement('input');
       cb.type = 'checkbox';
-      cb.value = page.helixPath;
-      cb.checked = selected.has(page.helixPath);
-      cb.id = `page-${page.helixPath.replace(/\W/g, '_')}`;
+      cb.value = entry.helixPath;
+      cb.checked = selected.has(entry.helixPath);
+      cb.id = `page-${entry.helixPath.replace(/\W/g, '_')}`;
+      const icon = el('span', 'bulk-pp-item-icon bulk-pp-item-icon-document', '📄');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.title = 'Page';
       const label = document.createElement('label');
       label.htmlFor = cb.id;
-      label.textContent = displayPath(page.helixPath);
-      li.append(cb, label);
+      label.className = 'bulk-pp-item-label';
+      label.textContent = displayPath(entry.helixPath);
+      const typeTag = el('span', 'bulk-pp-item-type', 'Page');
+      li.append(cb, icon, label, typeTag);
       list.append(li);
     });
   }
 
   listWrap.append(list);
   pagesPane.append(listWrap);
-  pagesPane.append(
-    el('p', 'bulk-pp-meta', `${selected.size} of ${pages.length} selected`),
-  );
+
+  const metaParts = [`${selected.size} of ${documents.length} page(s) selected`];
+  if (folderCount > 0) {
+    metaParts.push(`${folderCount} folder${folderCount === 1 ? '' : 's'} — use ↓ to open`);
+  }
+  pagesPane.append(el('p', 'bulk-pp-meta', metaParts.join(' · ')));
   contentPanel.append(pagesPane);
 
   const urlsPane = el('div', 'bulk-pp-tab-pane');
@@ -308,8 +381,8 @@ function render(root, state) {
   const publishBtn = el('button', 'bulk-pp-btn bulk-pp-btn-danger', 'Publish selected');
   previewBtn.type = 'button';
   publishBtn.type = 'button';
-  previewBtn.disabled = loading || selected.size === 0;
-  publishBtn.disabled = loading || selected.size === 0;
+  previewBtn.disabled = loading || getDocuments().length === 0 || selected.size === 0;
+  publishBtn.disabled = loading || getDocuments().length === 0 || selected.size === 0;
   runRow.append(previewBtn, publishBtn);
   runPanel.append(runRow);
   root.append(runPanel);
@@ -397,6 +470,15 @@ async function main() {
       window.open(fullscreenAppUrl, '_blank', 'noopener');
     },
 
+    async onNavigate(targetPath) {
+      state.folderPath = resolveContentFolderPath(targetPath);
+      const pathInput = document.getElementById('bulk-pp-path');
+      if (pathInput instanceof HTMLInputElement) {
+        pathInput.value = displayFolderPath(state.folderPath);
+      }
+      await state.onLoad();
+    },
+
     async onLoad() {
       const pathInput = document.getElementById('bulk-pp-path');
       const depthSelect = document.getElementById('bulk-pp-depth');
@@ -423,26 +505,60 @@ async function main() {
       render(app, state);
 
       try {
-        pages = await collectPages(
+        const browseEntries = await listFolderEntries(
           daFetch,
           state.org,
           state.site,
           state.folderPath,
-          state.maxDepth,
         );
+
+        /** @type {BrowseEntry[]} */
+        let merged = [...browseEntries];
+
+        if (state.maxDepth !== 0) {
+          const nestedPages = await collectPages(
+            daFetch,
+            state.org,
+            state.site,
+            state.folderPath,
+            state.maxDepth,
+          );
+          const existingPaths = new Set(
+            merged.filter((e) => e.kind === 'document').map((e) => e.helixPath),
+          );
+          nestedPages.forEach((page) => {
+            if (!existingPaths.has(page.helixPath)) {
+              merged.push({ kind: 'document', ...page });
+              existingPaths.add(page.helixPath);
+            }
+          });
+          merged.sort((a, b) => {
+            if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1;
+            const aKey = a.kind === 'folder' ? a.name : a.helixPath;
+            const bKey = b.kind === 'folder' ? b.name : b.helixPath;
+            return aKey.localeCompare(bKey);
+          });
+        }
+
+        entries = merged;
         selected.clear();
-        pages.forEach((p) => selected.add(p.helixPath));
+        getDocuments().forEach((p) => selected.add(p.helixPath));
+        const docCount = getDocuments().length;
+        const folders = entries.filter((e) => e.kind === 'folder').length;
         state.error = null;
-        state.status = pages.length > 0
-          ? `Loaded ${pages.length} page(s).`
-          : 'No pages in this folder. Try path "docs" or increase subfolder depth.';
-        state.statusType = pages.length > 0 ? 'success' : 'info';
+        if (entries.length === 0) {
+          state.status = 'This folder is empty. Try another path or go up a level.';
+          state.statusType = 'info';
+        } else {
+          state.status = `Loaded ${docCount} page(s)${folders ? ` and ${folders} folder(s)` : ''} in ${displayFolderPath(state.folderPath) || 'site root'}.`;
+          state.statusType = 'success';
+        }
         if (new URLSearchParams(window.location.search).has('debug')) {
           // eslint-disable-next-line no-console
-          console.debug('[bulk-pp] pages', pages);
+          console.debug('[bulk-pp] entries', entries);
         }
       } catch (err) {
-        pages = [];
+        entries = [];
         selected.clear();
         state.error = err.message || 'Failed to load pages.';
         state.status = null;
@@ -453,13 +569,13 @@ async function main() {
     },
 
     onSelectAll(checked) {
-      if (checked) pages.forEach((p) => selected.add(p.helixPath));
+      if (checked) getDocuments().forEach((p) => selected.add(p.helixPath));
       else selected.clear();
       state.onSelectionChange();
     },
 
     onSelectionChange() {
-      state.status = `${selected.size} of ${pages.length} selected.`;
+      state.status = `${selected.size} of ${getDocuments().length} page(s) selected.`;
       state.statusType = 'info';
       render(app, state);
     },

@@ -8,7 +8,7 @@ import {
   joinPath,
   normalizeFolderPath,
   toHelixPath,
-} from './paths.js?v=6';
+} from './paths.js?v=7';
 
 /**
  * @param {Response} resp
@@ -145,6 +145,57 @@ export async function listFolder(daFetch, org, repo, folderPath) {
 /**
  * @typedef {{ helixPath: string, sourcePath: string, name: string }} PageEntry
  */
+
+/**
+ * @typedef {{ kind: 'folder', name: string, folderPath: string }} FolderEntry
+ * @typedef {{ kind: 'document' } & PageEntry} DocumentEntry
+ * @typedef {FolderEntry | DocumentEntry} BrowseEntry
+ */
+
+/**
+ * List immediate children of a folder (folders and page documents).
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} repo
+ * @param {string} folderPath
+ * @returns {Promise<BrowseEntry[]>}
+ */
+export async function listFolderEntries(daFetch, org, repo, folderPath) {
+  const normalized = normalizeFolderPath(folderPath);
+  const entries = await listFolder(daFetch, org, repo, normalized);
+  /** @type {BrowseEntry[]} */
+  const result = [];
+
+  entries.forEach((entry) => {
+    const name = getEntryName(entry);
+    if (!name) return;
+
+    if (isFolderEntry(entry)) {
+      result.push({
+        kind: 'folder',
+        name,
+        folderPath: joinPath(normalized, name),
+      });
+      return;
+    }
+
+    if (isPageDocument(entry)) {
+      result.push({
+        kind: 'document',
+        name,
+        sourcePath: joinPath(normalized, name),
+        helixPath: toHelixPath(normalized, name),
+      });
+    }
+  });
+
+  return result.sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1;
+    const aKey = a.kind === 'folder' ? a.name : a.helixPath;
+    const bKey = b.kind === 'folder' ? b.name : b.helixPath;
+    return aKey.localeCompare(bKey);
+  });
+}
 
 /**
  * Collect HTML pages under a folder up to maxDepth.
