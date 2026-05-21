@@ -192,13 +192,26 @@
   padding: 4px 2px;
 }
 
-.bulk-pp-hint {
-  margin: 0 0 10px;
-  font-size: 0.8rem;
+.bulk-pp-list-heading {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: #666;
+  margin: 12px 0 6px;
 }
 
-.bulk-pp-actions-top {
+.bulk-pp-list-heading:first-of-type {
+  margin-top: 0;
+}
+
+.bulk-pp-list-wrap-folders {
+  max-height: 200px;
+  margin-bottom: 4px;
+}
+
+.bulk-pp-actions-top,
+.bulk-pp-actions-pages {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
