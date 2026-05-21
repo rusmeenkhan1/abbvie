@@ -80,7 +80,98 @@ export function isFolderEntry(item) {
   if (name.endsWith('/') || path.endsWith('/')) return true;
   const type = getContentType(item);
   if (type === 'application/folder' || type.includes('folder')) return true;
+  const entryType = String(item.type || item.kind || '').toLowerCase();
+  if (entryType === 'folder' || entryType === 'directory' || entryType === 'dir') return true;
+  if (item.isdir === true || item.isDirectory === true) return true;
   return false;
+}
+
+/**
+ * DA page documents often use these names without a file extension (index, footer, …).
+ * Section folders (library, who-we-are, science) use other names — do not treat as pages.
+ */
+/** Page documents in DA Browse (index, nav, footer, …). */
+export const KNOWN_PAGE_DOC_NAMES = new Set([
+  'index',
+  'nav',
+  'footer',
+  'header',
+  '404',
+  'sitemap',
+  'robots',
+]);
+
+/** Site config / data files in DA Browse (not bulk-published as pages). */
+export const KNOWN_DATA_DOC_NAMES = new Set([
+  'metadata',
+  'placeholders',
+  'redirects',
+  'config',
+]);
+
+/**
+ * Config or data file (metadata, placeholders, redirects, JSON, …).
+ * @param {Record<string, unknown>} item
+ * @returns {boolean}
+ */
+export function isDataDocument(item) {
+  if (isFolderEntry(item)) return false;
+
+  const name = getEntryName(item);
+  if (!name) return false;
+
+  if (KNOWN_DATA_DOC_NAMES.has(name.toLowerCase())) return true;
+
+  const ext = String(item.ext || '').toLowerCase();
+  if (ext === 'json' || ext === 'yaml' || ext === 'yml') return true;
+
+  const contentType = getContentType(item);
+  if (contentType === 'application/json' || contentType.endsWith('+json')) return true;
+
+  const entryType = String(item.type || item.kind || '').toLowerCase();
+  if (entryType === 'data' || entryType === 'spreadsheet' || entryType === 'config') return true;
+
+  return false;
+}
+
+/**
+ * Extensionless listing entry that is a content section folder, not a root page doc.
+ * @param {Record<string, unknown>} item
+ * @returns {boolean}
+ */
+export function isSectionFolder(item) {
+  if (isFolderEntry(item)) return true;
+  if (isDataDocument(item)) return false;
+  if (isPageDocument(item)) return false;
+
+  const name = getEntryName(item);
+  if (!name) return false;
+
+  const ext = String(item.ext || '').toLowerCase();
+  if (ext) return false;
+  if (KNOWN_PAGE_DOC_NAMES.has(name.toLowerCase())) return false;
+  if (KNOWN_DATA_DOC_NAMES.has(name.toLowerCase())) return false;
+
+  const contentType = getContentType(item);
+  if (contentType === 'text/html') return false;
+
+  return true;
+}
+
+/**
+ * @typedef {'folder' | 'document' | 'data'} EntryKind
+ */
+
+/**
+ * Classify a DA list item the same way as DA Browse (folder / page / config).
+ * @param {Record<string, unknown>} item
+ * @returns {EntryKind | null}
+ */
+export function classifyEntry(item) {
+  if (isFolderEntry(item) || isSectionFolder(item)) return 'folder';
+  if (isDataDocument(item)) return 'data';
+  if (isPageDocument(item)) return 'document';
+  return null;
 }
 
 /** MIME types that are never bulk preview/publish pages */
@@ -117,6 +208,7 @@ export function getEntryName(item) {
  */
 export function isPageDocument(item) {
   if (isFolderEntry(item)) return false;
+  if (isDataDocument(item)) return false;
 
   const name = getEntryName(item);
   if (!name) return false;
@@ -136,9 +228,13 @@ export function isPageDocument(item) {
   if (contentType.startsWith('image/') || contentType.startsWith('video/')) return false;
   if (name.endsWith('.json') || ext === 'json') return false;
 
-  // DA browse: documents without extension in the name (index, nav, footer)
-  if (!ext && !contentType) return true;
-  if (!ext && contentType && !contentType.includes('json')) return true;
+  // Extensionless DA page docs (index, nav, footer) — not section folders (library, science, …)
+  if (!ext && !contentType) {
+    return KNOWN_PAGE_DOC_NAMES.has(name.toLowerCase());
+  }
+  if (!ext && contentType) {
+    return contentType === 'text/html' && !contentType.includes('folder');
+  }
 
   return false;
 }

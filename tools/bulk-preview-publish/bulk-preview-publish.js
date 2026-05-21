@@ -5,23 +5,23 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=7';
+} from './lib/api.js?v=9';
 import {
   getFullscreenAppUrl,
   isLibraryEmbed,
-} from './lib/context-mode.js?v=7';
+} from './lib/context-mode.js?v=9';
 import {
   displayFolderPath,
   displayPath,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=7';
+} from './lib/paths.js?v=9';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=7';
+} from './lib/urls.js?v=9';
 
-const TOOL_VERSION = '7';
+const TOOL_VERSION = '9';
 
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
@@ -29,7 +29,8 @@ const SDK_TIMEOUT_MS = 8000;
 /**
  * @typedef {{ kind: 'folder', name: string, folderPath: string }} FolderEntry
  * @typedef {{ kind: 'document', helixPath: string, sourcePath: string, name: string }} DocumentEntry
- * @typedef {FolderEntry | DocumentEntry} BrowseEntry
+ * @typedef {{ kind: 'data', name: string, sourcePath: string }} DataEntry
+ * @typedef {FolderEntry | DocumentEntry | DataEntry} BrowseEntry
  */
 
 /** @type {BrowseEntry[]} */
@@ -287,6 +288,7 @@ function render(root, state) {
   const list = el('ul', 'bulk-pp-list');
   const documents = getDocuments();
   const folderCount = entries.filter((e) => e.kind === 'folder').length;
+  const dataCount = entries.filter((e) => e.kind === 'data').length;
 
   if (loading && activeTab === 'pages') {
     list.append(el('li', 'bulk-pp-list-empty', 'Loading…'));
@@ -309,6 +311,18 @@ function render(root, state) {
         enterBtn.setAttribute('aria-label', `Open folder ${entry.name}`);
         enterBtn.addEventListener('click', () => state.onNavigate(entry.folderPath));
         li.append(icon, label, typeTag, enterBtn);
+        list.append(li);
+        return;
+      }
+
+      if (entry.kind === 'data') {
+        const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-data');
+        const icon = el('span', 'bulk-pp-item-icon bulk-pp-item-icon-data', '🗃');
+        icon.setAttribute('aria-hidden', 'true');
+        icon.title = 'Config / data file';
+        const label = el('span', 'bulk-pp-item-label', entry.name);
+        const typeTag = el('span', 'bulk-pp-item-type', 'Config');
+        li.append(icon, label, typeTag);
         list.append(li);
         return;
       }
@@ -337,7 +351,13 @@ function render(root, state) {
 
   const metaParts = [`${selected.size} of ${documents.length} page(s) selected`];
   if (folderCount > 0) {
-    metaParts.push(`${folderCount} folder${folderCount === 1 ? '' : 's'} — use ↓ to open`);
+    metaParts.push(`${folderCount} folder${folderCount === 1 ? '' : 's'}`);
+  }
+  if (dataCount > 0) {
+    metaParts.push(`${dataCount} config file${dataCount === 1 ? '' : 's'}`);
+  }
+  if (folderCount > 0) {
+    metaParts.push('use ↓ on folders to open');
   }
   pagesPane.append(el('p', 'bulk-pp-meta', metaParts.join(' · ')));
   contentPanel.append(pagesPane);
@@ -546,11 +566,15 @@ async function main() {
         const docCount = getDocuments().length;
         const folders = entries.filter((e) => e.kind === 'folder').length;
         state.error = null;
+        const dataFiles = entries.filter((e) => e.kind === 'data').length;
         if (entries.length === 0) {
           state.status = 'This folder is empty. Try another path or go up a level.';
           state.statusType = 'info';
         } else {
-          state.status = `Loaded ${docCount} page(s)${folders ? ` and ${folders} folder(s)` : ''} in ${displayFolderPath(state.folderPath) || 'site root'}.`;
+          const parts = [`${docCount} page(s)`];
+          if (folders) parts.push(`${folders} folder(s)`);
+          if (dataFiles) parts.push(`${dataFiles} config file(s)`);
+          state.status = `Loaded ${parts.join(', ')} in ${displayFolderPath(state.folderPath) || 'site root'}.`;
           state.statusType = 'success';
         }
         if (new URLSearchParams(window.location.search).has('debug')) {

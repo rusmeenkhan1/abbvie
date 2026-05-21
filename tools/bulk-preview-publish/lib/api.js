@@ -2,13 +2,12 @@ import {
   DA_ADMIN,
   HLX_ADMIN,
   dedupePaths,
+  classifyEntry,
   getEntryName,
-  isFolderEntry,
-  isPageDocument,
   joinPath,
   normalizeFolderPath,
   toHelixPath,
-} from './paths.js?v=7';
+} from './paths.js?v=9';
 
 /**
  * @param {Response} resp
@@ -50,8 +49,11 @@ function normalizeListItems(org, repo, folderPath, raw) {
   return normalizeListing(raw).map((entry) => {
     const item = /** @type {Record<string, unknown>} */ (entry);
     const rawName = String(item.name || '');
+    const entryType = String(item.type || item.kind || '').toLowerCase();
     const isFolder = rawName.endsWith('/')
-      || String(item['content-type'] || item.contentType || '').includes('folder');
+      || String(item['content-type'] || item.contentType || '').includes('folder')
+      || entryType === 'folder' || entryType === 'directory' || entryType === 'dir'
+      || item.isdir === true || item.isDirectory === true;
     let name = rawName.replace(/\/$/, '');
     let ext = String(item.ext || '').toLowerCase();
 
@@ -149,7 +151,8 @@ export async function listFolder(daFetch, org, repo, folderPath) {
 /**
  * @typedef {{ kind: 'folder', name: string, folderPath: string }} FolderEntry
  * @typedef {{ kind: 'document' } & PageEntry} DocumentEntry
- * @typedef {FolderEntry | DocumentEntry} BrowseEntry
+ * @typedef {{ kind: 'data', name: string, sourcePath: string }} DataEntry
+ * @typedef {FolderEntry | DocumentEntry | DataEntry} BrowseEntry
  */
 
 /**
@@ -166,11 +169,14 @@ export async function listFolderEntries(daFetch, org, repo, folderPath) {
   /** @type {BrowseEntry[]} */
   const result = [];
 
+  const kindOrder = { folder: 0, document: 1, data: 2 };
+
   entries.forEach((entry) => {
     const name = getEntryName(entry);
     if (!name) return;
 
-    if (isFolderEntry(entry)) {
+    const kind = classifyEntry(entry);
+    if (kind === 'folder') {
       result.push({
         kind: 'folder',
         name,
@@ -179,20 +185,30 @@ export async function listFolderEntries(daFetch, org, repo, folderPath) {
       return;
     }
 
-    if (isPageDocument(entry)) {
+    if (kind === 'document') {
       result.push({
         kind: 'document',
         name,
         sourcePath: joinPath(normalized, name),
         helixPath: toHelixPath(normalized, name),
       });
+      return;
+    }
+
+    if (kind === 'data') {
+      result.push({
+        kind: 'data',
+        name,
+        sourcePath: joinPath(normalized, name),
+      });
     }
   });
 
   return result.sort((a, b) => {
-    if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1;
-    const aKey = a.kind === 'folder' ? a.name : a.helixPath;
-    const bKey = b.kind === 'folder' ? b.name : b.helixPath;
+    const orderDiff = kindOrder[a.kind] - kindOrder[b.kind];
+    if (orderDiff !== 0) return orderDiff;
+    const aKey = a.kind === 'document' ? a.helixPath : a.name;
+    const bKey = b.kind === 'document' ? b.helixPath : b.name;
     return aKey.localeCompare(bKey);
   });
 }
@@ -222,12 +238,12 @@ export async function collectPages(daFetch, org, repo, rootPath, maxDepth) {
 
     entries.forEach((entry) => {
       const name = getEntryName(entry);
-      if (isFolderEntry(entry)) {
+      if (classifyEntry(entry) === 'folder') {
         const folderName = String(entry.name || name).replace(/\/$/, '');
         if (folderName) subfolders.push(joinPath(folder, folderName));
         return;
       }
-      if (isPageDocument(entry)) {
+      if (classifyEntry(entry) === 'document') {
         pages.push({
           name,
           sourcePath: joinPath(folder, name),

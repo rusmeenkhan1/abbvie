@@ -267,6 +267,15 @@
   background: #fafcff;
 }
 
+.bulk-pp-list-item-data {
+  background: #f8f8f8;
+  opacity: 0.92;
+}
+
+.bulk-pp-list-item-data .bulk-pp-item-label {
+  color: #555;
+}
+
 .bulk-pp-item-icon {
   flex-shrink: 0;
   width: 1.25rem;
@@ -304,6 +313,11 @@
 .bulk-pp-list-item-document .bulk-pp-item-type {
   background: #e8f0e8;
   color: #1e4620;
+}
+
+.bulk-pp-list-item-data .bulk-pp-item-type {
+  background: #ebe6f2;
+  color: #4a3d66;
 }
 
 .bulk-pp-enter-folder {
