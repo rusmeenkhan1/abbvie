@@ -6,9 +6,10 @@ import {
   getEntryName,
   joinPath,
   normalizeFolderPath,
+  decodeHelixPath,
   helixToWebPath,
   toHelixPath,
-} from './paths.js?v=33';
+} from './paths.js?v=35';
 
 const ADMIN_STATUS_POST_SUFFIX = 'index';
 
@@ -553,21 +554,40 @@ export function getJobPollUrl(bulkResponse, org, site, ref, topic) {
  * @returns {string[]}
  */
 export function helixPathToStatusPathKeys(helixPath) {
-  const web = helixToWebPath(helixPath);
-  const norm = normalizeWebPath(helixPath);
-  const keys = new Set();
+  const decoded = decodeHelixPath(helixPath);
+  const norm = normalizeWebPath(decoded);
+  const web = helixToWebPath(decoded);
   const webBare = web === '/' ? 'index' : web.replace(/^\//, '');
   const normBare = norm === '/' ? 'index' : norm.replace(/^\//, '');
-  keys.add(webBare);
-  keys.add(normBare);
-  if (webBare === 'index' || normBare === 'index') {
-    keys.add('index');
-    keys.add('');
+  /** @type {string[]} */
+  const ordered = [];
+  const push = (key) => {
+    const bare = (key || '').replace(/^\//, '');
+    if (!bare) {
+      if (!ordered.includes('index')) ordered.push('index');
+      return;
+    }
+    if (!ordered.includes(bare)) ordered.push(bare);
+    const htmlKey = `${bare}.html`;
+    if (!bare.endsWith('.html') && !ordered.includes(htmlKey)) ordered.push(htmlKey);
+  };
+
+  // DA folder pages (…/story/index) — try full resource path before parent slug
+  if (normBare.endsWith('/index') && normBare !== 'index') {
+    push(normBare);
+    push(normBare.slice(0, -'/index'.length));
+  } else if (normBare !== 'index') {
+    push(normBare);
+    push(`${normBare}/index`);
   }
-  if (normBare.endsWith('/index')) {
-    keys.add(normBare.slice(0, -'/index'.length));
+
+  if (webBare !== normBare) {
+    push(webBare);
+    if (webBare !== 'index' && !webBare.endsWith('/index')) push(`${webBare}/index`);
   }
-  return [...keys];
+
+  if (webBare === 'index' || normBare === 'index') push('index');
+  return ordered;
 }
 
 /**
@@ -659,6 +679,7 @@ function buildHelixPathLookup(helixPaths) {
   };
   helixPaths.forEach((helix) => {
     link(helix, helix);
+    link(helixToWebPath(helix), helix);
     const norm = normalizeWebPath(helix);
     if (norm.endsWith('/index')) {
       const parent = norm.slice(0, -'/index'.length) || '/';
@@ -669,6 +690,8 @@ function buildHelixPathLookup(helixPaths) {
       link('/index', helix);
       link('index', helix);
     }
+    const bare = norm.replace(/^\//, '');
+    if (bare) link(`${bare}.md`, helix);
   });
   return lookup;
 }
@@ -794,6 +817,23 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
     /** @type {{ previewedAt?: number, publishedAt?: number }} */
     const entry = {};
 
+    const previewUrl = buildAdminResourceUrl('preview', org, site, ref, pathKey);
+    try {
+      const resp = await daFetchWithRetry(daFetch, previewUrl, { method: 'GET' });
+      const data = await parseJson(resp);
+      if (resp.ok && data) {
+        const fromPreview = entryFromPreviewBody(data);
+        entry.previewedAt = fromPreview.previewedAt;
+        entry.publishedAt = fromPreview.publishedAt;
+        const linked = await fetchLinkedStatusFromPreview(daFetch, data);
+        entry.previewedAt = entry.previewedAt || linked.previewedAt;
+        entry.publishedAt = entry.publishedAt || linked.publishedAt;
+        if (entry.previewedAt || entry.publishedAt) return entry;
+      }
+    } catch {
+      // try status path next
+    }
+
     const statusUrl = buildAdminResourceUrl('status', org, site, ref, pathKey);
     try {
       const statusResp = await daFetchWithRetry(daFetch, statusUrl, { method: 'GET' });
@@ -803,22 +843,6 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
         entry.previewedAt = parsed.previewedAt;
         entry.publishedAt = parsed.publishedAt;
         if (entry.previewedAt || entry.publishedAt) return entry;
-      }
-    } catch {
-      // try preview route next
-    }
-
-    const previewUrl = buildAdminResourceUrl('preview', org, site, ref, pathKey);
-    try {
-      const resp = await daFetchWithRetry(daFetch, previewUrl, { method: 'GET' });
-      const data = await parseJson(resp);
-      if (resp.ok && data) {
-        const parsed = parseStatusPayload(data);
-        const previewPart = /** @type {Record<string, unknown>} */ (data).preview || data;
-        entry.previewedAt = parsed.previewedAt || partitionTimestamp(previewPart);
-        if (entry.previewedAt) {
-          best = { previewedAt: entry.previewedAt, publishedAt: best.publishedAt };
-        }
       }
     } catch {
       // continue
@@ -869,11 +893,50 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
  */
 function normalizeWebPath(path) {
   if (!path) return '/';
-  let p = String(path).trim();
+  let p = decodeHelixPath(String(path).trim());
   if (p.endsWith('.html')) p = p.slice(0, -5);
+  if (p.endsWith('.md')) p = p.slice(0, -3);
   p = p.startsWith('/') ? p : `/${p}`;
   if (p.length > 1 && p.endsWith('/')) return p.slice(0, -1);
   return p || '/';
+}
+
+/**
+ * @param {unknown} data
+ * @returns {{ previewedAt?: number, publishedAt?: number }}
+ */
+function entryFromPreviewBody(data) {
+  if (!data || typeof data !== 'object') return {};
+  const parsed = parseStatusPayload(data);
+  const previewPart = /** @type {Record<string, unknown>} */ (data).preview || data;
+  const previewTs = partitionTimestamp(previewPart);
+  if (previewTs) {
+    return { previewedAt: parsed.previewedAt || previewTs, publishedAt: parsed.publishedAt };
+  }
+  if (Number(/** @type {{ status?: number }} */ (previewPart).status) === 200) {
+    return { previewedAt: parsed.previewedAt || Date.now(), publishedAt: parsed.publishedAt };
+  }
+  return parsed;
+}
+
+/**
+ * Follow links.status from a preview response (same pattern as site index).
+ * @param {Function} daFetch
+ * @param {unknown} data
+ */
+async function fetchLinkedStatusFromPreview(daFetch, data) {
+  if (!data || typeof data !== 'object') return {};
+  const links = /** @type {{ status?: string }} */ (data).links;
+  const statusUrl = links?.status;
+  if (!statusUrl || typeof statusUrl !== 'string') return {};
+  try {
+    const resp = await daFetchWithRetry(daFetch, statusUrl, { method: 'GET' });
+    const json = await parseJson(resp);
+    if (resp.ok && json) return parseStatusPayload(json);
+  } catch {
+    // ignore
+  }
+  return {};
 }
 
 /**
@@ -1072,28 +1135,42 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
  * @param {string} ref
  * @param {string[]} helixPaths
  */
-async function fetchStatusParallel(daFetch, org, site, ref, helixPaths) {
+/**
+ * @typedef {(partial: Record<string, { previewedAt?: number, publishedAt?: number }>, checked: number, total: number) => void} StatusProgressFn
+ */
+
+/**
+ * Check every path (no 25-page cap). Batched to limit rate limits.
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ * @param {(partial: Record<string, { previewedAt?: number, publishedAt?: number }>, done: number) => void} [onProgress]
+ */
+async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgress) {
   const unique = dedupePaths(helixPaths);
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   const result = {};
-  let index = 0;
-  const workers = Math.min(3, Math.max(unique.length, 1));
-  const deadline = Date.now() + 120000;
-  const gapMs = 250;
+  const batchSize = 6;
+  let done = 0;
 
-  await Promise.all(Array.from({ length: workers }, async () => {
-    while (index < unique.length && Date.now() < deadline) {
-      const path = unique[index];
-      index += 1;
+  /* eslint-disable no-await-in-loop -- rate-limit friendly batches */
+  for (let i = 0; i < unique.length; i += batchSize) {
+    const batch = unique.slice(i, i + batchSize);
+    await Promise.all(batch.map(async (path) => {
       try {
         result[path] = await fetchSinglePagePlatformStatus(daFetch, org, site, ref, path);
       } catch (err) {
         if (err instanceof Error && /authorized|too many status/i.test(err.message)) throw err;
         result[path] = {};
       }
-      await sleep(gapMs);
-    }
-  }));
+    }));
+    done += batch.length;
+    if (onProgress) onProgress({ ...result }, done);
+    if (i + batchSize < unique.length) await sleep(300);
+  }
+  /* eslint-enable no-await-in-loop */
 
   return result;
 }
@@ -1109,7 +1186,15 @@ function logStatusApiOnce() {
   );
 }
 
-export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helixPaths) {
+/**
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ * @param {StatusProgressFn} [onProgress]
+ */
+export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helixPaths, onProgress) {
   const unique = dedupePaths(helixPaths);
   if (unique.length === 0) return {};
   assertAdminContext(org, site, ref);
@@ -1125,8 +1210,11 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
     return result;
   }
 
-  const useBulk = typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).has('bulkStatus');
+  const useBulk = typeof window !== 'undefined' && (() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('noBulkStatus')) return false;
+    return params.has('bulkStatus') || unique.length >= 12;
+  })();
 
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   let result = {};
@@ -1149,14 +1237,39 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
   });
 
   const toFetch = useBulk && Object.keys(result).length > 0 ? missing : unique;
-  const capped = toFetch.length > 25 ? toFetch.slice(0, 25) : toFetch;
-  if (capped.length > 0) {
-    const filled = await fetchStatusParallel(daFetch, org, site, ref, capped);
-    capped.forEach((p) => {
+  const alreadyResolved = unique.length - toFetch.length;
+
+  const reportProgress = (doneInBatch, batchTotal) => {
+    if (!onProgress) return;
+    const checked = Math.min(alreadyResolved + doneInBatch, unique.length);
+    onProgress({ ...result }, checked, unique.length);
+  };
+
+  if (useBulk && alreadyResolved > 0 && onProgress) {
+    reportProgress(0, toFetch.length);
+  }
+
+  if (toFetch.length > 0) {
+    const filled = await fetchStatusParallel(
+      daFetch,
+      org,
+      site,
+      ref,
+      toFetch,
+      (partial, done) => {
+        toFetch.forEach((p) => {
+          const e = partial[p];
+          if (e?.previewedAt || e?.publishedAt) result[p] = e;
+        });
+        reportProgress(done, toFetch.length);
+      },
+    );
+    toFetch.forEach((p) => {
       const e = filled[p];
       if (e?.previewedAt || e?.publishedAt) result[p] = e;
     });
   }
 
+  if (onProgress) onProgress({ ...result }, unique.length, unique.length);
   return result;
 }

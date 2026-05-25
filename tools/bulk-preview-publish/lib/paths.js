@@ -25,9 +25,30 @@ export function isHlxAdminUrl(url) {
  * @param {string} helixPath
  * @returns {string}
  */
+/**
+ * Undo accidental URI encoding in paths (e.g. who-we-are%2Four-stories%2Fpage).
+ * @param {string} path
+ * @returns {string}
+ */
+export function decodeHelixPath(path) {
+  if (!path) return path;
+  let p = String(path);
+  try {
+    for (let i = 0; i < 3; i += 1) {
+      const next = decodeURIComponent(p);
+      if (next === p) break;
+      p = next;
+    }
+  } catch {
+    // keep original
+  }
+  return p;
+}
+
 export function helixToWebPath(helixPath) {
-  const norm = !helixPath || helixPath === '/' ? '/' : (
-    helixPath.startsWith('/') ? helixPath : `/${helixPath}`
+  const decoded = decodeHelixPath(helixPath);
+  const norm = !decoded || decoded === '/' ? '/' : (
+    decoded.startsWith('/') ? decoded : `/${decoded}`
   );
   if (norm === '/index' || norm.endsWith('/index')) {
     const parent = norm === '/index' ? '' : norm.slice(0, -'/index'.length);

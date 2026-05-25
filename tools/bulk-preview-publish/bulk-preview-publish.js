@@ -11,17 +11,17 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=33';
+} from './lib/api.js?v=35';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=33';
+} from './lib/paths.js?v=35';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=33';
+} from './lib/urls.js?v=35';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -30,9 +30,9 @@ import {
   pathsOnPreview,
   pathsOnPublished,
   statusLabel,
-} from './lib/page-history.js?v=33';
+} from './lib/page-history.js?v=35';
 
-const TOOL_VERSION = '33';
+const TOOL_VERSION = '35';
 
 /** Reload once if an old ?v= cache param would load admin.da.live rewrite (v31 and below). */
 function ensureLatestToolCache() {
@@ -752,21 +752,29 @@ async function main() {
         render(app, state);
 
         const pathsToCheck = pages.map((p) => p.helixPath);
+        const statusLocation = location;
         fetchPlatformStatusForPaths(
           daFetch,
           state.org,
           state.site,
           state.ref,
           pathsToCheck,
+          (partial, done, total) => {
+            state.platformStatus = { ...partial };
+            const deployed = countDeployedPages(state.platformStatus, pages);
+            state.status = `Checking deployment status… ${done}/${total} (${deployed} on preview/live)`;
+            state.statusType = 'info';
+            render(app, state);
+          },
         ).then((platformStatus) => {
           state.platformStatus = platformStatus;
           state.statusCheckFailed = false;
           state.statusError = null;
           const deployed = countDeployedPages(platformStatus, pages);
           if (folders.length === 0 && docCount === 0) {
-            state.status = `No folders or pages in ${location}.`;
+            state.status = `No folders or pages in ${statusLocation}.`;
           } else if (state.pageScope === 'tree') {
-            state.status = `${docCount} page(s) under ${location} · ${deployed} on preview/live`;
+            state.status = `${docCount} page(s) under ${statusLocation} · ${deployed} on preview/live`;
           } else {
             state.status = `${docCount} page(s), ${folders.length} folder(s) · ${deployed} on preview/live`;
           }
