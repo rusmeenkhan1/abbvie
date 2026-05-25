@@ -553,8 +553,14 @@ async function main() {
     onSelectionChange() {
       const meta = document.querySelector('.bulk-pp-meta');
       if (meta) meta.textContent = `${selected.size} of ${pages.length} page(s) selected`;
-      const previewBtn = document.querySelector('.bulk-pp-btn-primary');
-      const publishBtn = document.querySelector('.bulk-pp-btn-danger');
+      document.querySelectorAll('.bulk-pp-list-item-document input[type="checkbox"]').forEach((cb) => {
+        if (cb instanceof HTMLInputElement) {
+          cb.checked = selected.has(cb.value);
+        }
+      });
+      const runPanel = document.querySelector('.bulk-pp-panel:last-of-type .bulk-pp-row');
+      const previewBtn = runPanel?.querySelector('.bulk-pp-btn-primary');
+      const publishBtn = runPanel?.querySelector('.bulk-pp-btn-danger');
       const disabled = pages.length === 0 || selected.size === 0;
       if (previewBtn instanceof HTMLButtonElement) previewBtn.disabled = disabled;
       if (publishBtn instanceof HTMLButtonElement) publishBtn.disabled = disabled;
