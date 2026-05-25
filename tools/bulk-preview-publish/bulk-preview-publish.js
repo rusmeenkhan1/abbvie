@@ -8,17 +8,17 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=25';
+} from './lib/api.js?v=26';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=25';
+} from './lib/paths.js?v=26';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=25';
+} from './lib/urls.js?v=26';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -27,9 +27,9 @@ import {
   pathsOnPreview,
   pathsOnPublished,
   statusLabel,
-} from './lib/page-history.js?v=25';
+} from './lib/page-history.js?v=26';
 
-const TOOL_VERSION = '25';
+const TOOL_VERSION = '26';
 
 /**
  * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus

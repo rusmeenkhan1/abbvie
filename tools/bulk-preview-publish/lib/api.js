@@ -1,6 +1,5 @@
 import {
   DA_ADMIN,
-  HLX_ADMIN,
   dedupePaths,
   classifyEntry,
   getEntryName,
@@ -8,20 +7,17 @@ import {
   normalizeFolderPath,
   rewriteAdminUrl,
   toHelixPath,
-} from './paths.js?v=25';
-
-/** @type {string} */
-let adminApiBase = DA_ADMIN;
-
-/** When true, use admin.hlx.page URLs (DA SDK daFetch adds IMS Bearer + x-content-source-authorization). */
-let adminUseHlx = false;
+} from './paths.js?v=26';
 
 /**
- * @param {{ useSdkFetch: boolean }} options
+ * DA Apps serve tool HTML from *.aem.live — always call admin.da.live (CORS *).
+ * SDK daFetch supplies IMS Bearer; do not use admin.hlx.page from the browser.
  */
-export function configureAdminApi({ useSdkFetch }) {
-  adminUseHlx = Boolean(useSdkFetch);
-  adminApiBase = adminUseHlx ? HLX_ADMIN : DA_ADMIN;
+const adminApiBase = DA_ADMIN;
+
+/** @param {{ useSdkFetch?: boolean }} [_options] */
+export function configureAdminApi(_options = {}) {
+  // no-op; kept for callers
 }
 
 /**
@@ -29,8 +25,6 @@ export function configureAdminApi({ useSdkFetch }) {
  * @returns {string}
  */
 function resolveAdminUrl(url) {
-  if (!url || typeof url !== 'string') return url;
-  if (adminUseHlx) return url.replace(/^https:\/\/admin\.da\.live/i, HLX_ADMIN);
   return rewriteAdminUrl(url);
 }
 
@@ -49,6 +43,9 @@ export function formatAdminApiError(data, status) {
   }
   if (status === 401 || status === 403) {
     return 'Not signed in or not permitted. Open from da.live and sign in with Adobe IMS.';
+  }
+  if (status === 429) {
+    return 'Too many status requests — wait a moment and click Refresh.';
   }
   return raw || null;
 }
@@ -596,6 +593,29 @@ function buildHelixPathLookup(helixPaths) {
  * @param {string} ref
  * @param {string} helixPath
  */
+/**
+ * @param {Function} daFetch
+ * @param {string} url
+ * @param {RequestInit} [init]
+ */
+async function daFetchWithRetry(daFetch, url, init) {
+  let lastResp = null;
+  /* eslint-disable no-await-in-loop */
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      lastResp = await daFetch(url, init);
+    } catch (err) {
+      if (err instanceof Error && /missing ims client id/i.test(err.message)) throw err;
+      if (err instanceof TypeError) throw err;
+      throw err;
+    }
+    if (lastResp.status !== 429) return lastResp;
+    await sleep(800 + attempt * 600);
+  }
+  /* eslint-enable no-await-in-loop */
+  return lastResp;
+}
+
 async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath) {
   const pathKeys = helixPathToStatusPathKeys(helixPath);
   /** @type {{ previewedAt?: number, publishedAt?: number }} */
@@ -606,7 +626,7 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
     const url = buildStatusGetUrl(org, site, ref, pathKeys[i]);
     let resp;
     try {
-      resp = await daFetch(url, { method: 'GET' });
+      resp = await daFetchWithRetry(daFetch, url, { method: 'GET' });
     } catch (err) {
       if (err instanceof Error && /missing ims client id/i.test(err.message)) {
         throw new Error(formatAdminApiError({ message: err.message }, 0) || err.message);
@@ -624,6 +644,7 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
       const msg = formatAdminApiError(data, resp.status);
       throw new Error(msg || `Not authorized to read page status (${resp.status}).`);
     }
+    if (resp.status === 429) return best;
     const apiErr = formatAdminApiError(data, resp.status);
     if (apiErr && !resp.ok && resp.status !== 404) {
       throw new Error(apiErr);
@@ -835,8 +856,9 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths) {
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   const result = {};
   let index = 0;
-  const workers = Math.min(12, Math.max(unique.length, 1));
-  const deadline = Date.now() + 90000;
+  const workers = Math.min(3, Math.max(unique.length, 1));
+  const deadline = Date.now() + 120000;
+  const gapMs = 250;
 
   await Promise.all(Array.from({ length: workers }, async () => {
     while (index < unique.length && Date.now() < deadline) {
@@ -845,9 +867,10 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths) {
       try {
         result[path] = await fetchSinglePagePlatformStatus(daFetch, org, site, ref, path);
       } catch (err) {
-        if (err instanceof Error && /authorized/i.test(err.message)) throw err;
+        if (err instanceof Error && /authorized|too many status/i.test(err.message)) throw err;
         result[path] = {};
       }
+      await sleep(gapMs);
     }
   }));
 
