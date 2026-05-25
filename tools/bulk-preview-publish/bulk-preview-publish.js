@@ -5,19 +5,29 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=14';
+} from './lib/api.js?v=15';
 import {
   displayFolderPath,
   displayPath,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=14';
+} from './lib/paths.js?v=15';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=14';
+} from './lib/urls.js?v=15';
+import {
+  filterAndSortPages,
+  formatStatusDate,
+  getPageStatus,
+  loadHistory,
+  PAGE_FILTERS,
+  recordPaths,
+  saveHistory,
+  statusLabel,
+} from './lib/page-history.js?v=15';
 
-const TOOL_VERSION = '14';
+const TOOL_VERSION = '15';
 
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
@@ -185,11 +195,15 @@ function buildFolderRow(folder, onNavigate) {
 
 /**
  * @param {DocumentEntry} page
+ * @param {import('./lib/page-history.js?v=15').PageHistoryEntry | undefined} entry
  * @param {(checked: boolean, path: string) => void} onToggle
  * @returns {HTMLLIElement}
  */
-function buildPageRow(page, onToggle) {
-  const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-document');
+function buildPageRow(page, entry, onToggle) {
+  const status = getPageStatus(entry);
+  const li = el('li', `bulk-pp-list-item bulk-pp-list-item-document bulk-pp-row-${status}`);
+  li.dataset.status = status;
+
   const cb = document.createElement('input');
   cb.type = 'checkbox';
   cb.className = 'bulk-pp-page-cb';
@@ -202,15 +216,60 @@ function buildPageRow(page, onToggle) {
     const path = input.dataset.path || input.value;
     onToggle(input.checked, path);
   });
+
   const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-document', '');
   icon.setAttribute('aria-hidden', 'true');
+
+  const labelWrap = el('div', 'bulk-pp-item-main');
   const label = document.createElement('label');
   label.htmlFor = cb.id;
   label.className = 'bulk-pp-item-label';
   label.textContent = page.name;
   label.title = displayPath(page.helixPath);
-  li.append(cb, icon, label);
+  labelWrap.append(label);
+
+  const dateParts = [];
+  if (entry?.previewedAt) dateParts.push(`Preview: ${formatStatusDate(entry.previewedAt)}`);
+  if (entry?.publishedAt) dateParts.push(`Live: ${formatStatusDate(entry.publishedAt)}`);
+  if (dateParts.length) labelWrap.append(el('span', 'bulk-pp-item-dates', dateParts.join(' · ')));
+
+  const badge = el('span', `bulk-pp-status-badge bulk-pp-status-badge-${status}`, statusLabel(status));
+  li.append(cb, icon, labelWrap, badge);
   return li;
+}
+
+/**
+ * @param {Record<string, unknown>} state
+ * @returns {DocumentEntry[]}
+ */
+function getVisiblePages(state) {
+  return filterAndSortPages(
+    pages,
+    /** @type {Record<string, import('./lib/page-history.js?v=15').PageHistoryEntry>} */ (
+      state.pageHistory
+    ),
+    String(state.pageFilter || 'all'),
+  );
+}
+
+/**
+ * @param {Record<string, unknown>} state
+ */
+function buildStatusLegend() {
+  const legend = el('div', 'bulk-pp-status-legend');
+  legend.setAttribute('aria-label', 'Page status colors');
+  [
+    ['untouched', 'Not previewed or published', 'var(--pp-status-red)'],
+    ['previewed', 'Previewed only', 'var(--pp-status-yellow)'],
+    ['published', 'Published to live', 'var(--pp-status-green)'],
+  ].forEach(([key, text, color]) => {
+    const item = el('span', `bulk-pp-legend-item bulk-pp-legend-${key}`);
+    const dot = el('span', 'bulk-pp-legend-dot');
+    dot.style.background = color;
+    item.append(dot, document.createTextNode(text));
+    legend.append(item);
+  });
+  return legend;
 }
 
 function appendUrlSection(container, title, host, urls) {
@@ -253,7 +312,14 @@ function render(root, state) {
     previewedPaths,
     publishedPaths,
     pageScope,
+    pageFilter,
+    pageHistory,
   } = state;
+
+  const visiblePages = getVisiblePages(state);
+  const historyMap = /** @type {Record<string, import('./lib/page-history.js?v=15').PageHistoryEntry>} */ (
+    pageHistory || {}
+  );
 
   root.replaceChildren();
 
@@ -338,6 +404,23 @@ function render(root, state) {
   } else if (error && activeTab === 'pages') {
     pagesPane.append(el('p', 'bulk-pp-list-empty', error));
   } else {
+    const filterRow = el('div', 'bulk-pp-filter-row');
+    filterRow.append(buildStatusLegend());
+    const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
+    filterField.append(el('label', null, 'Filter pages'));
+    const filterSelect = document.createElement('select');
+    filterSelect.id = 'bulk-pp-page-filter';
+    PAGE_FILTERS.forEach(([value, label]) => {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      if (value === (pageFilter || 'all')) opt.selected = true;
+      filterSelect.append(opt);
+    });
+    filterField.append(filterSelect);
+    filterRow.append(filterField);
+    pagesPane.append(filterRow);
+
     if (folders.length > 0) {
       pagesPane.append(el('h3', 'bulk-pp-list-heading', 'Folders'));
       const folderWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-folders');
@@ -350,24 +433,6 @@ function render(root, state) {
     }
 
     pagesPane.append(el('h3', 'bulk-pp-list-heading', 'Pages'));
-    const pageWrap = el('div', 'bulk-pp-list-wrap');
-    const pageList = el('ul', 'bulk-pp-list');
-    pageList.id = 'bulk-pp-page-list';
-    if (pages.length === 0) {
-      pageList.append(el('li', 'bulk-pp-list-empty', pageScope === 'tree'
-        ? 'No pages in this folder tree.'
-        : 'No pages in this folder.'));
-    } else {
-      pages.forEach((page) => {
-        pageList.append(buildPageRow(page, (checked, path) => {
-          if (checked) selected.add(path);
-          else selected.delete(path);
-          state.onSelectionChange();
-        }));
-      });
-    }
-    pageWrap.append(pageList);
-    pagesPane.append(pageWrap);
 
     const toolbar = el('div', 'bulk-pp-toolbar');
     const toolbarActions = el('div', 'bulk-pp-toolbar-actions');
@@ -375,15 +440,49 @@ function render(root, state) {
     const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost', 'Select none');
     selectAllBtn.type = 'button';
     selectNoneBtn.type = 'button';
-    selectAllBtn.disabled = pages.length === 0;
-    selectNoneBtn.disabled = pages.length === 0;
+    selectAllBtn.disabled = visiblePages.length === 0;
+    selectNoneBtn.disabled = visiblePages.length === 0;
     selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
     selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
     toolbarActions.append(selectAllBtn, selectNoneBtn);
-    const selectionPill = el('span', 'bulk-pp-selection-pill', `${selected.size} of ${pages.length} selected`);
+    const visibleCount = visiblePages.length;
+    const totalCount = pages.length;
+    const pillText = visibleCount === totalCount
+      ? `${selected.size} of ${totalCount} selected`
+      : `${selected.size} selected · ${visibleCount} shown (${totalCount} total)`;
+    const selectionPill = el('span', 'bulk-pp-selection-pill', pillText);
     selectionPill.id = 'bulk-pp-selection-pill';
     toolbar.append(toolbarActions, selectionPill);
-    pagesPane.insertBefore(toolbar, pageWrap);
+
+    const pageWrap = el('div', 'bulk-pp-list-wrap');
+    const pageList = el('ul', 'bulk-pp-list');
+    pageList.id = 'bulk-pp-page-list';
+    if (pages.length === 0) {
+      pageList.append(el('li', 'bulk-pp-list-empty', pageScope === 'tree'
+        ? 'No pages in this folder tree.'
+        : 'No pages in this folder.'));
+    } else if (visiblePages.length === 0) {
+      pageList.append(el('li', 'bulk-pp-list-empty', 'No pages match this filter.'));
+    } else {
+      visiblePages.forEach((page) => {
+        pageList.append(buildPageRow(
+          page,
+          historyMap[page.helixPath],
+          (checked, path) => {
+            if (checked) selected.add(path);
+            else selected.delete(path);
+            state.onSelectionChange();
+          },
+        ));
+      });
+    }
+    pageWrap.append(pageList);
+    pagesPane.append(toolbar, pageWrap);
+
+    filterSelect.addEventListener('change', () => {
+      state.pageFilter = filterSelect.value;
+      render(root, state);
+    });
   }
   contentPanel.append(pagesPane);
 
@@ -467,6 +566,8 @@ async function main() {
     activeTab: 'pages',
     previewedPaths: [],
     publishedPaths: [],
+    pageFilter: 'all',
+    pageHistory: loadHistory(ctx.org, ctx.site, ctx.ref),
 
     onTab(tab) {
       state.activeTab = tab;
@@ -576,10 +677,11 @@ async function main() {
     },
 
     onSelectAll(checked) {
+      const visible = getVisiblePages(state);
       if (checked) {
-        pages.forEach((p) => selected.add(p.helixPath));
+        visible.forEach((p) => selected.add(p.helixPath));
       } else {
-        selected.clear();
+        visible.forEach((p) => selected.delete(p.helixPath));
       }
       render(/** @type {HTMLElement} */ (state.root), state);
     },
@@ -588,8 +690,15 @@ async function main() {
       const root = /** @type {HTMLElement | null} */ (state.root);
       if (!root) return;
 
+      const visible = getVisiblePages(state);
       const pill = root.querySelector('#bulk-pp-selection-pill');
-      if (pill) pill.textContent = `${selected.size} of ${pages.length} selected`;
+      if (pill) {
+        const visibleCount = visible.length;
+        const totalCount = pages.length;
+        pill.textContent = visibleCount === totalCount
+          ? `${selected.size} of ${totalCount} selected`
+          : `${selected.size} selected · ${visibleCount} shown (${totalCount} total)`;
+      }
 
       root.querySelectorAll('.bulk-pp-page-cb').forEach((cb) => {
         if (!(cb instanceof HTMLInputElement)) return;
@@ -640,11 +749,23 @@ async function main() {
 
         const jobUrl = getJobPollUrl(bulkResp, state.org, state.site, state.ref, topic);
         if (!jobUrl) {
+          const historyType = topic === 'live' ? 'live' : 'preview';
+          state.pageHistory = recordPaths(
+            /** @type {Record<string, import('./lib/page-history.js?v=15').PageHistoryEntry>} */ (
+              state.pageHistory
+            ),
+            paths,
+            historyType,
+          );
+          saveHistory(state.org, state.site, state.ref, state.pageHistory);
+          if (topic === 'preview') state.previewedPaths = [...paths];
+          else state.publishedPaths = [...paths];
           state.status = topic === 'live'
             ? `Bulk publish scheduled (${paths.length} paths).`
             : `Bulk preview scheduled (${paths.length} paths).`;
           state.statusType = 'success';
           state.jobDetail = JSON.stringify(bulkResp, null, 2);
+          state.activeTab = 'urls';
           return;
         }
 
@@ -665,6 +786,15 @@ async function main() {
         state.status = `${action} ${outcome.message}`;
         state.statusType = outcome.statusType;
         if (outcome.statusType === 'success') {
+          const historyType = topic === 'live' ? 'live' : 'preview';
+          state.pageHistory = recordPaths(
+            /** @type {Record<string, import('./lib/page-history.js?v=15').PageHistoryEntry>} */ (
+              state.pageHistory
+            ),
+            paths,
+            historyType,
+          );
+          saveHistory(state.org, state.site, state.ref, state.pageHistory);
           if (topic === 'preview') state.previewedPaths = [...paths];
           else state.publishedPaths = [...paths];
           state.activeTab = 'urls';

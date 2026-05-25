@@ -7,7 +7,7 @@ import {
   joinPath,
   normalizeFolderPath,
   toHelixPath,
-} from './paths.js?v=14';
+} from './paths.js?v=15';
 
 /**
  * @param {Response} resp
