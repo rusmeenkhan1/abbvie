@@ -5,19 +5,19 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=11';
+} from './lib/api.js?v=13';
 import {
   displayFolderPath,
   displayPath,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=11';
+} from './lib/paths.js?v=13';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=11';
+} from './lib/urls.js?v=13';
 
-const TOOL_VERSION = '11';
+const TOOL_VERSION = '13';
 
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
@@ -178,12 +178,15 @@ function buildPageRow(page, onToggle) {
   const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-document');
   const cb = document.createElement('input');
   cb.type = 'checkbox';
+  cb.className = 'bulk-pp-page-cb';
   cb.value = page.helixPath;
+  cb.dataset.path = page.helixPath;
   cb.checked = selected.has(page.helixPath);
   cb.id = `page-${page.helixPath.replace(/\W/g, '_')}`;
   cb.addEventListener('change', (e) => {
-    const { checked, value } = /** @type {HTMLInputElement} */ (e.target);
-    onToggle(checked, value);
+    const input = /** @type {HTMLInputElement} */ (e.target);
+    const path = input.dataset.path || input.value;
+    onToggle(input.checked, path);
   });
   const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-document', '');
   icon.setAttribute('aria-hidden', 'true');
@@ -322,6 +325,7 @@ function render(root, state) {
     pagesPane.append(el('h3', 'bulk-pp-list-heading', 'Pages'));
     const pageWrap = el('div', 'bulk-pp-list-wrap');
     const pageList = el('ul', 'bulk-pp-list');
+    pageList.id = 'bulk-pp-page-list';
     if (pages.length === 0) {
       pageList.append(el('li', 'bulk-pp-list-empty', pageScope === 'tree'
         ? 'No pages in this folder tree.'
@@ -344,12 +348,15 @@ function render(root, state) {
     selectAllBtn.type = 'button';
     selectNoneBtn.type = 'button';
     selectAllBtn.disabled = pages.length === 0;
+    selectNoneBtn.disabled = pages.length === 0;
+    selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
+    selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
     topActions.append(selectAllBtn, selectNoneBtn);
     pagesPane.insertBefore(topActions, pageWrap);
 
-    pagesPane.append(
-      el('p', 'bulk-pp-meta', `${selected.size} of ${pages.length} page(s) selected`),
-    );
+    const meta = el('p', 'bulk-pp-meta', `${selected.size} of ${pages.length} page(s) selected`);
+    meta.id = 'bulk-pp-selection-meta';
+    pagesPane.append(meta);
   }
   contentPanel.append(pagesPane);
 
@@ -378,6 +385,8 @@ function render(root, state) {
   const publishBtn = el('button', 'bulk-pp-btn bulk-pp-btn-danger', 'Publish selected');
   previewBtn.type = 'button';
   publishBtn.type = 'button';
+  previewBtn.id = 'bulk-pp-preview-btn';
+  publishBtn.id = 'bulk-pp-publish-btn';
   previewBtn.disabled = loading || pages.length === 0 || selected.size === 0;
   publishBtn.disabled = loading || pages.length === 0 || selected.size === 0;
   runRow.append(previewBtn, publishBtn);
@@ -401,11 +410,6 @@ function render(root, state) {
   loadBtn.addEventListener('click', () => state.onLoad(false));
   depthSelect.addEventListener('change', () => state.onLoad(false));
 
-  const selectAllEl = pagesPane.querySelector('.bulk-pp-actions-pages .bulk-pp-btn:first-child');
-  const selectNoneEl = pagesPane.querySelector('.bulk-pp-actions-pages .bulk-pp-btn:last-child');
-  if (selectAllEl) selectAllEl.addEventListener('click', () => state.onSelectAll(true));
-  if (selectNoneEl) selectNoneEl.addEventListener('click', () => state.onSelectAll(false));
-
   previewBtn.addEventListener('click', () => state.onRun('preview'));
   publishBtn.addEventListener('click', () => state.onRun('live'));
   pagesTabBtn.addEventListener('click', () => state.onTab('pages'));
@@ -423,6 +427,7 @@ async function main() {
 
   /** @type {Record<string, unknown>} */
   const state = {
+    root: app,
     org: ctx.org,
     site: ctx.site,
     ref: ctx.ref,
@@ -545,23 +550,31 @@ async function main() {
     },
 
     onSelectAll(checked) {
-      if (checked) pages.forEach((p) => selected.add(p.helixPath));
-      else selected.clear();
-      state.onSelectionChange();
+      if (checked) {
+        pages.forEach((p) => selected.add(p.helixPath));
+      } else {
+        selected.clear();
+      }
+      render(/** @type {HTMLElement} */ (state.root), state);
     },
 
     onSelectionChange() {
-      const meta = document.querySelector('.bulk-pp-meta');
+      const root = /** @type {HTMLElement | null} */ (state.root);
+      if (!root) return;
+
+      const meta = root.querySelector('#bulk-pp-selection-meta');
       if (meta) meta.textContent = `${selected.size} of ${pages.length} page(s) selected`;
-      document.querySelectorAll('.bulk-pp-list-item-document input[type="checkbox"]').forEach((cb) => {
-        if (cb instanceof HTMLInputElement) {
-          cb.checked = selected.has(cb.value);
-        }
+
+      root.querySelectorAll('.bulk-pp-page-cb').forEach((cb) => {
+        if (!(cb instanceof HTMLInputElement)) return;
+        const path = cb.dataset.path || cb.value;
+        const isSelected = selected.has(path);
+        if (cb.checked !== isSelected) cb.checked = isSelected;
       });
-      const runPanel = document.querySelector('.bulk-pp-panel:last-of-type .bulk-pp-row');
-      const previewBtn = runPanel?.querySelector('.bulk-pp-btn-primary');
-      const publishBtn = runPanel?.querySelector('.bulk-pp-btn-danger');
+
       const disabled = pages.length === 0 || selected.size === 0;
+      const previewBtn = root.querySelector('#bulk-pp-preview-btn');
+      const publishBtn = root.querySelector('#bulk-pp-publish-btn');
       if (previewBtn instanceof HTMLButtonElement) previewBtn.disabled = disabled;
       if (publishBtn instanceof HTMLButtonElement) publishBtn.disabled = disabled;
     },
