@@ -1,49 +1,7 @@
-const STORAGE_PREFIX = 'bulk-pp-history';
-
 /**
  * @typedef {{ previewedAt?: number, publishedAt?: number }} PageHistoryEntry
  * @typedef {Record<string, PageHistoryEntry>} HistoryMap
  */
-
-/**
- * @param {string} org
- * @param {string} site
- * @param {string} ref
- */
-export function storageKey(org, site, ref) {
-  return `${STORAGE_PREFIX}:${org}:${site}:${ref}`;
-}
-
-/**
- * @param {string} org
- * @param {string} site
- * @param {string} ref
- * @returns {HistoryMap}
- */
-export function loadHistory(org, site, ref) {
-  try {
-    const raw = localStorage.getItem(storageKey(org, site, ref));
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-/**
- * @param {string} org
- * @param {string} site
- * @param {string} ref
- * @param {HistoryMap} map
- */
-export function saveHistory(org, site, ref, map) {
-  try {
-    localStorage.setItem(storageKey(org, site, ref), JSON.stringify(map));
-  } catch {
-    // storage full or disabled
-  }
-}
 
 /**
  * @param {HistoryMap} history
@@ -71,22 +29,6 @@ export function getPageStatus(entry) {
   if (entry?.publishedAt) return 'published';
   if (entry?.previewedAt) return 'previewed';
   return 'untouched';
-}
-
-/**
- * Merge AEM platform status with local tool history (platform wins per field).
- * @param {PageHistoryEntry | undefined} platform
- * @param {PageHistoryEntry | undefined} local
- * @returns {PageHistoryEntry}
- */
-export function mergeStatusEntries(platform, local) {
-  /** @type {PageHistoryEntry} */
-  const entry = {};
-  const previewedAt = platform?.previewedAt ?? local?.previewedAt;
-  const publishedAt = platform?.publishedAt ?? local?.publishedAt;
-  if (previewedAt) entry.previewedAt = previewedAt;
-  if (publishedAt) entry.publishedAt = publishedAt;
-  return entry;
 }
 
 /** @type {ReadonlyArray<[string, string]>} */

@@ -262,6 +262,21 @@ export function displayPath(helixPath) {
 }
 
 /**
+ * List label for pages in subfolders (full path) vs root (short name).
+ * @param {string} helixPath
+ * @param {string} name
+ * @returns {{ title: string, subtitle: string | null }}
+ */
+export function formatPageListLabel(helixPath, name) {
+  const path = displayPath(helixPath);
+  const segments = path.split('/').filter(Boolean);
+  if (segments.length <= 1) {
+    return { title: name, subtitle: path !== '/' && path !== `/${name}` ? path : null };
+  }
+  return { title: path, subtitle: name };
+}
+
+/**
  * @param {string[]} paths
  * @returns {string[]}
  */

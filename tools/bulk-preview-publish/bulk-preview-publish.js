@@ -6,86 +6,34 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=17';
+} from './lib/api.js?v=18';
 import {
   displayFolderPath,
-  displayPath,
+  formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=17';
+} from './lib/paths.js?v=18';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=17';
+} from './lib/urls.js?v=18';
 import {
   filterAndSortPages,
   formatStatusDate,
   getPageStatus,
-  loadHistory,
-  mergeStatusEntries,
   PAGE_FILTERS,
   recordPaths,
-  saveHistory,
   statusLabel,
-} from './lib/page-history.js?v=17';
+} from './lib/page-history.js?v=18';
 
-const TOOL_VERSION = '17';
+const TOOL_VERSION = '18';
 
-/** @type {Record<'untouched'|'previewed'|'published', { bg: string, border: string, badgeBg: string, badgeColor: string }>} */
-const STATUS_THEME = {
-  untouched: { bg: '#fde8e8', border: '#c9252d', badgeBg: '#fde8e8', badgeColor: '#8b1a1a' },
-  previewed: { bg: '#fff3cd', border: '#c9940a', badgeBg: '#fff3cd', badgeColor: '#7a5a00' },
-  published: { bg: '#d4edda', border: '#2d8a4e', badgeBg: '#d4edda', badgeColor: '#1a5c32' },
+/** @type {Record<'untouched'|'previewed'|'published', string>} */
+const STATUS_COLOR = {
+  untouched: '#c9252d',
+  previewed: '#c9940a',
+  published: '#2d8a4e',
 };
-
-let runtimeStylesReady = false;
-
-function ensureRuntimeStyles() {
-  if (runtimeStylesReady || document.getElementById('bulk-pp-runtime-styles')) {
-    runtimeStylesReady = true;
-    return;
-  }
-  const style = document.createElement('style');
-  style.id = 'bulk-pp-runtime-styles';
-  style.textContent = `
-    .bulk-pp-filter-row{display:flex!important;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 0 16px;padding:14px 16px;background:#f0f4fa;border:1px solid #c8d0e0;border-radius:8px}
-    .bulk-pp-status-legend{display:flex!important;flex-wrap:wrap;gap:12px 20px;flex:1}
-    .bulk-pp-legend-item{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#5c6578}
-    .bulk-pp-legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
-    .bulk-pp-field-filter{flex:0 1 280px;min-width:200px}
-    .bulk-pp-row-untouched{background:#fde8e8!important;border-left:4px solid #c9252d!important}
-    .bulk-pp-row-previewed{background:#fff3cd!important;border-left:4px solid #c9940a!important}
-    .bulk-pp-row-published{background:#d4edda!important;border-left:4px solid #2d8a4e!important}
-    .bulk-pp-status-badge{display:inline-flex;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-    .bulk-pp-status-badge-untouched{background:#fde8e8;color:#8b1a1a}
-    .bulk-pp-status-badge-previewed{background:#fff3cd;color:#7a5a00}
-    .bulk-pp-status-badge-published{background:#d4edda;color:#1a5c32}
-    .bulk-pp-item-main{flex:1;min-width:0}
-    .bulk-pp-item-dates{display:block;font-size:12px;color:#8a94a8;margin-top:2px}
-  `;
-  document.head.appendChild(style);
-  runtimeStylesReady = true;
-}
-
-/**
- * @param {HTMLLIElement} li
- * @param {'untouched'|'previewed'|'published'} status
- */
-function applyRowStatusStyle(li, status) {
-  const theme = STATUS_THEME[status];
-  li.style.background = theme.bg;
-  li.style.borderLeft = `4px solid ${theme.border}`;
-}
-
-/**
- * @param {HTMLElement} badge
- * @param {'untouched'|'previewed'|'published'} status
- */
-function applyBadgeStyle(badge, status) {
-  const theme = STATUS_THEME[status];
-  badge.style.background = theme.badgeBg;
-  badge.style.color = theme.badgeColor;
-}
 
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
@@ -252,15 +200,43 @@ function buildFolderRow(folder, onNavigate) {
 }
 
 /**
+ * @param {'untouched'|'previewed'|'published'} status
+ * @returns {HTMLElement}
+ */
+function buildStatusIndicator(status) {
+  const indicator = el('div', `bulk-pp-status-indicator bulk-pp-status-indicator-${status}`);
+  indicator.setAttribute('aria-label', statusLabel(status));
+  const dot = el('span', 'bulk-pp-status-dot');
+  dot.style.background = STATUS_COLOR[status];
+  indicator.append(dot, el('span', 'bulk-pp-status-indicator-label', statusLabel(status)));
+  return indicator;
+}
+
+/**
+ * @param {Record<string, unknown>} state
+ * @returns {Record<string, import('./lib/page-history.js').PageHistoryEntry>}
+ */
+function buildStatusMap(state) {
+  const platform = /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */ (
+    state.platformStatus || {}
+  );
+  /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */
+  const map = {};
+  pages.forEach((page) => {
+    map[page.helixPath] = platform[page.helixPath] || {};
+  });
+  return map;
+}
+
+/**
  * @param {DocumentEntry} page
- * @param {import('./lib/page-history.js?v=15').PageHistoryEntry | undefined} entry
+ * @param {import('./lib/page-history.js').PageHistoryEntry | undefined} entry
  * @param {(checked: boolean, path: string) => void} onToggle
  * @returns {HTMLLIElement}
  */
 function buildPageRow(page, entry, onToggle) {
   const status = getPageStatus(entry);
-  const li = el('li', `bulk-pp-list-item bulk-pp-list-item-document bulk-pp-row-${status}`);
-  li.dataset.status = status;
+  const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-document');
 
   const cb = document.createElement('input');
   cb.type = 'checkbox';
@@ -271,81 +247,44 @@ function buildPageRow(page, entry, onToggle) {
   cb.id = `page-${page.helixPath.replace(/\W/g, '_')}`;
   cb.addEventListener('change', (e) => {
     const input = /** @type {HTMLInputElement} */ (e.target);
-    const path = input.dataset.path || input.value;
-    onToggle(input.checked, path);
+    onToggle(input.checked, input.dataset.path || input.value);
   });
 
   const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-document', '');
   icon.setAttribute('aria-hidden', 'true');
 
+  const { title, subtitle } = formatPageListLabel(page.helixPath, page.name);
   const labelWrap = el('div', 'bulk-pp-item-main');
   const label = document.createElement('label');
   label.htmlFor = cb.id;
   label.className = 'bulk-pp-item-label';
-  label.textContent = page.name;
-  label.title = displayPath(page.helixPath);
+  label.textContent = title;
   labelWrap.append(label);
+  if (subtitle) labelWrap.append(el('span', 'bulk-pp-item-subtitle', subtitle));
 
   const dateParts = [];
-  if (entry?.previewedAt) dateParts.push(`Preview: ${formatStatusDate(entry.previewedAt)}`);
-  if (entry?.publishedAt) dateParts.push(`Live: ${formatStatusDate(entry.publishedAt)}`);
+  if (entry?.previewedAt) dateParts.push(`Preview ${formatStatusDate(entry.previewedAt)}`);
+  if (entry?.publishedAt) dateParts.push(`Live ${formatStatusDate(entry.publishedAt)}`);
   if (dateParts.length) labelWrap.append(el('span', 'bulk-pp-item-dates', dateParts.join(' · ')));
 
-  const badge = el('span', `bulk-pp-status-badge bulk-pp-status-badge-${status}`, statusLabel(status));
-  applyRowStatusStyle(li, status);
-  applyBadgeStyle(badge, status);
-  li.append(cb, icon, labelWrap, badge);
+  li.append(cb, icon, labelWrap, buildStatusIndicator(status));
   return li;
 }
 
 /**
- * @param {Record<string, unknown>} state
- * @returns {Record<string, import('./lib/page-history.js').PageHistoryEntry>}
- */
-function buildStatusMap(state) {
-  /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */
-  const map = {};
-  const platform = /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */ (
-    state.platformStatus || {}
-  );
-  const local = /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */ (
-    state.pageHistory || {}
-  );
-  pages.forEach((page) => {
-    map[page.helixPath] = mergeStatusEntries(
-      platform[page.helixPath],
-      local[page.helixPath],
-    );
-  });
-  return map;
-}
-
-/**
- * @param {Record<string, unknown>} state
- * @returns {DocumentEntry[]}
- */
-function getVisiblePages(state) {
-  return filterAndSortPages(
-    pages,
-    buildStatusMap(state),
-    String(state.pageFilter || 'all'),
-  );
-}
-
-/**
- * @param {Record<string, unknown>} state
+ * @returns {HTMLElement}
  */
 function buildStatusLegend() {
   const legend = el('div', 'bulk-pp-status-legend');
-  legend.setAttribute('aria-label', 'Page status colors');
+  legend.setAttribute('aria-label', 'Status key');
   [
-    ['untouched', 'Not on preview or live', STATUS_THEME.untouched.border],
-    ['previewed', 'On preview only (.aem.page)', STATUS_THEME.previewed.border],
-    ['published', 'On live (.aem.live)', STATUS_THEME.published.border],
-  ].forEach(([key, text, color]) => {
-    const item = el('span', `bulk-pp-legend-item bulk-pp-legend-${key}`);
+    ['untouched', 'Not deployed'],
+    ['previewed', 'Preview'],
+    ['published', 'Live'],
+  ].forEach(([key, text]) => {
+    const item = el('span', 'bulk-pp-legend-item');
     const dot = el('span', 'bulk-pp-legend-dot');
-    dot.style.background = color;
+    dot.style.background = STATUS_COLOR[/** @type {keyof STATUS_COLOR} */ (key)];
     item.append(dot, document.createTextNode(text));
     legend.append(item);
   });
@@ -393,15 +332,17 @@ function render(root, state) {
     publishedPaths,
     pageScope,
     pageFilter,
-    pageHistory,
     platformStatus,
     statusCheckFailed,
   } = state;
 
   const statusMap = buildStatusMap(state);
-  const visiblePages = getVisiblePages(state);
+  const visiblePages = filterAndSortPages(
+    pages,
+    statusMap,
+    String(pageFilter || 'all'),
+  );
 
-  ensureRuntimeStyles();
   root.replaceChildren();
 
   const header = el('header', 'bulk-pp-header');
@@ -486,12 +427,8 @@ function render(root, state) {
     pagesPane.append(el('p', 'bulk-pp-list-empty', error));
   } else {
     const filterRow = el('div', 'bulk-pp-filter-row');
-    filterRow.style.display = 'flex';
-    filterRow.style.flexWrap = 'wrap';
-    filterRow.style.marginBottom = '16px';
-    filterRow.append(buildStatusLegend());
     const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
-    filterField.append(el('label', null, 'Filter pages'));
+    filterField.append(el('label', null, 'Filter'));
     const filterSelect = document.createElement('select');
     filterSelect.id = 'bulk-pp-page-filter';
     PAGE_FILTERS.forEach(([value, label]) => {
@@ -502,13 +439,12 @@ function render(root, state) {
       filterSelect.append(opt);
     });
     filterField.append(filterSelect);
-    filterRow.append(filterField);
+    filterRow.append(filterField, buildStatusLegend());
     pagesPane.append(filterRow);
 
-    const statusNote = el('p', 'bulk-pp-status-note', statusCheckFailed
-      ? 'Could not load AEM preview/live status — showing local tool history only.'
-      : 'Status from AEM Admin API (preview & live deployment).');
-    pagesPane.append(statusNote);
+    if (statusCheckFailed) {
+      pagesPane.append(el('p', 'bulk-pp-status-note', 'Deployment status unavailable — refresh or open from Document Authoring.'));
+    }
 
     if (folders.length > 0) {
       pagesPane.append(el('h3', 'bulk-pp-list-heading', 'Folders'));
@@ -614,9 +550,7 @@ function render(root, state) {
     root.append(statusEl);
   }
 
-  const versionNote = el('p', 'bulk-pp-version', `Bulk Preview & Publish · v${TOOL_VERSION}`);
-  versionNote.style.cssText = 'margin-top:20px;font-size:12px;color:#8a94a8;text-align:center';
-  root.append(versionNote);
+  root.append(el('p', 'bulk-pp-version', `v${TOOL_VERSION}`));
 
   pathInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') state.onLoad(false);
@@ -660,7 +594,6 @@ async function main() {
     previewedPaths: [],
     publishedPaths: [],
     pageFilter: 'all',
-    pageHistory: loadHistory(ctx.org, ctx.site, ctx.ref),
     platformStatus: {},
     statusCheckFailed: false,
 
@@ -794,7 +727,11 @@ async function main() {
     },
 
     onSelectAll(checked) {
-      const visible = getVisiblePages(state);
+      const visible = filterAndSortPages(
+        pages,
+        buildStatusMap(state),
+        String(state.pageFilter || 'all'),
+      );
       if (checked) {
         visible.forEach((p) => selected.add(p.helixPath));
       } else {
@@ -807,7 +744,11 @@ async function main() {
       const root = /** @type {HTMLElement | null} */ (state.root);
       if (!root) return;
 
-      const visible = getVisiblePages(state);
+      const visible = filterAndSortPages(
+        pages,
+        buildStatusMap(state),
+        String(state.pageFilter || 'all'),
+      );
       const pill = root.querySelector('#bulk-pp-selection-pill');
       if (pill) {
         const visibleCount = visible.length;
@@ -867,14 +808,13 @@ async function main() {
         const jobUrl = getJobPollUrl(bulkResp, state.org, state.site, state.ref, topic);
         if (!jobUrl) {
           const historyType = topic === 'live' ? 'live' : 'preview';
-          state.pageHistory = recordPaths(
-            /** @type {Record<string, import('./lib/page-history.js?v=15').PageHistoryEntry>} */ (
-              state.pageHistory
+          state.platformStatus = recordPaths(
+            /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */ (
+              state.platformStatus
             ),
             paths,
             historyType,
           );
-          saveHistory(state.org, state.site, state.ref, state.pageHistory);
           if (topic === 'preview') state.previewedPaths = [...paths];
           else state.publishedPaths = [...paths];
           state.status = topic === 'live'
@@ -904,14 +844,13 @@ async function main() {
         state.statusType = outcome.statusType;
         if (outcome.statusType === 'success') {
           const historyType = topic === 'live' ? 'live' : 'preview';
-          state.pageHistory = recordPaths(
-            /** @type {Record<string, import('./lib/page-history.js?v=15').PageHistoryEntry>} */ (
-              state.pageHistory
+          state.platformStatus = recordPaths(
+            /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */ (
+              state.platformStatus
             ),
             paths,
             historyType,
           );
-          saveHistory(state.org, state.site, state.ref, state.pageHistory);
           if (topic === 'preview') state.previewedPaths = [...paths];
           else state.publishedPaths = [...paths];
           state.activeTab = 'urls';
