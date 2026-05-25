@@ -22,6 +22,22 @@ export function isHlxAdminUrl(url) {
 }
 
 /**
+ * Helix bulk path → AEM web path (strip /index folder homepage suffix).
+ * @param {string} helixPath
+ * @returns {string}
+ */
+export function helixToWebPath(helixPath) {
+  const norm = !helixPath || helixPath === '/' ? '/' : (
+    helixPath.startsWith('/') ? helixPath : `/${helixPath}`
+  );
+  if (norm === '/index' || norm.endsWith('/index')) {
+    const parent = norm === '/index' ? '' : norm.slice(0, -'/index'.length);
+    return parent ? parent : '/';
+  }
+  return norm;
+}
+
+/**
  * Normalize a DA source folder path (no leading/trailing slashes).
  * @param {string} path
  * @returns {string}

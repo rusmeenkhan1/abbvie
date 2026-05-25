@@ -5,10 +5,13 @@ import {
   getEntryName,
   joinPath,
   normalizeFolderPath,
+  helixToWebPath,
   isHlxAdminUrl,
   rewriteAdminUrl,
   toHelixPath,
-} from './paths.js?v=29';
+} from './paths.js?v=31';
+
+const ADMIN_STATUS_POST_SUFFIX = 'index';
 
 /**
  * DA Apps run on *.aem.live; only admin.da.live allows browser CORS (Access-Control-Allow-Origin: *).
@@ -65,6 +68,70 @@ export function formatAdminApiError(data, status) {
     return 'Too many status requests — wait a moment and click Refresh.';
   }
   return raw || null;
+}
+
+/**
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ */
+export function assertAdminContext(org, site, ref) {
+  if (!org || !site) {
+    throw new Error(
+      `Missing org or site for AEM Admin API (got org="${org}", site="${site}"). Open from da.live/app/{org}/{site}/…`,
+    );
+  }
+}
+
+/**
+ * Postman-ready endpoint list for this site.
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string} [helixPath]
+ * @returns {{ auth: string, endpoints: Array<{ method: string, url: string, body?: object }> }}
+ */
+export function describeAdminEndpoints(org, site, ref, helixPath = '/nav') {
+  const web = helixToWebPath(helixPath);
+  const bare = web === '/' ? 'index' : web.replace(/^\//, '');
+  const segments = bare.split('/').filter(Boolean).join('/');
+  const pathSuffix = segments || 'index';
+  const base = `${DA_ADMIN}`;
+  return {
+    auth: 'Authorization: Bearer <token from da.live DevTools → Network → any admin.da.live request>',
+    endpoints: [
+      {
+        method: 'POST',
+        url: `${base}/status/${org}/${site}/${ref}/${ADMIN_STATUS_POST_SUFFIX}`,
+        body: {
+          paths: ['/*'],
+          select: ['preview', 'live'],
+          forceAsync: true,
+        },
+      },
+      {
+        method: 'GET',
+        url: `${base}/job/${org}/${site}/${ref}/status/<job-name>/details`,
+      },
+      {
+        method: 'GET',
+        url: `${base}/preview/${org}/${site}/${ref}/${pathSuffix}`,
+      },
+      {
+        method: 'GET',
+        url: `${base}/live/${org}/${site}/${ref}/${pathSuffix}`,
+      },
+      {
+        method: 'GET',
+        url: `${base}/list/${org}/${site}/`,
+      },
+      {
+        method: 'POST',
+        url: `${base}/preview/${org}/${site}/${ref}/*`,
+        body: { paths: [web.startsWith('/') ? web : `/${web}`], forceAsync: false },
+      },
+    ],
+  };
 }
 
 /**
@@ -496,17 +563,19 @@ export function getJobPollUrl(bulkResponse, org, site, ref, topic) {
  * @returns {string[]}
  */
 export function helixPathToStatusPathKeys(helixPath) {
+  const web = helixToWebPath(helixPath);
   const norm = normalizeWebPath(helixPath);
-  const bare = norm === '/' ? 'index' : norm.replace(/^\//, '');
-  const keys = new Set([bare, norm]);
-  if (bare === 'index' || norm === '/index' || norm === '/') {
+  const keys = new Set();
+  const webBare = web === '/' ? 'index' : web.replace(/^\//, '');
+  const normBare = norm === '/' ? 'index' : norm.replace(/^\//, '');
+  keys.add(webBare);
+  keys.add(normBare);
+  if (webBare === 'index' || normBare === 'index') {
     keys.add('index');
     keys.add('');
-    keys.add('/');
   }
-  if (bare.endsWith('/index')) {
-    const parent = bare.slice(0, -'/index'.length);
-    if (parent) keys.add(parent);
+  if (normBare.endsWith('/index')) {
+    keys.add(normBare.slice(0, -'/index'.length));
   }
   return [...keys];
 }
@@ -644,7 +713,89 @@ async function daFetchWithRetry(daFetch, url, init) {
   return lastResp;
 }
 
+/** AEM sample: GET …/preview/{org}/{site}/{ref}/index → JSON with preview.lastModified */
+const HARDCODE_INDEX_PREVIEW_PATH = 'https://admin.hlx.page/preview/rusmeenkhan1/abbvie/main/index';
+
+/**
+ * @returns {boolean}
+ */
+export function isHardcodeIndexTest() {
+  return typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).has('hardcodeIndex');
+}
+
+/**
+ * @param {string} helixPath
+ * @returns {boolean}
+ */
+function isIndexHelixPath(helixPath) {
+  const n = normalizeWebPath(helixPath);
+  return n === '/' || n === '/index';
+}
+
+/**
+ * Probe exact index URLs (hlx.page path rewritten to admin.da.live for CORS).
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ */
+export async function fetchHardcodedIndexStatus(daFetch, org, site, ref) {
+  assertAdminContext(org, site, ref);
+  const previewUrl = rewriteAdminUrl(HARDCODE_INDEX_PREVIEW_PATH)
+    .replace('/rusmeenkhan1/abbvie/', `/${org}/${site}/`);
+  const liveUrl = rewriteAdminUrl(
+    `https://admin.hlx.page/live/${org}/${site}/${ref}/index`,
+  );
+
+  /** @type {{ previewedAt?: number, publishedAt?: number }} */
+  const entry = {};
+
+  const probes = [
+    ['preview', previewUrl, 'previewedAt'],
+    ['live', liveUrl, 'publishedAt'],
+  ];
+
+  /* eslint-disable no-await-in-loop */
+  for (let i = 0; i < probes.length; i += 1) {
+    const [label, url, field] = probes[i];
+    try {
+      const resp = await daFetchWithRetry(daFetch, url, { method: 'GET' });
+      const data = await parseJson(resp);
+      if (isHardcodeIndexTest()) {
+        // eslint-disable-next-line no-console
+        console.log(`[bulk-pp] hardcodeIndex ${label}`, url, resp.status, data);
+      }
+      if (!resp.ok) continue;
+      const parsed = parseStatusPayload(data);
+      const partition = label === 'preview'
+        ? /** @type {Record<string, unknown>} */ (data)?.preview || data
+        : /** @type {Record<string, unknown>} */ (data)?.live || data;
+      const ts = partitionTimestamp(partition);
+      if (field === 'previewedAt') {
+        entry.previewedAt = parsed.previewedAt || ts;
+      } else {
+        entry.publishedAt = parsed.publishedAt || ts;
+      }
+    } catch (err) {
+      if (isHardcodeIndexTest()) {
+        // eslint-disable-next-line no-console
+        console.warn(`[bulk-pp] hardcodeIndex ${label} failed`, err);
+      }
+    }
+  }
+  /* eslint-enable no-await-in-loop */
+
+  return entry;
+}
+
 async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath) {
+  assertAdminContext(org, site, ref);
+
+  if (isHardcodeIndexTest() && isIndexHelixPath(helixPath)) {
+    return fetchHardcodedIndexStatus(daFetch, org, site, ref);
+  }
+
   const pathKeys = helixPathToStatusPathKeys(helixPath);
   /** @type {{ previewedAt?: number, publishedAt?: number }} */
   let best = {};
@@ -664,11 +815,11 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
         if (err instanceof Error && /missing ims client id/i.test(err.message)) {
           throw new Error(formatAdminApiError({ message: err.message }, 0) || err.message);
         }
-      if (err instanceof TypeError) {
-        throw new Error(
-          'Network or CORS error reaching AEM Admin API. Open this tool from https://da.live (Apps), not a .aem.live tab.',
-        );
-      }
+        if (err instanceof TypeError) {
+          throw new Error(
+            'Network or CORS error reaching AEM Admin API. Open this tool from https://da.live (Apps), not a .aem.live tab.',
+          );
+        }
         throw err;
       }
       const data = await parseJson(resp);
@@ -839,7 +990,8 @@ function mapStatusJobToEntries(jobData, helixPaths) {
  * @param {string[]} helixPaths
  */
 async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
-  const url = `${adminApiBase}/status/${org}/${site}/${ref}/*`;
+  assertAdminContext(org, site, ref);
+  const url = `${adminApiBase}/status/${org}/${site}/${ref}/${ADMIN_STATUS_POST_SUFFIX}`;
   const resp = await daFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -936,6 +1088,17 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths) {
 export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helixPaths) {
   const unique = dedupePaths(helixPaths);
   if (unique.length === 0) return {};
+  assertAdminContext(org, site, ref);
+
+  if (isHardcodeIndexTest()) {
+    const indexStatus = await fetchHardcodedIndexStatus(daFetch, org, site, ref);
+    /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
+    const result = {};
+    unique.forEach((p) => {
+      result[p] = isIndexHelixPath(p) ? { ...indexStatus } : {};
+    });
+    return result;
+  }
 
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   let result = {};
@@ -943,8 +1106,11 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
   try {
     result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique);
   } catch (bulkErr) {
-    console.warn('[bulk-pp] bulk status failed, using per-page preview/live checks', bulkErr);
-    return fetchStatusParallel(daFetch, org, site, ref, unique);
+    console.warn('[bulk-pp] bulk status failed', bulkErr);
+    if (new URLSearchParams(window.location.search).has('debug')) {
+      // eslint-disable-next-line no-console
+      console.debug('[bulk-pp] Postman endpoints', describeAdminEndpoints(org, site, ref, unique[0]));
+    }
   }
 
   const missing = unique.filter((p) => {
@@ -952,7 +1118,7 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
     return !e?.previewedAt && !e?.publishedAt;
   });
 
-  if (missing.length > 0 && missing.length <= 50) {
+  if (missing.length > 0 && missing.length <= 25) {
     const filled = await fetchStatusParallel(daFetch, org, site, ref, missing);
     missing.forEach((p) => {
       const e = filled[p];

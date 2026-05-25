@@ -1,7 +1,9 @@
 import {
   collectPages,
   configureAdminApi,
+  describeAdminEndpoints,
   fetchPlatformStatusForPaths,
+  isHardcodeIndexTest,
   wrapDaFetch,
   formatAdminApiError,
   getJobPollUrl,
@@ -9,17 +11,17 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=29';
+} from './lib/api.js?v=31';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=29';
+} from './lib/paths.js?v=31';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=29';
+} from './lib/urls.js?v=31';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -28,9 +30,9 @@ import {
   pathsOnPreview,
   pathsOnPublished,
   statusLabel,
-} from './lib/page-history.js?v=29';
+} from './lib/page-history.js?v=31';
 
-const TOOL_VERSION = '29';
+const TOOL_VERSION = '31';
 
 /**
  * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
@@ -104,12 +106,19 @@ async function initSdk() {
  */
 function resolveSiteContext(context) {
   const params = new URLSearchParams(window.location.search);
-  const org = context.org || context.owner || '';
-  const site = context.repo || context.site || '';
+  let org = String(context.org || context.owner || '').trim();
+  let site = String(context.repo || context.site || '').trim();
   const ref = context.ref || params.get('ref') || 'main';
   const folderPath = resolveContentFolderPath(
     params.get('path') || context.path || '',
   );
+
+  const appMatch = window.location.pathname.match(/\/app\/([^/]+)\/([^/]+)/);
+  if (appMatch) {
+    if (!org) org = appMatch[1];
+    if (!site) site = appMatch[2];
+  }
+
   return { org, site, ref, folderPath };
 }
 
@@ -721,6 +730,10 @@ async function main() {
         } else {
           state.status = `${docCount} page(s) and ${folders.length} folder(s) in ${location} · checking status…`;
           state.statusType = 'success';
+        }
+        if (isHardcodeIndexTest()) {
+          state.status = `hardcodeIndex test: only /index uses admin…/preview|live/…/main/index (see console). Other pages skipped.`;
+          state.statusType = 'info';
         }
 
         render(app, state);
