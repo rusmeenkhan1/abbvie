@@ -1,22 +1,19 @@
 import {
   DA_ADMIN,
+  HLX_ADMIN,
   dedupePaths,
   classifyEntry,
   getEntryName,
   joinPath,
   normalizeFolderPath,
   helixToWebPath,
-  isHlxAdminUrl,
-  rewriteAdminUrl,
   toHelixPath,
-} from './paths.js?v=31';
+} from './paths.js?v=33';
 
 const ADMIN_STATUS_POST_SUFFIX = 'index';
 
-/**
- * DA Apps run on *.aem.live; only admin.da.live allows browser CORS (Access-Control-Allow-Origin: *).
- */
-const adminApiBase = DA_ADMIN;
+/** AEM Admin API (preview / live / status / jobs) — same host as Postman. */
+const adminApiBase = HLX_ADMIN;
 
 /** @param {{ useSdkFetch?: boolean }} [_options] */
 export function configureAdminApi(_options = {}) {
@@ -24,28 +21,21 @@ export function configureAdminApi(_options = {}) {
 }
 
 /**
- * Wrap DA SDK fetch so every request uses admin.da.live (never admin.hlx.page).
+ * Pass through to DA SDK daFetch (adds Bearer + x-content-source-authorization on admin.hlx.page).
  * @param {Function} baseFetch
  * @returns {Function}
  */
 export function wrapDaFetch(baseFetch) {
-  return async (url, init = {}) => {
-    const safeUrl = rewriteAdminUrl(String(url));
-    if (isHlxAdminUrl(safeUrl)) {
-      throw new TypeError(
-        'Blocked admin.hlx.page request (CORS). All API calls must use admin.da.live.',
-      );
-    }
-    return baseFetch(safeUrl, init);
-  };
+  return async (url, init = {}) => baseFetch(String(url), init);
 }
 
 /**
+ * Job links from AEM are already on admin.hlx.page.
  * @param {string} url
  * @returns {string}
  */
 function resolveAdminUrl(url) {
-  return rewriteAdminUrl(url);
+  return String(url);
 }
 
 /**
@@ -96,9 +86,9 @@ export function describeAdminEndpoints(org, site, ref, helixPath = '/nav') {
   const bare = web === '/' ? 'index' : web.replace(/^\//, '');
   const segments = bare.split('/').filter(Boolean).join('/');
   const pathSuffix = segments || 'index';
-  const base = `${DA_ADMIN}`;
+  const base = HLX_ADMIN;
   return {
-    auth: 'Authorization: Bearer <token from da.live DevTools → Network → any admin.da.live request>',
+    auth: 'Authorization: Bearer <token> + x-content-source-authorization (from da.live → Network → admin.hlx.page request)',
     endpoints: [
       {
         method: 'POST',
@@ -713,9 +703,6 @@ async function daFetchWithRetry(daFetch, url, init) {
   return lastResp;
 }
 
-/** AEM sample: GET …/preview/{org}/{site}/{ref}/index → JSON with preview.lastModified */
-const HARDCODE_INDEX_PREVIEW_PATH = 'https://admin.hlx.page/preview/rusmeenkhan1/abbvie/main/index';
-
 /**
  * @returns {boolean}
  */
@@ -734,7 +721,7 @@ function isIndexHelixPath(helixPath) {
 }
 
 /**
- * Probe exact index URLs (hlx.page path rewritten to admin.da.live for CORS).
+ * User-verified API: GET admin.hlx.page/preview/{org}/{site}/{ref}/index
  * @param {Function} daFetch
  * @param {string} org
  * @param {string} site
@@ -742,49 +729,50 @@ function isIndexHelixPath(helixPath) {
  */
 export async function fetchHardcodedIndexStatus(daFetch, org, site, ref) {
   assertAdminContext(org, site, ref);
-  const previewUrl = rewriteAdminUrl(HARDCODE_INDEX_PREVIEW_PATH)
-    .replace('/rusmeenkhan1/abbvie/', `/${org}/${site}/`);
-  const liveUrl = rewriteAdminUrl(
-    `https://admin.hlx.page/live/${org}/${site}/${ref}/index`,
-  );
+
+  const previewUrl = `${HLX_ADMIN}/preview/${org}/${site}/${ref}/index`;
+  const statusUrl = `${HLX_ADMIN}/status/${org}/${site}/${ref}/index`;
 
   /** @type {{ previewedAt?: number, publishedAt?: number }} */
   const entry = {};
 
-  const probes = [
-    ['preview', previewUrl, 'previewedAt'],
-    ['live', liveUrl, 'publishedAt'],
-  ];
-
-  /* eslint-disable no-await-in-loop */
-  for (let i = 0; i < probes.length; i += 1) {
-    const [label, url, field] = probes[i];
-    try {
-      const resp = await daFetchWithRetry(daFetch, url, { method: 'GET' });
-      const data = await parseJson(resp);
-      if (isHardcodeIndexTest()) {
-        // eslint-disable-next-line no-console
-        console.log(`[bulk-pp] hardcodeIndex ${label}`, url, resp.status, data);
-      }
-      if (!resp.ok) continue;
+  try {
+    const resp = await daFetchWithRetry(daFetch, previewUrl, { method: 'GET' });
+    const data = await parseJson(resp);
+    if (isHardcodeIndexTest()) {
+      // eslint-disable-next-line no-console
+      console.log('[bulk-pp] hardcodeIndex GET preview', previewUrl, resp.status, data);
+    }
+    if (resp.ok && data) {
       const parsed = parseStatusPayload(data);
-      const partition = label === 'preview'
-        ? /** @type {Record<string, unknown>} */ (data)?.preview || data
-        : /** @type {Record<string, unknown>} */ (data)?.live || data;
-      const ts = partitionTimestamp(partition);
-      if (field === 'previewedAt') {
-        entry.previewedAt = parsed.previewedAt || ts;
-      } else {
-        entry.publishedAt = parsed.publishedAt || ts;
-      }
-    } catch (err) {
-      if (isHardcodeIndexTest()) {
-        // eslint-disable-next-line no-console
-        console.warn(`[bulk-pp] hardcodeIndex ${label} failed`, err);
-      }
+      const previewPart = /** @type {Record<string, unknown>} */ (data).preview || data;
+      entry.previewedAt = parsed.previewedAt || partitionTimestamp(previewPart);
+    }
+  } catch (err) {
+    if (isHardcodeIndexTest()) {
+      // eslint-disable-next-line no-console
+      console.warn('[bulk-pp] hardcodeIndex preview failed', err);
     }
   }
-  /* eslint-enable no-await-in-loop */
+
+  try {
+    const resp = await daFetchWithRetry(daFetch, statusUrl, { method: 'GET' });
+    const data = await parseJson(resp);
+    if (isHardcodeIndexTest()) {
+      // eslint-disable-next-line no-console
+      console.log('[bulk-pp] hardcodeIndex GET status', statusUrl, resp.status, data);
+    }
+    if (resp.ok && data) {
+      const parsed = parseStatusPayload(data);
+      entry.previewedAt = entry.previewedAt || parsed.previewedAt;
+      entry.publishedAt = parsed.publishedAt;
+    }
+  } catch (err) {
+    if (isHardcodeIndexTest()) {
+      // eslint-disable-next-line no-console
+      console.warn('[bulk-pp] hardcodeIndex status failed', err);
+    }
+  }
 
   return entry;
 }
@@ -806,7 +794,37 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
     /** @type {{ previewedAt?: number, publishedAt?: number }} */
     const entry = {};
 
-    for (const route of /** @type {const} */ (['preview', 'live'])) {
+    const statusUrl = buildAdminResourceUrl('status', org, site, ref, pathKey);
+    try {
+      const statusResp = await daFetchWithRetry(daFetch, statusUrl, { method: 'GET' });
+      const statusData = await parseJson(statusResp);
+      if (statusResp.ok && statusData) {
+        const parsed = parseStatusPayload(statusData);
+        entry.previewedAt = parsed.previewedAt;
+        entry.publishedAt = parsed.publishedAt;
+        if (entry.previewedAt || entry.publishedAt) return entry;
+      }
+    } catch {
+      // try preview route next
+    }
+
+    const previewUrl = buildAdminResourceUrl('preview', org, site, ref, pathKey);
+    try {
+      const resp = await daFetchWithRetry(daFetch, previewUrl, { method: 'GET' });
+      const data = await parseJson(resp);
+      if (resp.ok && data) {
+        const parsed = parseStatusPayload(data);
+        const previewPart = /** @type {Record<string, unknown>} */ (data).preview || data;
+        entry.previewedAt = parsed.previewedAt || partitionTimestamp(previewPart);
+        if (entry.previewedAt) {
+          best = { previewedAt: entry.previewedAt, publishedAt: best.publishedAt };
+        }
+      }
+    } catch {
+      // continue
+    }
+
+    for (const route of /** @type {const} */ (['live'])) {
       const url = buildAdminResourceUrl(route, org, site, ref, pathKey);
       let resp;
       try {
@@ -832,12 +850,7 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
       if (resp.status === 404 || !resp.ok) continue;
 
       const parsed = parseStatusPayload(data);
-      const ts = partitionTimestamp(data);
-      if (route === 'preview') {
-        entry.previewedAt = parsed.previewedAt || ts;
-      } else {
-        entry.publishedAt = parsed.publishedAt || ts;
-      }
+      entry.publishedAt = parsed.publishedAt || partitionTimestamp(data);
     }
 
     if (entry.previewedAt || entry.publishedAt) return entry;
@@ -1085,10 +1098,22 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths) {
   return result;
 }
 
+function logStatusApiOnce() {
+  if (typeof window === 'undefined') return;
+  const w = /** @type {Window & { __bulkPpApiLogged?: boolean }} */ (window);
+  if (w.__bulkPpApiLogged) return;
+  w.__bulkPpApiLogged = true;
+  // eslint-disable-next-line no-console
+  console.info(
+    `[bulk-pp] deployment status via ${HLX_ADMIN} (GET …/preview/… and GET …/status/…). Not admin.da.live.`,
+  );
+}
+
 export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helixPaths) {
   const unique = dedupePaths(helixPaths);
   if (unique.length === 0) return {};
   assertAdminContext(org, site, ref);
+  logStatusApiOnce();
 
   if (isHardcodeIndexTest()) {
     const indexStatus = await fetchHardcodedIndexStatus(daFetch, org, site, ref);
@@ -1100,16 +1125,21 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
     return result;
   }
 
+  const useBulk = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).has('bulkStatus');
+
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   let result = {};
 
-  try {
-    result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique);
-  } catch (bulkErr) {
-    console.warn('[bulk-pp] bulk status failed', bulkErr);
-    if (new URLSearchParams(window.location.search).has('debug')) {
-      // eslint-disable-next-line no-console
-      console.debug('[bulk-pp] Postman endpoints', describeAdminEndpoints(org, site, ref, unique[0]));
+  if (useBulk) {
+    try {
+      result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique);
+    } catch (bulkErr) {
+      console.warn('[bulk-pp] bulk status failed', bulkErr);
+      if (new URLSearchParams(window.location.search).has('debug')) {
+        // eslint-disable-next-line no-console
+        console.debug('[bulk-pp] Postman endpoints', describeAdminEndpoints(org, site, ref, unique[0]));
+      }
     }
   }
 
@@ -1118,9 +1148,11 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
     return !e?.previewedAt && !e?.publishedAt;
   });
 
-  if (missing.length > 0 && missing.length <= 25) {
-    const filled = await fetchStatusParallel(daFetch, org, site, ref, missing);
-    missing.forEach((p) => {
+  const toFetch = useBulk && Object.keys(result).length > 0 ? missing : unique;
+  const capped = toFetch.length > 25 ? toFetch.slice(0, 25) : toFetch;
+  if (capped.length > 0) {
+    const filled = await fetchStatusParallel(daFetch, org, site, ref, capped);
+    capped.forEach((p) => {
       const e = filled[p];
       if (e?.previewedAt || e?.publishedAt) result[p] = e;
     });

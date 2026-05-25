@@ -4,7 +4,7 @@ const HLX_ADMIN = 'https://admin.hlx.page';
 export { DA_ADMIN, HLX_ADMIN };
 
 /**
- * Use admin.da.live in the browser (CORS *). Rewrite job links from admin.hlx.page.
+ * Optional rewrite for legacy callers (bulk tool uses admin.hlx.page as-is via SDK).
  * @param {string} url
  * @returns {string}
  */
@@ -14,7 +14,6 @@ export function rewriteAdminUrl(url) {
 }
 
 /**
- * True if URL targets admin.hlx.page (blocked in browser — use admin.da.live).
  * @param {string} url
  */
 export function isHlxAdminUrl(url) {

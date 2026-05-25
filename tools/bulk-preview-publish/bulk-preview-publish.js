@@ -11,17 +11,17 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=31';
+} from './lib/api.js?v=33';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=31';
+} from './lib/paths.js?v=33';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=31';
+} from './lib/urls.js?v=33';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -30,9 +30,20 @@ import {
   pathsOnPreview,
   pathsOnPublished,
   statusLabel,
-} from './lib/page-history.js?v=31';
+} from './lib/page-history.js?v=33';
 
-const TOOL_VERSION = '31';
+const TOOL_VERSION = '33';
+
+/** Reload once if an old ?v= cache param would load admin.da.live rewrite (v31 and below). */
+function ensureLatestToolCache() {
+  const params = new URLSearchParams(window.location.search);
+  const v = params.get('v');
+  if (v === TOOL_VERSION) return;
+  params.set('v', TOOL_VERSION);
+  const next = new URL(window.location.href);
+  next.search = params.toString();
+  window.location.replace(next.toString());
+}
 
 /**
  * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
@@ -611,6 +622,8 @@ function render(root, state) {
 }
 
 async function main() {
+  ensureLatestToolCache();
+
   const app = document.getElementById('app');
   if (!app) return;
 
@@ -732,7 +745,7 @@ async function main() {
           state.statusType = 'success';
         }
         if (isHardcodeIndexTest()) {
-          state.status = `hardcodeIndex test: only /index uses admin…/preview|live/…/main/index (see console). Other pages skipped.`;
+          state.status = 'hardcodeIndex: GET admin.hlx.page/preview/…/main/index only (your API). See console. Other pages skipped.';
           state.statusType = 'info';
         }
 
