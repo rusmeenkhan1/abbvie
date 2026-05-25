@@ -68,6 +68,17 @@ export function normalizeFolderPath(path) {
 }
 
 /**
+ * Globs for AEM bulk status POST (tools.aem.live page-status uses POST …/status/…/ref/*).
+ * @param {string} folderPath DA folder being browsed (empty = site)
+ * @returns {string[]}
+ */
+export function folderPathToStatusGlobs(folderPath) {
+  const base = normalizeFolderPath(folderPath);
+  if (!base) return ['/*'];
+  return [`/${base}/*`, `/${base}/**`];
+}
+
+/**
  * Folder path for the UI input (empty = site root).
  * @param {string} path internal normalized path
  * @returns {string}

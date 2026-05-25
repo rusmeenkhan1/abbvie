@@ -7,9 +7,10 @@ import {
   joinPath,
   normalizeFolderPath,
   decodeHelixPath,
+  folderPathToStatusGlobs,
   helixToWebPath,
   toHelixPath,
-} from './paths.js?v=38';
+} from './paths.js?v=40';
 
 const ADMIN_STATUS_POST_SUFFIX = 'index';
 
@@ -91,6 +92,18 @@ export function describeAdminEndpoints(org, site, ref, helixPath = '/nav') {
   return {
     auth: 'Authorization: Bearer <token> + x-content-source-authorization (from da.live → Network → admin.hlx.page request)',
     endpoints: [
+      {
+        method: 'GET',
+        url: `${base}/status/${org}/${site}/${ref}`,
+      },
+      {
+        method: 'POST',
+        url: `${base}/status/${org}/${site}/${ref}/*`,
+        body: {
+          select: ['preview', 'live'],
+          forceAsync: true,
+        },
+      },
       {
         method: 'POST',
         url: `${base}/status/${org}/${site}/${ref}/${ADMIN_STATUS_POST_SUFFIX}`,
@@ -587,7 +600,7 @@ export function helixPathToStatusPathKeys(helixPath) {
   }
 
   if (webBare === 'index' || normBare === 'index') push('index');
-  return ordered;
+  return ordered.slice(0, 5);
 }
 
 /**
@@ -860,7 +873,7 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
     return fetchHardcodedIndexStatus(daFetch, org, site, ref);
   }
 
-  const pathKeys = helixPathToStatusPathKeys(helixPath).slice(0, 2);
+  const pathKeys = helixPathToStatusPathKeys(helixPath);
 
   /* eslint-disable no-await-in-loop -- try up to 2 path variants */
   for (let i = 0; i < pathKeys.length; i += 1) {
@@ -1068,19 +1081,69 @@ function mapStatusJobToEntries(jobData, helixPaths) {
  * @param {string} ref
  * @param {string[]} helixPaths
  */
-async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
-  assertAdminContext(org, site, ref);
-  const url = `${adminApiBase}/status/${org}/${site}/${ref}/${ADMIN_STATUS_POST_SUFFIX}`;
-  const resp = await daFetch(url, {
+/**
+ * Same sequence as tools.aem.live page-status: GET …/status/…/ref → POST …/ref/* → job → details.
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} pathGlobs
+ */
+async function startBulkStatusJob(daFetch, org, site, ref, pathGlobs) {
+  const statusRoot = `${adminApiBase}/status/${org}/${site}/${ref}`;
+  const body = {
+    select: ['preview', 'live'],
+    forceAsync: true,
+  };
+  if (pathGlobs.length > 0 && !(pathGlobs.length === 1 && pathGlobs[0] === '/*')) {
+    body.paths = pathGlobs;
+  }
+
+  try {
+    await daFetch(statusRoot, { method: 'GET' });
+  } catch {
+    // non-fatal (page-status tool also calls GET …/main)
+  }
+
+  const starUrl = `${statusRoot}/*`;
+  let resp = await daFetch(starUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      paths: ['/*'],
+    body: JSON.stringify(body),
+  });
+  let data = await parseJson(resp);
+
+  if (!resp.ok && resp.status !== 202) {
+    const indexUrl = `${statusRoot}/${ADMIN_STATUS_POST_SUFFIX}`;
+    const indexBody = {
+      paths: pathGlobs.length ? pathGlobs : ['/*'],
       select: ['preview', 'live'],
       forceAsync: true,
-    }),
-  });
-  const data = await parseJson(resp);
+    };
+    resp = await daFetch(indexUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(indexBody),
+    });
+    data = await parseJson(resp);
+  }
+
+  return { resp, data, starUrl };
+}
+
+/**
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ * @param {string} [browseFolder]
+ */
+async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths, browseFolder = '') {
+  assertAdminContext(org, site, ref);
+  const pathGlobs = folderPathToStatusGlobs(browseFolder);
+  const { resp, data } = await startBulkStatusJob(daFetch, org, site, ref, pathGlobs);
+
   if (resp.status === 401 || resp.status === 403) {
     const msg = formatAdminApiError(data, resp.status);
     throw new Error(msg || `Not authorized to read page status (${resp.status}).`);
@@ -1098,24 +1161,10 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
     return {};
   }
 
-  let details = null;
-  try {
-    const detailsResp = await daFetch(`${resolveAdminUrl(jobUrl)}/details`, { method: 'GET' });
-    const detailsJson = await parseJson(detailsResp);
-    if (detailsResp.ok && detailsJson) details = detailsJson;
-  } catch {
-    // fall back to poll
-  }
-
+  let details = await fetchJobDetails(daFetch, jobUrl);
   if (!details) {
-    details = await pollJob(daFetch, jobUrl);
-    try {
-      const detailsResp = await daFetch(`${resolveAdminUrl(jobUrl)}/details`, { method: 'GET' });
-      const detailsJson = await parseJson(detailsResp);
-      if (detailsResp.ok && detailsJson) details = detailsJson;
-    } catch {
-      // use polled job payload
-    }
+    await pollJob(daFetch, jobUrl);
+    details = await fetchJobDetails(daFetch, jobUrl);
   }
 
   return mapStatusJobToEntries(details || {}, helixPaths);
@@ -1178,58 +1227,11 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgre
   return result;
 }
 
-function logStatusApiOnce() {
-  if (typeof window === 'undefined') return;
-  const w = /** @type {Window & { __bulkPpApiLogged?: boolean }} */ (window);
-  if (w.__bulkPpApiLogged) return;
-  w.__bulkPpApiLogged = true;
-  // eslint-disable-next-line no-console
-  console.info(
-    `[bulk-pp] deployment status via ${HLX_ADMIN} (GET …/preview/… and GET …/status/…). Not admin.da.live.`,
-  );
-}
-
 /**
- * @param {string} helixPath
  * @param {{ previewedAt?: number, publishedAt?: number }} [entry]
  */
 function hasPlatformStatus(entry) {
   return Boolean(entry?.previewedAt || entry?.publishedAt);
-}
-
-/**
- * @param {{ useBulk: boolean, total: number, bulkMatched: string[], fallbackMatched: string[], fallbackAttempted: string[], unmatched: string[] }} report
- */
-function logStatusSourceReport(report) {
-  // eslint-disable-next-line no-console
-  console.group('[bulk-pp] Status source report (bulk API vs per-page fallback)');
-  // eslint-disable-next-line no-console
-  console.info(
-    'Mode:',
-    report.useBulk
-      ? 'POST bulk status job → GET job/details, then per-page fallback for gaps'
-      : 'Per-page only (bulk disabled or <3 pages)',
-  );
-  // eslint-disable-next-line no-console
-  console.info(`Total pages: ${report.total}`);
-  // eslint-disable-next-line no-console
-  console.info(`From bulk API: ${report.bulkMatched.length}`, report.bulkMatched);
-  // eslint-disable-next-line no-console
-  console.info(
-    `From fallback (single-page GET preview): ${report.fallbackMatched.length}`,
-    report.fallbackMatched,
-  );
-  if (report.fallbackAttempted.length > report.fallbackMatched.length) {
-    const failed = report.fallbackAttempted.filter((p) => !report.fallbackMatched.includes(p));
-    // eslint-disable-next-line no-console
-    console.info(`Fallback attempted but no status: ${failed.length}`, failed);
-  }
-  if (report.unmatched.length > 0) {
-    // eslint-disable-next-line no-console
-    console.warn(`Unmatched (neither source): ${report.unmatched.length}`, report.unmatched);
-  }
-  // eslint-disable-next-line no-console
-  console.groupEnd();
 }
 
 /**
@@ -1240,11 +1242,18 @@ function logStatusSourceReport(report) {
  * @param {string[]} helixPaths
  * @param {StatusProgressFn} [onProgress]
  */
-export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helixPaths, onProgress) {
+export async function fetchPlatformStatusForPaths(
+  daFetch,
+  org,
+  site,
+  ref,
+  helixPaths,
+  onProgress,
+  browseFolder = '',
+) {
   const unique = dedupePaths(helixPaths);
   if (unique.length === 0) return {};
   assertAdminContext(org, site, ref);
-  logStatusApiOnce();
 
   if (isHardcodeIndexTest()) {
     const indexStatus = await fetchHardcodedIndexStatus(daFetch, org, site, ref);
@@ -1256,11 +1265,11 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
     return result;
   }
 
-  const useBulk = typeof window !== 'undefined' && (() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has('noBulkStatus')) return false;
-    return !params.has('noBulk') && (params.has('bulkStatus') || unique.length >= 3);
-  })();
+  const params = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search)
+    : new URLSearchParams();
+  const useBulk = !params.has('noBulkStatus');
+  const allowFallback = params.has('fallbackStatus');
 
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   let result = {};
@@ -1268,33 +1277,25 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
   const bulkMatched = [];
 
   if (useBulk) {
-    // eslint-disable-next-line no-console
-    console.info('[bulk-pp] Starting bulk status API (POST …/status/…/index, paths: ["/*"])');
     try {
-      result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique);
+      result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique, browseFolder);
       unique.forEach((p) => {
         if (hasPlatformStatus(result[p])) bulkMatched.push(p);
       });
-      // eslint-disable-next-line no-console
-      console.info(`[bulk-pp] Bulk API returned status for ${bulkMatched.length}/${unique.length} pages`);
     } catch (bulkErr) {
-      console.warn('[bulk-pp] bulk status failed', bulkErr);
-      if (new URLSearchParams(window.location.search).has('debug')) {
+      if (params.has('debug')) {
         // eslint-disable-next-line no-console
-        console.debug('[bulk-pp] Postman endpoints', describeAdminEndpoints(org, site, ref, unique[0]));
+        console.debug('[bulk-pp] bulk status failed', bulkErr, describeAdminEndpoints(org, site, ref, unique[0]));
       }
     }
-  } else {
-    // eslint-disable-next-line no-console
-    console.info('[bulk-pp] Bulk status API skipped (use ?bulkStatus=1 or 3+ pages; ?noBulkStatus=1 to force off)');
   }
 
   const missing = unique.filter((p) => !hasPlatformStatus(result[p]));
 
-  const toFetch = useBulk && bulkMatched.length > 0 ? missing : unique;
+  const toFetch = allowFallback
+    ? (useBulk && bulkMatched.length > 0 ? missing : unique)
+    : [];
   const alreadyResolved = unique.length - toFetch.length;
-  /** @type {string[]} */
-  const fallbackMatched = [];
 
   const reportProgress = (doneInBatch, batchTotal) => {
     if (!onProgress) return;
@@ -1307,11 +1308,6 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
   }
 
   if (toFetch.length > 0) {
-    // eslint-disable-next-line no-console
-    console.info(
-      `[bulk-pp] Starting per-page fallback for ${toFetch.length} page(s) (GET …/preview/… per path)`,
-      toFetch,
-    );
     const filled = await fetchStatusParallel(
       daFetch,
       org,
@@ -1321,40 +1317,16 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
       (partial, done) => {
         toFetch.forEach((p) => {
           const e = partial[p];
-          if (hasPlatformStatus(e)) {
-            if (!bulkMatched.includes(p) && !fallbackMatched.includes(p)) {
-              fallbackMatched.push(p);
-              // eslint-disable-next-line no-console
-              console.info('[bulk-pp] fallback matched', p, e);
-            }
-            result[p] = e;
-          }
+          if (hasPlatformStatus(e)) result[p] = e;
         });
         reportProgress(done, toFetch.length);
       },
     );
     toFetch.forEach((p) => {
       const e = filled[p];
-      if (hasPlatformStatus(e)) {
-        result[p] = e;
-        if (!bulkMatched.includes(p) && !fallbackMatched.includes(p)) {
-          fallbackMatched.push(p);
-          // eslint-disable-next-line no-console
-          console.info('[bulk-pp] fallback matched', p, e);
-        }
-      }
+      if (hasPlatformStatus(e)) result[p] = e;
     });
   }
-
-  const unmatched = unique.filter((p) => !hasPlatformStatus(result[p]));
-  logStatusSourceReport({
-    useBulk,
-    total: unique.length,
-    bulkMatched,
-    fallbackMatched,
-    fallbackAttempted: toFetch,
-    unmatched,
-  });
 
   if (onProgress) onProgress({ ...result }, unique.length, unique.length);
   return result;

@@ -11,17 +11,17 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=38';
+} from './lib/api.js?v=40';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=38';
+} from './lib/paths.js?v=40';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=38';
+} from './lib/urls.js?v=40';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -31,15 +31,18 @@ import {
   pathsOnPublished,
   countStatusBreakdown,
   statusLabel,
-} from './lib/page-history.js?v=38';
+} from './lib/page-history.js?v=40';
 
-const TOOL_VERSION = '38';
+const TOOL_VERSION = '40';
+/** Supported ?v= cache bust values (current + previous four). */
+const MIN_CACHE_VERSION = 36;
 
-/** Reload once if an old ?v= cache param would load admin.da.live rewrite (v31 and below). */
 function ensureLatestToolCache() {
   const params = new URLSearchParams(window.location.search);
-  const v = params.get('v');
-  if (v === TOOL_VERSION) return;
+  const raw = params.get('v');
+  const v = raw ? parseInt(raw, 10) : 0;
+  const max = parseInt(TOOL_VERSION, 10);
+  if (v >= MIN_CACHE_VERSION && v <= max) return;
   params.set('v', TOOL_VERSION);
   const next = new URL(window.location.href);
   next.search = params.toString();
@@ -810,6 +813,7 @@ async function main() {
             state.statusType = 'info';
             render(app, state);
           },
+          state.folderPath,
         ).then((platformStatus) => {
           state.platformStatus = platformStatus;
           state.statusCheckFailed = false;
