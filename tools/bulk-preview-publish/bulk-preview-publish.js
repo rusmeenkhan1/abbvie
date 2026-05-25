@@ -6,17 +6,17 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=18';
+} from './lib/api.js?v=20';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=18';
+} from './lib/paths.js?v=20';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=18';
+} from './lib/urls.js?v=20';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -24,9 +24,20 @@ import {
   PAGE_FILTERS,
   recordPaths,
   statusLabel,
-} from './lib/page-history.js?v=18';
+} from './lib/page-history.js?v=20';
 
-const TOOL_VERSION = '18';
+const TOOL_VERSION = '20';
+
+/**
+ * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
+ * @param {DocumentEntry[]} pageList
+ */
+function countDeployedPages(platformStatus, pageList) {
+  return pageList.filter((p) => {
+    const e = platformStatus[p.helixPath];
+    return Boolean(e?.previewedAt || e?.publishedAt);
+  }).length;
+}
 
 /** @type {Record<'untouched'|'previewed'|'published', string>} */
 const STATUS_COLOR = {
@@ -200,16 +211,16 @@ function buildFolderRow(folder, onNavigate) {
 }
 
 /**
+ * Small status dot only (no row tint). Meaning is in the top legend.
  * @param {'untouched'|'previewed'|'published'} status
  * @returns {HTMLElement}
  */
-function buildStatusIndicator(status) {
-  const indicator = el('div', `bulk-pp-status-indicator bulk-pp-status-indicator-${status}`);
-  indicator.setAttribute('aria-label', statusLabel(status));
-  const dot = el('span', 'bulk-pp-status-dot');
-  dot.style.background = STATUS_COLOR[status];
-  indicator.append(dot, el('span', 'bulk-pp-status-indicator-label', statusLabel(status)));
-  return indicator;
+function buildStatusDot(status) {
+  const dot = el('span', `bulk-pp-status-dot bulk-pp-status-dot-${status}`);
+  const label = statusLabel(status);
+  dot.setAttribute('aria-label', label);
+  dot.title = label;
+  return dot;
 }
 
 /**
@@ -267,7 +278,7 @@ function buildPageRow(page, entry, onToggle) {
   if (entry?.publishedAt) dateParts.push(`Live ${formatStatusDate(entry.publishedAt)}`);
   if (dateParts.length) labelWrap.append(el('span', 'bulk-pp-item-dates', dateParts.join(' · ')));
 
-  li.append(cb, icon, labelWrap, buildStatusIndicator(status));
+  li.append(cb, icon, labelWrap, buildStatusDot(status));
   return li;
 }
 
@@ -334,6 +345,7 @@ function render(root, state) {
     pageFilter,
     platformStatus,
     statusCheckFailed,
+    statusError,
   } = state;
 
   const statusMap = buildStatusMap(state);
@@ -342,6 +354,8 @@ function render(root, state) {
     statusMap,
     String(pageFilter || 'all'),
   );
+
+  document.getElementById('bulk-pp-runtime-styles')?.remove();
 
   root.replaceChildren();
 
@@ -443,7 +457,18 @@ function render(root, state) {
     pagesPane.append(filterRow);
 
     if (statusCheckFailed) {
-      pagesPane.append(el('p', 'bulk-pp-status-note', 'Deployment status unavailable — refresh or open from Document Authoring.'));
+      pagesPane.append(el(
+        'p',
+        'bulk-pp-status-note bulk-pp-status-note-error',
+        statusError || 'Could not load preview/live status from AEM. Open this tool from Document Authoring and refresh.',
+      ));
+    } else if (pages.length > 0) {
+      const deployed = countDeployedPages(platformStatus || {}, pages);
+      pagesPane.append(el(
+        'p',
+        'bulk-pp-status-note',
+        `Deployment status from AEM · ${deployed} of ${pages.length} page(s) on preview or live`,
+      ));
     }
 
     if (folders.length > 0) {
@@ -596,6 +621,7 @@ async function main() {
     pageFilter: 'all',
     platformStatus: {},
     statusCheckFailed: false,
+    statusError: null,
 
     onTab(tab) {
       state.activeTab = tab;
@@ -686,13 +712,17 @@ async function main() {
             pages.map((p) => p.helixPath),
           );
           state.statusCheckFailed = false;
+          state.statusError = null;
+          if (new URLSearchParams(window.location.search).has('debug')) {
+            // eslint-disable-next-line no-console
+            console.debug('[bulk-pp] platformStatus', state.platformStatus);
+          }
         } catch (statusErr) {
           state.platformStatus = {};
           state.statusCheckFailed = true;
-          if (new URLSearchParams(window.location.search).has('debug')) {
-            // eslint-disable-next-line no-console
-            console.warn('[bulk-pp] platform status failed', statusErr);
-          }
+          state.statusError = statusErr instanceof Error ? statusErr.message : 'Status check failed';
+          // eslint-disable-next-line no-console
+          console.warn('[bulk-pp] platform status failed', statusErr);
         }
 
         const docCount = pages.length;
