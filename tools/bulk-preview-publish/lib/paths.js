@@ -10,7 +10,15 @@ export { DA_ADMIN, HLX_ADMIN };
  */
 export function rewriteAdminUrl(url) {
   if (!url || typeof url !== 'string') return url;
-  return url.replace(/^https:\/\/admin\.hlx\.page/i, DA_ADMIN);
+  return url.replace(/https?:\/\/admin\.hlx\.page/gi, DA_ADMIN);
+}
+
+/**
+ * True if URL targets admin.hlx.page (blocked in browser — use admin.da.live).
+ * @param {string} url
+ */
+export function isHlxAdminUrl(url) {
+  return /https?:\/\/admin\.hlx\.page/i.test(String(url || ''));
 }
 
 /**

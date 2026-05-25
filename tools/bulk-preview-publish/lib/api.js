@@ -5,19 +5,36 @@ import {
   getEntryName,
   joinPath,
   normalizeFolderPath,
+  isHlxAdminUrl,
   rewriteAdminUrl,
   toHelixPath,
-} from './paths.js?v=26';
+} from './paths.js?v=29';
 
 /**
- * DA Apps serve tool HTML from *.aem.live — always call admin.da.live (CORS *).
- * SDK daFetch supplies IMS Bearer; do not use admin.hlx.page from the browser.
+ * DA Apps run on *.aem.live; only admin.da.live allows browser CORS (Access-Control-Allow-Origin: *).
  */
 const adminApiBase = DA_ADMIN;
 
 /** @param {{ useSdkFetch?: boolean }} [_options] */
 export function configureAdminApi(_options = {}) {
   // no-op; kept for callers
+}
+
+/**
+ * Wrap DA SDK fetch so every request uses admin.da.live (never admin.hlx.page).
+ * @param {Function} baseFetch
+ * @returns {Function}
+ */
+export function wrapDaFetch(baseFetch) {
+  return async (url, init = {}) => {
+    const safeUrl = rewriteAdminUrl(String(url));
+    if (isHlxAdminUrl(safeUrl)) {
+      throw new TypeError(
+        'Blocked admin.hlx.page request (CORS). All API calls must use admin.da.live.',
+      );
+    }
+    return baseFetch(safeUrl, init);
+  };
 }
 
 /**
@@ -479,28 +496,35 @@ export function getJobPollUrl(bulkResponse, org, site, ref, topic) {
  * @returns {string[]}
  */
 export function helixPathToStatusPathKeys(helixPath) {
-  const bare = !helixPath || helixPath === '/' ? 'index' : helixPath.replace(/^\//, '');
-  const keys = new Set([bare]);
-  if (bare === 'index') keys.add('');
+  const norm = normalizeWebPath(helixPath);
+  const bare = norm === '/' ? 'index' : norm.replace(/^\//, '');
+  const keys = new Set([bare, norm]);
+  if (bare === 'index' || norm === '/index' || norm === '/') {
+    keys.add('index');
+    keys.add('');
+    keys.add('/');
+  }
   if (bare.endsWith('/index')) {
     const parent = bare.slice(0, -'/index'.length);
-    keys.add(parent);
+    if (parent) keys.add(parent);
   }
   return [...keys];
 }
 
 /**
+ * GET /preview|live|status/{org}/{site}/{ref}/{path…}
+ * @param {'preview'|'live'|'status'} route
  * @param {string} org
  * @param {string} site
  * @param {string} ref
- * @param {string} pathKey helix path without leading slash (empty = site root)
+ * @param {string} pathKey
  * @returns {string}
  */
-export function buildStatusGetUrl(org, site, ref, pathKey) {
-  const prefix = `${adminApiBase}/status/${encodeURIComponent(org)}/${encodeURIComponent(site)}/${encodeURIComponent(ref)}`;
-  if (!pathKey) return `${prefix}/`;
-  const segments = pathKey.split('/').filter(Boolean).map((s) => encodeURIComponent(s));
-  return `${prefix}/${segments.join('/')}`;
+function buildAdminResourceUrl(route, org, site, ref, pathKey) {
+  const prefix = `${adminApiBase}/${route}/${org}/${site}/${ref}`;
+  const bare = (pathKey || '').replace(/^\//, '') || 'index';
+  const segments = bare.split('/').filter(Boolean).map((s) => encodeURIComponent(s));
+  return segments.length ? `${prefix}/${segments.join('/')}` : `${prefix}/index`;
 }
 
 /**
@@ -572,11 +596,15 @@ function buildHelixPathLookup(helixPaths) {
     const key = normalizeWebPath(webPath);
     if (!lookup.has(key)) lookup.set(key, helix);
     const bare = key.replace(/^\//, '');
-    if (bare && bare !== key) lookup.set(bare, helix);
+    if (bare && bare !== key && !lookup.has(bare)) lookup.set(bare, helix);
   };
   helixPaths.forEach((helix) => {
     link(helix, helix);
     const norm = normalizeWebPath(helix);
+    if (norm.endsWith('/index')) {
+      const parent = norm.slice(0, -'/index'.length) || '/';
+      link(parent, helix);
+    }
     if (norm === '/index' || norm === '/') {
       link('/', helix);
       link('/index', helix);
@@ -623,37 +651,49 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
 
   /* eslint-disable no-await-in-loop -- try path variants until one resolves */
   for (let i = 0; i < pathKeys.length; i += 1) {
-    const url = buildStatusGetUrl(org, site, ref, pathKeys[i]);
-    let resp;
-    try {
-      resp = await daFetchWithRetry(daFetch, url, { method: 'GET' });
-    } catch (err) {
-      if (err instanceof Error && /missing ims client id/i.test(err.message)) {
-        throw new Error(formatAdminApiError({ message: err.message }, 0) || err.message);
-      }
+    const pathKey = pathKeys[i];
+    /** @type {{ previewedAt?: number, publishedAt?: number }} */
+    const entry = {};
+
+    for (const route of /** @type {const} */ (['preview', 'live'])) {
+      const url = buildAdminResourceUrl(route, org, site, ref, pathKey);
+      let resp;
+      try {
+        resp = await daFetchWithRetry(daFetch, url, { method: 'GET' });
+      } catch (err) {
+        if (err instanceof Error && /missing ims client id/i.test(err.message)) {
+          throw new Error(formatAdminApiError({ message: err.message }, 0) || err.message);
+        }
       if (err instanceof TypeError) {
         throw new Error(
-          'Cannot reach AEM status API (network/CORS). Open this tool from https://da.live Document Authoring.',
+          'Network or CORS error reaching AEM Admin API. Open this tool from https://da.live (Apps), not a .aem.live tab.',
         );
       }
-      throw err;
-    }
-    const data = await parseJson(resp);
+        throw err;
+      }
+      const data = await parseJson(resp);
 
-    if (resp.status === 401 || resp.status === 403) {
-      const msg = formatAdminApiError(data, resp.status);
-      throw new Error(msg || `Not authorized to read page status (${resp.status}).`);
-    }
-    if (resp.status === 429) return best;
-    const apiErr = formatAdminApiError(data, resp.status);
-    if (apiErr && !resp.ok && resp.status !== 404) {
-      throw new Error(apiErr);
-    }
-    if (!resp.ok && resp.status !== 404) continue;
+      if (resp.status === 401 || resp.status === 403) {
+        const msg = formatAdminApiError(data, resp.status);
+        throw new Error(msg || `Not authorized (${resp.status}).`);
+      }
+      if (resp.status === 429) return best;
+      if (resp.status === 404 || !resp.ok) continue;
 
-    const parsed = parseStatusPayload(data);
-    if (parsed.previewedAt || parsed.publishedAt) return parsed;
-    if (resp.ok) best = parsed;
+      const parsed = parseStatusPayload(data);
+      const ts = partitionTimestamp(data);
+      if (route === 'preview') {
+        entry.previewedAt = parsed.previewedAt || ts;
+      } else {
+        entry.publishedAt = parsed.publishedAt || ts;
+      }
+    }
+
+    if (entry.previewedAt || entry.publishedAt) return entry;
+    best = {
+      previewedAt: entry.previewedAt || best.previewedAt,
+      publishedAt: entry.publishedAt || best.publishedAt,
+    };
   }
   /* eslint-enable no-await-in-loop */
 
@@ -665,7 +705,9 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
  */
 function normalizeWebPath(path) {
   if (!path) return '/';
-  const p = path.startsWith('/') ? path : `/${path}`;
+  let p = String(path).trim();
+  if (p.endsWith('.html')) p = p.slice(0, -5);
+  p = p.startsWith('/') ? p : `/${p}`;
   if (p.length > 1 && p.endsWith('/')) return p.slice(0, -1);
   return p || '/';
 }
@@ -765,7 +807,11 @@ function mapStatusJobToEntries(jobData, helixPaths) {
       return;
     }
     const bucket = String(item._bucket || '');
-    touchEntry(String(item.webPath || item.path || ''), bucket, item);
+    touchEntry(
+      String(item.webPath || item.path || item.resourcePath || ''),
+      bucket,
+      item,
+    );
   });
 
   const root = jobData && typeof jobData === 'object'
@@ -793,15 +839,14 @@ function mapStatusJobToEntries(jobData, helixPaths) {
  * @param {string[]} helixPaths
  */
 async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
-  const queryPaths = expandStatusQueryPaths(helixPaths);
   const url = `${adminApiBase}/status/${org}/${site}/${ref}/*`;
   const resp = await daFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      paths: queryPaths,
+      paths: ['/*'],
       select: ['preview', 'live'],
-      forceAsync: queryPaths.length > 5,
+      forceAsync: true,
     }),
   });
   const data = await parseJson(resp);
@@ -822,16 +867,27 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
     return {};
   }
 
-  const finalJob = await pollJob(daFetch, jobUrl);
-  let details = finalJob;
+  let details = null;
   try {
     const detailsResp = await daFetch(`${resolveAdminUrl(jobUrl)}/details`, { method: 'GET' });
     const detailsJson = await parseJson(detailsResp);
     if (detailsResp.ok && detailsJson) details = detailsJson;
   } catch {
-    // use polled job payload
+    // fall back to poll
   }
-  return mapStatusJobToEntries(details, helixPaths);
+
+  if (!details) {
+    details = await pollJob(daFetch, jobUrl);
+    try {
+      const detailsResp = await daFetch(`${resolveAdminUrl(jobUrl)}/details`, { method: 'GET' });
+      const detailsJson = await parseJson(detailsResp);
+      if (detailsResp.ok && detailsJson) details = detailsJson;
+    } catch {
+      // use polled job payload
+    }
+  }
+
+  return mapStatusJobToEntries(details || {}, helixPaths);
 }
 
 /**
@@ -880,5 +936,29 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths) {
 export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helixPaths) {
   const unique = dedupePaths(helixPaths);
   if (unique.length === 0) return {};
-  return fetchStatusParallel(daFetch, org, site, ref, unique);
+
+  /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
+  let result = {};
+
+  try {
+    result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique);
+  } catch (bulkErr) {
+    console.warn('[bulk-pp] bulk status failed, using per-page preview/live checks', bulkErr);
+    return fetchStatusParallel(daFetch, org, site, ref, unique);
+  }
+
+  const missing = unique.filter((p) => {
+    const e = result[p];
+    return !e?.previewedAt && !e?.publishedAt;
+  });
+
+  if (missing.length > 0 && missing.length <= 50) {
+    const filled = await fetchStatusParallel(daFetch, org, site, ref, missing);
+    missing.forEach((p) => {
+      const e = filled[p];
+      if (e?.previewedAt || e?.publishedAt) result[p] = e;
+    });
+  }
+
+  return result;
 }

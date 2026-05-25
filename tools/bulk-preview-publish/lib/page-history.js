@@ -1,4 +1,4 @@
-import { sortPagesByListPath } from './paths.js?v=26';
+import { sortPagesByListPath } from './paths.js?v=29';
 
 /**
  * @typedef {{ previewedAt?: number, publishedAt?: number }} PageHistoryEntry

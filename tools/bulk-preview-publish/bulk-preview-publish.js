@@ -2,23 +2,24 @@ import {
   collectPages,
   configureAdminApi,
   fetchPlatformStatusForPaths,
+  wrapDaFetch,
   formatAdminApiError,
   getJobPollUrl,
   listFolderEntries,
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=26';
+} from './lib/api.js?v=29';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=26';
+} from './lib/paths.js?v=29';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=26';
+} from './lib/urls.js?v=29';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -27,9 +28,9 @@ import {
   pathsOnPreview,
   pathsOnPublished,
   statusLabel,
-} from './lib/page-history.js?v=26';
+} from './lib/page-history.js?v=29';
 
-const TOOL_VERSION = '26';
+const TOOL_VERSION = '29';
 
 /**
  * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
@@ -92,7 +93,7 @@ async function initSdk() {
         ref: params.get('ref') || 'main',
         path: params.get('path') || '',
       },
-      actions: { daFetch: fetch },
+      actions: {},
     };
   }
 }
@@ -607,7 +608,7 @@ async function main() {
   const { context, actions } = await initSdk();
   const hasSdkFetch = typeof actions.daFetch === 'function';
   configureAdminApi({ useSdkFetch: hasSdkFetch });
-  const daFetch = hasSdkFetch ? actions.daFetch : fetch;
+  const daFetch = hasSdkFetch ? wrapDaFetch(actions.daFetch) : null;
   const ctx = resolveSiteContext(context);
   ctx.folderPath = resolveContentFolderPath(ctx.folderPath);
 
@@ -913,8 +914,8 @@ async function main() {
     },
   };
 
-  if (!hasSdkFetch) {
-    state.error = 'Open Bulk Preview & Publish from Document Authoring (https://da.live → Apps). Preview (.aem.live) and direct tool URLs cannot use Adobe IMS.';
+  if (!daFetch) {
+    state.error = 'Open Bulk Preview & Publish from Document Authoring (https://da.live → Apps). Running outside the DA shell causes CORS and auth failures on admin.hlx.page.';
     state.statusType = 'error';
     render(app, state);
     return;
