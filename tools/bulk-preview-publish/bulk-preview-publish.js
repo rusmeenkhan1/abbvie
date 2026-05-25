@@ -5,19 +5,19 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=13';
+} from './lib/api.js?v=14';
 import {
   displayFolderPath,
   displayPath,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=13';
+} from './lib/paths.js?v=14';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=13';
+} from './lib/urls.js?v=14';
 
-const TOOL_VERSION = '13';
+const TOOL_VERSION = '14';
 
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
@@ -103,6 +103,20 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text != null) node.textContent = text;
   return node;
+}
+
+/**
+ * @param {string} title
+ * @param {string} [extraClass]
+ * @returns {{ panel: HTMLElement, body: HTMLElement }}
+ */
+function createPanel(title, extraClass = '') {
+  const panel = el('section', `bulk-pp-panel ${extraClass}`.trim());
+  const head = el('div', 'bulk-pp-panel-head');
+  head.append(el('h2', null, title));
+  const body = el('div', 'bulk-pp-panel-body');
+  panel.append(head, body);
+  return { panel, body };
 }
 
 /**
@@ -244,14 +258,24 @@ function render(root, state) {
   root.replaceChildren();
 
   const header = el('header', 'bulk-pp-header');
-  header.append(
+  const headerInner = el('div', 'bulk-pp-header-inner');
+  const headerBrand = el('div', 'bulk-pp-header-brand');
+  headerBrand.append(
+    el('span', 'bulk-pp-header-eyebrow', 'Document Authoring'),
     el('h1', null, 'Bulk Preview & Publish'),
-    el('p', 'bulk-pp-subtitle', `${org} / ${site} · ${ref}`),
+    el('p', 'bulk-pp-header-desc', 'Select pages, preview on AEM, and publish to production in a single workflow.'),
   );
+  const headerMeta = el('div', 'bulk-pp-header-meta');
+  headerMeta.append(
+    el('span', 'bulk-pp-badge', org),
+    el('span', 'bulk-pp-badge bulk-pp-badge-muted', site),
+    el('span', 'bulk-pp-badge bulk-pp-badge-muted', ref),
+  );
+  headerInner.append(headerBrand, headerMeta);
+  header.append(headerInner);
   root.append(header);
 
-  const browse = el('section', 'bulk-pp-panel');
-  browse.append(el('h2', null, 'Browse'));
+  const { panel: browse, body: browseBody } = createPanel('Location & scope');
   const row = el('div', 'bulk-pp-row');
 
   const pathField = el('div', 'bulk-pp-field');
@@ -287,10 +311,13 @@ function render(root, state) {
   loadBtn.type = 'button';
   loadBtn.disabled = loading;
   row.append(loadBtn);
-  browse.append(row);
+  browseBody.append(row);
   root.append(browse);
 
   const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content');
+  const contentHead = el('div', 'bulk-pp-panel-head');
+  contentHead.append(el('h2', null, 'Content & URLs'));
+  contentPanel.append(contentHead);
   const tabBar = el('div', 'bulk-pp-tabs');
   const pagesTabBtn = el('button', 'bulk-pp-tab', 'Content');
   const urlsTabBtn = el('button', 'bulk-pp-tab', 'URLs');
@@ -342,21 +369,21 @@ function render(root, state) {
     pageWrap.append(pageList);
     pagesPane.append(pageWrap);
 
-    const topActions = el('div', 'bulk-pp-actions-top bulk-pp-actions-pages');
-    const selectAllBtn = el('button', 'bulk-pp-btn', 'Select all');
-    const selectNoneBtn = el('button', 'bulk-pp-btn', 'Select none');
+    const toolbar = el('div', 'bulk-pp-toolbar');
+    const toolbarActions = el('div', 'bulk-pp-toolbar-actions');
+    const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost', 'Select all');
+    const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost', 'Select none');
     selectAllBtn.type = 'button';
     selectNoneBtn.type = 'button';
     selectAllBtn.disabled = pages.length === 0;
     selectNoneBtn.disabled = pages.length === 0;
     selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
     selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
-    topActions.append(selectAllBtn, selectNoneBtn);
-    pagesPane.insertBefore(topActions, pageWrap);
-
-    const meta = el('p', 'bulk-pp-meta', `${selected.size} of ${pages.length} page(s) selected`);
-    meta.id = 'bulk-pp-selection-meta';
-    pagesPane.append(meta);
+    toolbarActions.append(selectAllBtn, selectNoneBtn);
+    const selectionPill = el('span', 'bulk-pp-selection-pill', `${selected.size} of ${pages.length} selected`);
+    selectionPill.id = 'bulk-pp-selection-pill';
+    toolbar.append(toolbarActions, selectionPill);
+    pagesPane.insertBefore(toolbar, pageWrap);
   }
   contentPanel.append(pagesPane);
 
@@ -369,8 +396,7 @@ function render(root, state) {
   contentPanel.append(urlsPane);
   root.append(contentPanel);
 
-  const runPanel = el('section', 'bulk-pp-panel');
-  runPanel.append(el('h2', null, 'Actions'));
+  const { panel: runPanel, body: runBody } = createPanel('Run bulk actions', 'bulk-pp-actions-panel');
   const options = el('div', 'bulk-pp-options');
   const forceLabel = document.createElement('label');
   const forceCb = document.createElement('input');
@@ -378,11 +404,11 @@ function render(root, state) {
   forceCb.id = 'bulk-pp-force';
   forceLabel.append(forceCb, document.createTextNode('Force update (republish even if unchanged)'));
   options.append(forceLabel);
-  runPanel.append(options);
+  runBody.append(options);
 
-  const runRow = el('div', 'bulk-pp-row');
+  const runRow = el('div', 'bulk-pp-run-actions');
   const previewBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary', 'Preview selected');
-  const publishBtn = el('button', 'bulk-pp-btn bulk-pp-btn-danger', 'Publish selected');
+  const publishBtn = el('button', 'bulk-pp-btn bulk-pp-btn-danger', 'Publish to live');
   previewBtn.type = 'button';
   publishBtn.type = 'button';
   previewBtn.id = 'bulk-pp-preview-btn';
@@ -390,7 +416,7 @@ function render(root, state) {
   previewBtn.disabled = loading || pages.length === 0 || selected.size === 0;
   publishBtn.disabled = loading || pages.length === 0 || selected.size === 0;
   runRow.append(previewBtn, publishBtn);
-  runPanel.append(runRow);
+  runBody.append(runRow);
   root.append(runPanel);
 
   if (status) {
@@ -562,8 +588,8 @@ async function main() {
       const root = /** @type {HTMLElement | null} */ (state.root);
       if (!root) return;
 
-      const meta = root.querySelector('#bulk-pp-selection-meta');
-      if (meta) meta.textContent = `${selected.size} of ${pages.length} page(s) selected`;
+      const pill = root.querySelector('#bulk-pp-selection-pill');
+      if (pill) pill.textContent = `${selected.size} of ${pages.length} selected`;
 
       root.querySelectorAll('.bulk-pp-page-cb').forEach((cb) => {
         if (!(cb instanceof HTMLInputElement)) return;
