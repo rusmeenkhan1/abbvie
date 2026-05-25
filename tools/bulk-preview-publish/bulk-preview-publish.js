@@ -257,6 +257,29 @@ function buildStatusDot(status) {
   return dot;
 }
 
+/** Placeholder keeps row alignment; no color until AEM status is known. */
+function buildStatusDotPending() {
+  const dot = el('span', 'bulk-pp-status-dot bulk-pp-status-dot-pending');
+  dot.setAttribute('aria-label', 'Status loading');
+  return dot;
+}
+
+/**
+ * @param {Record<string, unknown>} state
+ * @param {string} helixPath
+ * @returns {boolean}
+ */
+function shouldShowPageStatus(state, helixPath) {
+  if (state.statusCheckFailed) return false;
+  if (state.statusChecking) {
+    const platform = /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */ (
+      state.platformStatus || {}
+    );
+    return helixPath in platform;
+  }
+  return pages.length > 0;
+}
+
 /**
  * @param {Record<string, unknown>} state
  * @returns {Record<string, import('./lib/page-history.js').PageHistoryEntry>}
@@ -274,24 +297,13 @@ function buildStatusMap(state) {
 }
 
 /**
- * @returns {HTMLElement}
- */
-function buildStatusPending() {
-  const dot = el('span', 'bulk-pp-status-dot bulk-pp-status-dot-pending');
-  dot.setAttribute('aria-label', 'Checking status');
-  dot.title = 'Checking status';
-  return dot;
-}
-
-/**
  * @param {DocumentEntry} page
  * @param {import('./lib/page-history.js').PageHistoryEntry | undefined} entry
  * @param {string} browseFolder
  * @param {(checked: boolean, path: string) => void} onToggle
- * @param {boolean} showDeploymentStatus
  * @returns {HTMLLIElement}
  */
-function buildPageRow(page, entry, browseFolder, onToggle, showDeploymentStatus) {
+function buildPageRow(page, entry, browseFolder, onToggle, showStatus) {
   const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-document');
 
   const cb = document.createElement('input');
@@ -321,14 +333,14 @@ function buildPageRow(page, entry, browseFolder, onToggle, showDeploymentStatus)
   const dateParts = [];
   if (entry?.previewedAt) dateParts.push(`Preview ${formatStatusDate(entry.previewedAt)}`);
   if (entry?.publishedAt) dateParts.push(`Published ${formatStatusDate(entry.publishedAt)}`);
-  if (showDeploymentStatus && dateParts.length) {
-    labelWrap.append(el('span', 'bulk-pp-item-dates', dateParts.join(' · ')));
-  }
+  if (dateParts.length) labelWrap.append(el('span', 'bulk-pp-item-dates', dateParts.join(' · ')));
 
-  const statusEl = showDeploymentStatus
-    ? buildStatusDot(getPageStatus(entry))
-    : buildStatusPending();
-  li.append(cb, icon, labelWrap, statusEl);
+  li.append(cb, icon, labelWrap);
+  if (showStatus) {
+    li.append(buildStatusDot(getPageStatus(entry)));
+  } else {
+    li.append(buildStatusDotPending());
+  }
   return li;
 }
 
@@ -395,12 +407,9 @@ function render(root, state) {
     statusCheckFailed,
     statusError,
     statusChecking,
-    statusReady,
     statusProgressDone,
     statusProgressTotal,
   } = state;
-
-  const showDeploymentStatus = statusReady && !statusCheckFailed;
 
   const statusMap = buildStatusMap(state);
   const browseFolder = resolveContentFolderPath(folderPath);
@@ -509,31 +518,23 @@ function render(root, state) {
       filterSelect.append(opt);
     });
     filterField.append(filterSelect);
-    if (showDeploymentStatus) filterRow.append(buildStatusLegend());
-    filterRow.append(filterField);
+    filterRow.append(filterField, buildStatusLegend());
     pagesPane.append(filterRow);
 
-    if (statusCheckFailed && statusReady) {
+    if (statusCheckFailed) {
       pagesPane.append(el(
         'p',
         'bulk-pp-status-note bulk-pp-status-note-error',
         statusError || 'Could not load deployment status from AEM. Open the tool from https://da.live (Document Authoring), not the .aem.live preview URL, then refresh.',
       ));
-    } else if (pages.length > 0 && statusChecking) {
-      const pct = statusProgressTotal > 0
-        ? Math.max(1, Math.round((statusProgressDone / statusProgressTotal) * 1000) / 10)
-        : 0;
-      pagesPane.append(el(
-        'p',
-        'bulk-pp-status-note',
-        `Loading preview and publish status from AEM… ${statusProgressDone}/${statusProgressTotal} (${pct}%)`,
-      ));
-    } else if (pages.length > 0 && showDeploymentStatus) {
-      pagesPane.append(el(
-        'p',
-        'bulk-pp-status-note',
-        `Deployment status from AEM · ${formatStatusSummary(platformStatus || {}, pages)}`,
-      ));
+    } else if (pages.length > 0) {
+      const summary = formatStatusSummary(platformStatus || {}, pages);
+      let noteText = `Deployment status from AEM · ${summary}`;
+      if (statusChecking && statusProgressTotal > 0) {
+        const deployed = countDeployedPages(platformStatus || {}, pages);
+        noteText = `Checking AEM status… ${statusProgressDone}/${statusProgressTotal} · ${deployed} matched so far`;
+      }
+      pagesPane.append(el('p', 'bulk-pp-status-note', noteText));
     }
 
     if (folders.length > 0) {
@@ -589,7 +590,7 @@ function render(root, state) {
             else selected.delete(path);
             state.onSelectionChange();
           },
-          showDeploymentStatus,
+          shouldShowPageStatus(state, page.helixPath),
         ));
       });
     }
@@ -638,34 +639,22 @@ function render(root, state) {
   root.append(runPanel);
 
   if (statusChecking && statusProgressTotal > 0) {
-    const rawPct = (statusProgressDone / statusProgressTotal) * 100;
-    const displayPct = statusProgressDone === 0
-      ? 3
-      : Math.min(100, Math.max(1, Math.round(rawPct * 10) / 10));
-    const progressWrap = el('div', 'bulk-pp-progress-wrap bulk-pp-progress-wrap-active');
-    if (statusProgressDone < statusProgressTotal) {
-      progressWrap.classList.add('bulk-pp-progress-wrap-busy');
-    }
+    const progressWrap = el('div', 'bulk-pp-progress-wrap');
     progressWrap.setAttribute('role', 'progressbar');
     progressWrap.setAttribute('aria-valuemin', '0');
-    progressWrap.setAttribute('aria-valuemax', '100');
-    progressWrap.setAttribute('aria-valuenow', String(Math.round(displayPct)));
+    progressWrap.setAttribute('aria-valuemax', String(statusProgressTotal));
+    progressWrap.setAttribute('aria-valuenow', String(statusProgressDone));
     progressWrap.setAttribute('aria-label', 'Checking deployment status');
-    progressWrap.setAttribute('aria-busy', 'true');
+    const pct = Math.min(100, Math.round((statusProgressDone / statusProgressTotal) * 100));
     const track = el('div', 'bulk-pp-progress-track');
     const fill = el('div', 'bulk-pp-progress-fill');
-    fill.style.width = `${displayPct}%`;
+    fill.style.width = `${pct}%`;
     track.append(fill);
     progressWrap.append(track);
-    const phase = statusProgressDone === 0
-      ? 'Starting status check…'
-      : statusProgressDone < statusProgressTotal
-        ? 'Checking pages…'
-        : 'Finishing…';
     progressWrap.append(el(
       'p',
       'bulk-pp-progress-label',
-      `${phase} ${statusProgressDone} of ${statusProgressTotal} (${displayPct}%)`,
+      `${statusProgressDone} of ${statusProgressTotal} pages checked (${pct}%)`,
     ));
     root.append(progressWrap);
   }
@@ -727,7 +716,6 @@ async function main() {
     statusCheckFailed: false,
     statusError: null,
     statusChecking: false,
-    statusReady: false,
     statusProgressDone: 0,
     statusProgressTotal: 0,
 
@@ -766,11 +754,6 @@ async function main() {
 
       state.loading = true;
       state.error = null;
-      state.statusReady = false;
-      state.statusChecking = false;
-      state.platformStatus = {};
-      state.statusCheckFailed = false;
-      state.statusError = null;
       state.status = 'Loading…';
       state.statusType = 'info';
       render(app, state);
@@ -832,20 +815,12 @@ async function main() {
           state.statusType = 'info';
         }
 
-        render(app, state);
-
         const pathsToCheck = pages.map((p) => p.helixPath);
         const statusLocation = location;
-        state.statusReady = false;
-        state.platformStatus = {};
         state.statusChecking = pathsToCheck.length > 0;
         state.statusProgressDone = 0;
         state.statusProgressTotal = pathsToCheck.length;
-        if (pathsToCheck.length === 0) {
-          state.statusReady = true;
-          render(app, state);
-          return;
-        }
+
         render(app, state);
         fetchPlatformStatusForPaths(
           daFetch,
@@ -857,8 +832,7 @@ async function main() {
             state.platformStatus = { ...partial };
             state.statusProgressDone = done;
             state.statusProgressTotal = total;
-            const pct = total > 0 ? Math.max(1, Math.round((done / total) * 1000) / 10) : 0;
-            state.status = `Checking deployment status… ${done}/${total} (${pct}%)`;
+            state.status = `Checking deployment status… ${done}/${total} · ${formatStatusSummary(state.platformStatus, pages)}`;
             state.statusType = 'info';
             render(app, state);
           },
@@ -866,7 +840,6 @@ async function main() {
           state.platformStatus = platformStatus;
           state.statusCheckFailed = false;
           state.statusError = null;
-          state.statusReady = true;
           state.statusChecking = false;
           state.statusProgressDone = pathsToCheck.length;
           state.statusProgressTotal = pathsToCheck.length;
@@ -885,7 +858,6 @@ async function main() {
           render(app, state);
         }).catch((statusErr) => {
           state.statusChecking = false;
-          state.statusReady = true;
           state.platformStatus = {};
           state.statusCheckFailed = true;
           const raw = statusErr instanceof Error ? statusErr.message : 'Status check failed';

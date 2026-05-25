@@ -9,7 +9,7 @@ import {
   decodeHelixPath,
   helixToWebPath,
   toHelixPath,
-} from './paths.js?v=39';
+} from './paths.js?v=38';
 
 const ADMIN_STATUS_POST_SUFFIX = 'index';
 
@@ -1249,8 +1249,6 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
   const unique = dedupePaths(helixPaths);
   if (unique.length === 0) return {};
   assertAdminContext(org, site, ref);
-
-  if (onProgress) onProgress({}, 0, unique.length);
 
   if (isHardcodeIndexTest()) {
     const indexStatus = await fetchHardcodedIndexStatus(daFetch, org, site, ref);

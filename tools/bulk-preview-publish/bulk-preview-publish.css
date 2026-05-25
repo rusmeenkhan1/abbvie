@@ -477,6 +477,11 @@
   box-shadow: 0 0 0 1px rgb(255 255 255 / 80%);
 }
 
+.bulk-pp-status-dot-pending {
+  background: transparent;
+  box-shadow: none;
+}
+
 .bulk-pp-status-dot-untouched {
   background: var(--pp-status-red);
 }
@@ -487,17 +492,6 @@
 
 .bulk-pp-status-dot-published {
   background: var(--pp-status-green);
-}
-
-.bulk-pp-status-dot-pending {
-  background: #c5cad3;
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 90%);
-  animation: bulk-pp-pending-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes bulk-pp-pending-pulse {
-  0%, 100% { opacity: 0.45; }
-  50% { opacity: 1; }
 }
 
 .bulk-pp-version {
@@ -777,63 +771,29 @@
 /* —— Status progress —— */
 .bulk-pp-progress-wrap {
   margin-top: 12px;
-  padding: 14px 16px;
+  padding: 12px 16px;
   background: var(--pp-info-bg);
   border: 1px solid var(--pp-info-border);
   border-radius: var(--pp-radius-sm);
 }
 
-.bulk-pp-progress-wrap-active {
-  box-shadow: 0 1px 3px rgb(0 71 186 / 12%);
-}
-
-.bulk-pp-progress-wrap-busy .bulk-pp-progress-track {
-  position: relative;
-  overflow: hidden;
-}
-
-.bulk-pp-progress-wrap-busy .bulk-pp-progress-track::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgb(255 255 255 / 35%) 50%,
-    transparent 100%
-  );
-  animation: bulk-pp-progress-shimmer 1.4s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes bulk-pp-progress-shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
 .bulk-pp-progress-track {
-  height: 10px;
+  height: 8px;
   background: rgb(0 0 0 / 8%);
-  border-radius: 5px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .bulk-pp-progress-fill {
   height: 100%;
-  min-width: 0;
-  background: linear-gradient(90deg, #005eb8 0%, #1a7fd4 100%);
-  border-radius: 5px;
-  transition: width 0.4s ease;
-}
-
-.bulk-pp-progress-wrap-busy .bulk-pp-progress-fill {
-  min-width: 3%;
+  background: var(--pp-primary, #005eb8);
+  border-radius: 4px;
+  transition: width 0.25s ease;
 }
 
 .bulk-pp-progress-label {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   font-size: 0.82rem;
-  font-weight: 600;
   color: var(--pp-info-text);
 }
 
