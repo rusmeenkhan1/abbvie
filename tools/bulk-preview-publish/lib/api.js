@@ -1,5 +1,6 @@
 import {
   DA_ADMIN,
+  HLX_ADMIN,
   dedupePaths,
   classifyEntry,
   getEntryName,
@@ -7,10 +8,50 @@ import {
   normalizeFolderPath,
   rewriteAdminUrl,
   toHelixPath,
-} from './paths.js?v=24';
+} from './paths.js?v=25';
 
-/** Browser-safe AEM Admin base (CORS); daFetch still supplies auth. */
-const ADMIN_API = DA_ADMIN;
+/** @type {string} */
+let adminApiBase = DA_ADMIN;
+
+/** When true, use admin.hlx.page URLs (DA SDK daFetch adds IMS Bearer + x-content-source-authorization). */
+let adminUseHlx = false;
+
+/**
+ * @param {{ useSdkFetch: boolean }} options
+ */
+export function configureAdminApi({ useSdkFetch }) {
+  adminUseHlx = Boolean(useSdkFetch);
+  adminApiBase = adminUseHlx ? HLX_ADMIN : DA_ADMIN;
+}
+
+/**
+ * @param {string} url
+ * @returns {string}
+ */
+function resolveAdminUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  if (adminUseHlx) return url.replace(/^https:\/\/admin\.da\.live/i, HLX_ADMIN);
+  return rewriteAdminUrl(url);
+}
+
+/**
+ * @param {unknown} data
+ * @param {number} status
+ * @returns {string | null}
+ */
+export function formatAdminApiError(data, status) {
+  const raw = data && typeof data === 'object'
+    ? String(/** @type {{ message?: string, error?: string }} */ (data).message
+      || /** @type {{ error?: string }} */ (data).error || '')
+    : '';
+  if (/missing ims client id/i.test(raw)) {
+    return 'Open this tool from Document Authoring (https://da.live) — preview (.aem.live) URLs cannot authenticate.';
+  }
+  if (status === 401 || status === 403) {
+    return 'Not signed in or not permitted. Open from da.live and sign in with Adobe IMS.';
+  }
+  return raw || null;
+}
 
 /**
  * @param {Response} resp
@@ -283,7 +324,7 @@ export async function startBulkJob(daFetch, org, site, ref, topic, paths, option
   }
 
   const route = topic === 'live' ? 'live' : 'preview';
-  const url = `${ADMIN_API}/${route}/${org}/${site}/${ref}/*`;
+  const url = `${adminApiBase}/${route}/${org}/${site}/${ref}/*`;
   const body = {
     paths: unique,
     forceUpdate: Boolean(options.forceUpdate),
@@ -324,7 +365,7 @@ async function sleep(ms) {
  * @param {string} jobUrl
  */
 async function fetchJobDetails(daFetch, jobUrl) {
-  const base = rewriteAdminUrl(jobUrl).replace(/\/$/, '');
+  const base = resolveAdminUrl(jobUrl).replace(/\/$/, '');
   const detailsResp = await daFetch(`${base}/details`, { method: 'GET' });
   const details = await parseJson(detailsResp);
   if (detailsResp.ok && details) return /** @type {Record<string, unknown>} */ (details);
@@ -335,7 +376,7 @@ export async function pollJob(daFetch, jobUrl, onProgress) {
   const terminal = new Set(['stopped', 'succeeded', 'failed', 'cancelled']);
   let last = null;
   let notFoundCount = 0;
-  const resolvedJobUrl = rewriteAdminUrl(jobUrl);
+  const resolvedJobUrl = resolveAdminUrl(jobUrl);
 
   /* eslint-disable no-await-in-loop -- job polling is intentionally sequential */
   for (let i = 0; i < 60; i += 1) {
@@ -421,14 +462,14 @@ export function getJobPollUrl(bulkResponse, org, site, ref, topic) {
   const { links, job } = bulkResponse || {};
   if (links && typeof links === 'object') {
     const { self } = /** @type {{ self?: string }} */ (links);
-    if (self) return rewriteAdminUrl(self);
+    if (self) return resolveAdminUrl(self);
   }
 
   if (job && typeof job === 'object') {
     const { name, topic: jobTopic } = /** @type {{ name?: string, topic?: string }} */ (job);
     const resolvedTopic = jobTopic || topic;
     if (name && resolvedTopic) {
-      return `${ADMIN_API}/job/${org}/${site}/${ref}/${resolvedTopic}/${name}`;
+      return `${adminApiBase}/job/${org}/${site}/${ref}/${resolvedTopic}/${name}`;
     }
   }
 
@@ -459,7 +500,7 @@ export function helixPathToStatusPathKeys(helixPath) {
  * @returns {string}
  */
 export function buildStatusGetUrl(org, site, ref, pathKey) {
-  const prefix = `${ADMIN_API}/status/${encodeURIComponent(org)}/${encodeURIComponent(site)}/${encodeURIComponent(ref)}`;
+  const prefix = `${adminApiBase}/status/${encodeURIComponent(org)}/${encodeURIComponent(site)}/${encodeURIComponent(ref)}`;
   if (!pathKey) return `${prefix}/`;
   const segments = pathKey.split('/').filter(Boolean).map((s) => encodeURIComponent(s));
   return `${prefix}/${segments.join('/')}`;
@@ -567,6 +608,9 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
     try {
       resp = await daFetch(url, { method: 'GET' });
     } catch (err) {
+      if (err instanceof Error && /missing ims client id/i.test(err.message)) {
+        throw new Error(formatAdminApiError({ message: err.message }, 0) || err.message);
+      }
       if (err instanceof TypeError) {
         throw new Error(
           'Cannot reach AEM status API (network/CORS). Open this tool from https://da.live Document Authoring.',
@@ -577,9 +621,12 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
     const data = await parseJson(resp);
 
     if (resp.status === 401 || resp.status === 403) {
-      throw new Error(
-        `Not authorized to read page status (${resp.status}). Sign in at da.live and open from Document Authoring.`,
-      );
+      const msg = formatAdminApiError(data, resp.status);
+      throw new Error(msg || `Not authorized to read page status (${resp.status}).`);
+    }
+    const apiErr = formatAdminApiError(data, resp.status);
+    if (apiErr && !resp.ok && resp.status !== 404) {
+      throw new Error(apiErr);
     }
     if (!resp.ok && resp.status !== 404) continue;
 
@@ -726,7 +773,7 @@ function mapStatusJobToEntries(jobData, helixPaths) {
  */
 async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
   const queryPaths = expandStatusQueryPaths(helixPaths);
-  const url = `${ADMIN_API}/status/${org}/${site}/${ref}/*`;
+  const url = `${adminApiBase}/status/${org}/${site}/${ref}/*`;
   const resp = await daFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -738,13 +785,12 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
   });
   const data = await parseJson(resp);
   if (resp.status === 401 || resp.status === 403) {
-    throw new Error(`Not authorized to read page status (${resp.status}). Open from Document Authoring.`);
+    const msg = formatAdminApiError(data, resp.status);
+    throw new Error(msg || `Not authorized to read page status (${resp.status}).`);
   }
   if (!resp.ok && resp.status !== 202) {
-    throw new Error(
-      (data && typeof data === 'object' && (data.message || data.error))
-        || `Status check failed (${resp.status})`,
-    );
+    const msg = formatAdminApiError(data, resp.status);
+    throw new Error(msg || `Status check failed (${resp.status})`);
   }
 
   const jobUrl = getJobPollUrl(data || {}, org, site, ref, 'status');
@@ -758,7 +804,7 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
   const finalJob = await pollJob(daFetch, jobUrl);
   let details = finalJob;
   try {
-    const detailsResp = await daFetch(`${rewriteAdminUrl(jobUrl)}/details`, { method: 'GET' });
+    const detailsResp = await daFetch(`${resolveAdminUrl(jobUrl)}/details`, { method: 'GET' });
     const detailsJson = await parseJson(detailsResp);
     if (detailsResp.ok && detailsJson) details = detailsJson;
   } catch {

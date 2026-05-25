@@ -1,23 +1,24 @@
 import {
   collectPages,
+  configureAdminApi,
   fetchPlatformStatusForPaths,
+  formatAdminApiError,
   getJobPollUrl,
   listFolderEntries,
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=24';
+} from './lib/api.js?v=25';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-  rewriteAdminUrl,
-} from './lib/paths.js?v=24';
+} from './lib/paths.js?v=25';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=24';
+} from './lib/urls.js?v=25';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -26,25 +27,9 @@ import {
   pathsOnPreview,
   pathsOnPublished,
   statusLabel,
-} from './lib/page-history.js?v=24';
+} from './lib/page-history.js?v=25';
 
-const TOOL_VERSION = '24';
-
-/**
- * Wrap fetch so admin.hlx.page URLs use admin.da.live (CORS) and optional DA token is sent.
- * @param {typeof fetch} baseFetch
- * @param {string} [token]
- */
-function wrapAdminFetch(baseFetch, token) {
-  return async (url, init = {}) => {
-    const resolved = rewriteAdminUrl(String(url));
-    const headers = new Headers(init.headers || {});
-    if (token && !headers.has('x-auth-token')) {
-      headers.set('x-auth-token', token);
-    }
-    return baseFetch(resolved, { ...init, headers });
-  };
-}
+const TOOL_VERSION = '25';
 
 /**
  * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
@@ -619,9 +604,10 @@ async function main() {
   const app = document.getElementById('app');
   if (!app) return;
 
-  const { context, token, actions } = await initSdk();
-  const baseFetch = typeof actions.daFetch === 'function' ? actions.daFetch : fetch;
-  const daFetch = wrapAdminFetch(baseFetch, token);
+  const { context, actions } = await initSdk();
+  const hasSdkFetch = typeof actions.daFetch === 'function';
+  configureAdminApi({ useSdkFetch: hasSdkFetch });
+  const daFetch = hasSdkFetch ? actions.daFetch : fetch;
   const ctx = resolveSiteContext(context);
   ctx.folderPath = resolveContentFolderPath(ctx.folderPath);
 
@@ -766,7 +752,8 @@ async function main() {
         }).catch((statusErr) => {
           state.platformStatus = {};
           state.statusCheckFailed = true;
-          state.statusError = statusErr instanceof Error ? statusErr.message : 'Status check failed';
+          const raw = statusErr instanceof Error ? statusErr.message : 'Status check failed';
+          state.statusError = formatAdminApiError({ message: raw }, 0) || raw;
           console.warn('[bulk-pp] platform status failed', statusErr);
           render(app, state);
         });
@@ -915,7 +902,8 @@ async function main() {
           || new URLSearchParams(window.location.search).has('debug');
         state.jobDetail = showDetail ? JSON.stringify(finalJob, null, 2) : null;
       } catch (err) {
-        state.status = err.message || 'Operation failed.';
+        const raw = err.message || 'Operation failed.';
+        state.status = formatAdminApiError(err.data || { message: raw }, err.status) || raw;
         state.statusType = 'error';
         if (err.data) state.jobDetail = JSON.stringify(err.data, null, 2);
       } finally {
@@ -925,8 +913,16 @@ async function main() {
     },
   };
 
+  if (!hasSdkFetch) {
+    state.error = 'Open Bulk Preview & Publish from Document Authoring (https://da.live → Apps). Preview (.aem.live) and direct tool URLs cannot use Adobe IMS.';
+    state.statusType = 'error';
+    render(app, state);
+    return;
+  }
+
   if (!ctx.org || !ctx.site) {
-    state.error = 'Open from DA (da.live) so org and site are provided, or use ?org=&repo=&ref= for local testing.';
+    state.error = 'Missing org or site from DA context. Open this tool from Document Authoring.';
+    state.statusType = 'error';
     render(app, state);
     return;
   }
