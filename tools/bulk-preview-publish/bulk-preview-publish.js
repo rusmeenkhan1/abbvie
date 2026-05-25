@@ -6,17 +6,17 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=20';
+} from './lib/api.js?v=22';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=20';
+} from './lib/paths.js?v=22';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=20';
+} from './lib/urls.js?v=22';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -24,9 +24,9 @@ import {
   PAGE_FILTERS,
   recordPaths,
   statusLabel,
-} from './lib/page-history.js?v=20';
+} from './lib/page-history.js?v=22';
 
-const TOOL_VERSION = '20';
+const TOOL_VERSION = '22';
 
 /**
  * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
@@ -242,10 +242,11 @@ function buildStatusMap(state) {
 /**
  * @param {DocumentEntry} page
  * @param {import('./lib/page-history.js').PageHistoryEntry | undefined} entry
+ * @param {string} browseFolder
  * @param {(checked: boolean, path: string) => void} onToggle
  * @returns {HTMLLIElement}
  */
-function buildPageRow(page, entry, onToggle) {
+function buildPageRow(page, entry, browseFolder, onToggle) {
   const status = getPageStatus(entry);
   const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-document');
 
@@ -264,7 +265,7 @@ function buildPageRow(page, entry, onToggle) {
   const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-document', '');
   icon.setAttribute('aria-hidden', 'true');
 
-  const { title, subtitle } = formatPageListLabel(page.helixPath, page.name);
+  const { title, subtitle } = formatPageListLabel(page.helixPath, page.name, browseFolder);
   const labelWrap = el('div', 'bulk-pp-item-main');
   const label = document.createElement('label');
   label.htmlFor = cb.id;
@@ -275,7 +276,7 @@ function buildPageRow(page, entry, onToggle) {
 
   const dateParts = [];
   if (entry?.previewedAt) dateParts.push(`Preview ${formatStatusDate(entry.previewedAt)}`);
-  if (entry?.publishedAt) dateParts.push(`Live ${formatStatusDate(entry.publishedAt)}`);
+  if (entry?.publishedAt) dateParts.push(`Published ${formatStatusDate(entry.publishedAt)}`);
   if (dateParts.length) labelWrap.append(el('span', 'bulk-pp-item-dates', dateParts.join(' · ')));
 
   li.append(cb, icon, labelWrap, buildStatusDot(status));
@@ -291,7 +292,7 @@ function buildStatusLegend() {
   [
     ['untouched', 'Not deployed'],
     ['previewed', 'Preview'],
-    ['published', 'Live'],
+    ['published', 'Published'],
   ].forEach(([key, text]) => {
     const item = el('span', 'bulk-pp-legend-item');
     const dot = el('span', 'bulk-pp-legend-dot');
@@ -349,10 +350,12 @@ function render(root, state) {
   } = state;
 
   const statusMap = buildStatusMap(state);
+  const browseFolder = resolveContentFolderPath(folderPath);
   const visiblePages = filterAndSortPages(
     pages,
     statusMap,
     String(pageFilter || 'all'),
+    browseFolder,
   );
 
   document.getElementById('bulk-pp-runtime-styles')?.remove();
@@ -518,6 +521,7 @@ function render(root, state) {
         pageList.append(buildPageRow(
           page,
           statusMap[page.helixPath],
+          browseFolder,
           (checked, path) => {
             if (checked) selected.add(path);
             else selected.delete(path);
@@ -699,51 +703,62 @@ async function main() {
           pages.forEach((p) => selected.add(p.helixPath));
         }
 
-        state.status = 'Checking preview & live status on AEM…';
-        state.statusType = 'info';
-        render(app, state);
-
-        try {
-          state.platformStatus = await fetchPlatformStatusForPaths(
-            daFetch,
-            state.org,
-            state.site,
-            state.ref,
-            pages.map((p) => p.helixPath),
-          );
-          state.statusCheckFailed = false;
-          state.statusError = null;
-          if (new URLSearchParams(window.location.search).has('debug')) {
-            // eslint-disable-next-line no-console
-            console.debug('[bulk-pp] platformStatus', state.platformStatus);
-          }
-        } catch (statusErr) {
-          state.platformStatus = {};
-          state.statusCheckFailed = true;
-          state.statusError = statusErr instanceof Error ? statusErr.message : 'Status check failed';
-          // eslint-disable-next-line no-console
-          console.warn('[bulk-pp] platform status failed', statusErr);
-        }
-
         const docCount = pages.length;
         const location = displayFolderPath(state.folderPath) || 'site root';
         state.error = null;
+        state.loading = false;
 
         if (folders.length === 0 && docCount === 0) {
           state.status = `No folders or pages in ${location}.`;
           state.statusType = 'info';
         } else if (state.pageScope === 'tree') {
-          state.status = `${docCount} page(s) under ${location} (all subfolders).`;
+          state.status = `${docCount} page(s) under ${location} (all subfolders) · checking status…`;
           state.statusType = 'success';
         } else {
-          state.status = `${docCount} page(s) and ${folders.length} folder(s) in ${location}.`;
+          state.status = `${docCount} page(s) and ${folders.length} folder(s) in ${location} · checking status…`;
           state.statusType = 'success';
         }
+
+        render(app, state);
+
+        const pathsToCheck = pages.map((p) => p.helixPath);
+        fetchPlatformStatusForPaths(
+          daFetch,
+          state.org,
+          state.site,
+          state.ref,
+          pathsToCheck,
+        ).then((platformStatus) => {
+          state.platformStatus = platformStatus;
+          state.statusCheckFailed = false;
+          state.statusError = null;
+          const deployed = countDeployedPages(platformStatus, pages);
+          if (folders.length === 0 && docCount === 0) {
+            state.status = `No folders or pages in ${location}.`;
+          } else if (state.pageScope === 'tree') {
+            state.status = `${docCount} page(s) under ${location} · ${deployed} on preview/live`;
+          } else {
+            state.status = `${docCount} page(s), ${folders.length} folder(s) · ${deployed} on preview/live`;
+          }
+          state.statusType = 'success';
+          if (new URLSearchParams(window.location.search).has('debug')) {
+            // eslint-disable-next-line no-console
+            console.debug('[bulk-pp] platformStatus', platformStatus);
+          }
+          render(app, state);
+        }).catch((statusErr) => {
+          state.platformStatus = {};
+          state.statusCheckFailed = true;
+          state.statusError = statusErr instanceof Error ? statusErr.message : 'Status check failed';
+          console.warn('[bulk-pp] platform status failed', statusErr);
+          render(app, state);
+        });
 
         if (new URLSearchParams(window.location.search).has('debug')) {
           // eslint-disable-next-line no-console
           console.debug('[bulk-pp] folders', folders, 'pages', pages);
         }
+        return;
       } catch (err) {
         folders = [];
         pages = [];
@@ -761,6 +776,7 @@ async function main() {
         pages,
         buildStatusMap(state),
         String(state.pageFilter || 'all'),
+        resolveContentFolderPath(state.folderPath),
       );
       if (checked) {
         visible.forEach((p) => selected.add(p.helixPath));
@@ -778,6 +794,7 @@ async function main() {
         pages,
         buildStatusMap(state),
         String(state.pageFilter || 'all'),
+        resolveContentFolderPath(state.folderPath),
       );
       const pill = root.querySelector('#bulk-pp-selection-pill');
       if (pill) {

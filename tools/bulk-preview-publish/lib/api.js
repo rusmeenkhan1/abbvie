@@ -7,7 +7,7 @@ import {
   joinPath,
   normalizeFolderPath,
   toHelixPath,
-} from './paths.js?v=20';
+} from './paths.js?v=22';
 
 /**
  * @param {Response} resp
@@ -316,26 +316,49 @@ async function sleep(ms) {
   return new Promise((resolve) => { setTimeout(resolve, ms); });
 }
 
+/**
+ * @param {Function} daFetch
+ * @param {string} jobUrl
+ */
+async function fetchJobDetails(daFetch, jobUrl) {
+  const detailsResp = await daFetch(`${jobUrl.replace(/\/$/, '')}/details`, { method: 'GET' });
+  const details = await parseJson(detailsResp);
+  if (detailsResp.ok && details) return /** @type {Record<string, unknown>} */ (details);
+  return null;
+}
+
 export async function pollJob(daFetch, jobUrl, onProgress) {
   const terminal = new Set(['stopped', 'succeeded', 'failed', 'cancelled']);
   let last = null;
-  let i = 0;
+  let notFoundCount = 0;
 
   /* eslint-disable no-await-in-loop -- job polling is intentionally sequential */
-  while (i < 120) {
-    i += 1;
+  for (let i = 0; i < 60; i += 1) {
     const resp = await daFetch(jobUrl, { method: 'GET' });
+
+    if (resp.status === 404 || resp.status === 410) {
+      notFoundCount += 1;
+      const details = await fetchJobDetails(daFetch, jobUrl);
+      if (details) return details;
+      if (notFoundCount >= 2) return last || { state: 'stopped' };
+      await sleep(1000);
+      continue;
+    }
+
+    notFoundCount = 0;
     const data = await parseJson(resp);
     if (data) {
-      last = data;
-      if (onProgress) onProgress(data);
-      const state = data.state || data.job?.state;
-      if (state && terminal.has(String(state))) return data;
+      last = /** @type {Record<string, unknown>} */ (data);
+      if (onProgress) onProgress(last);
+      const state = last.state || last.job?.state;
+      if (state && terminal.has(String(state))) return last;
     }
     await sleep(2000);
   }
   /* eslint-enable no-await-in-loop */
 
+  const details = await fetchJobDetails(daFetch, jobUrl);
+  if (details) return details;
   return last || { state: 'timeout' };
 }
 
@@ -721,41 +744,40 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
  * @param {string[]} helixPaths
  * @returns {Promise<Record<string, { previewedAt?: number, publishedAt?: number }>>}
  */
+/**
+ * Per-page GET /status (avoids bulk status jobs that 404 on poll via daFetch).
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ */
+async function fetchStatusParallel(daFetch, org, site, ref, helixPaths) {
+  const unique = dedupePaths(helixPaths);
+  /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
+  const result = {};
+  let index = 0;
+  const workers = Math.min(12, Math.max(unique.length, 1));
+  const deadline = Date.now() + 90000;
+
+  await Promise.all(Array.from({ length: workers }, async () => {
+    while (index < unique.length && Date.now() < deadline) {
+      const path = unique[index];
+      index += 1;
+      try {
+        result[path] = await fetchSinglePagePlatformStatus(daFetch, org, site, ref, path);
+      } catch (err) {
+        if (err instanceof Error && /authorized/i.test(err.message)) throw err;
+        result[path] = {};
+      }
+    }
+  }));
+
+  return result;
+}
+
 export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helixPaths) {
   const unique = dedupePaths(helixPaths);
   if (unique.length === 0) return {};
-
-  /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
-  let result = {};
-
-  try {
-    result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique);
-  } catch (bulkErr) {
-    bulkErr.message = bulkErr.message || 'Bulk status failed';
-    throw bulkErr;
-  }
-
-  const missing = unique.filter((p) => {
-    const e = result[p];
-    return !e?.previewedAt && !e?.publishedAt;
-  });
-
-  if (missing.length > 0 && missing.length <= 50) {
-    let idx = 0;
-    const workers = 6;
-    await Promise.all(Array.from({ length: Math.min(workers, missing.length) }, async () => {
-      while (idx < missing.length) {
-        const path = missing[idx];
-        idx += 1;
-        try {
-          const single = await fetchSinglePagePlatformStatus(daFetch, org, site, ref, path);
-          if (single.previewedAt || single.publishedAt) result[path] = single;
-        } catch (err) {
-          if (err instanceof Error && /authorized/i.test(err.message)) throw err;
-        }
-      }
-    }));
-  }
-
-  return result;
+  return fetchStatusParallel(daFetch, org, site, ref, unique);
 }

@@ -42,14 +42,24 @@ export const PAGE_FILTERS = [
   ['oldest-publish', 'Oldest published'],
 ];
 
+import { sortPagesByListPath } from './paths.js?v=22';
+
+const DATE_SORT_FILTERS = new Set([
+  'recent-preview',
+  'recent-publish',
+  'oldest-preview',
+  'oldest-publish',
+]);
+
 /**
  * @param {{ helixPath: string }[]} pages
  * @param {HistoryMap} history
  * @param {string} filterId
+ * @param {string} [browseFolder]
  * @returns {{ helixPath: string }[]}
  */
-export function filterAndSortPages(pages, history, filterId) {
-  if (filterId === 'all') return [...pages];
+export function filterAndSortPages(pages, history, filterId, browseFolder = '') {
+  if (filterId === 'all') return sortPagesByListPath(pages, browseFolder);
 
   const withMeta = pages.map((page) => ({
     page,
@@ -83,10 +93,14 @@ export function filterAndSortPages(pages, history, filterId) {
       filtered.sort((a, b) => (a.entry.publishedAt || 0) - (b.entry.publishedAt || 0));
       break;
     default:
-      return [...pages];
+      return sortPagesByListPath(pages, browseFolder);
   }
 
-  return filtered.map((m) => m.page);
+  const result = filtered.map((m) => m.page);
+  if (!DATE_SORT_FILTERS.has(filterId)) {
+    return sortPagesByListPath(result, browseFolder);
+  }
+  return result;
 }
 
 /**
@@ -109,7 +123,7 @@ export function formatStatusDate(ts) {
  * @returns {string}
  */
 export function statusLabel(status) {
-  if (status === 'published') return 'On live';
+  if (status === 'published') return 'Published';
   if (status === 'previewed') return 'On preview';
   return 'Not deployed';
 }

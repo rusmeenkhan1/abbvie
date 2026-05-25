@@ -262,18 +262,52 @@ export function displayPath(helixPath) {
 }
 
 /**
- * List label for pages in subfolders (full path) vs root (short name).
+ * Helix path without leading slash (e.g. ab/bc/page3).
+ * @param {string} helixPath
+ * @returns {string}
+ */
+export function helixPathToListKey(helixPath) {
+  const raw = helixPath.startsWith('/') ? helixPath.slice(1) : helixPath;
+  return normalizeFolderPath(raw) || 'index';
+}
+
+/**
+ * Label for the page list: path relative to the folder you are browsing.
+ * Root: page1, ab/page4. Inside ab/: page4, bc/page3.
+ * @param {string} helixPath
+ * @param {string} browseFolder normalized DA folder (empty = site root)
+ * @returns {string}
+ */
+export function pageListRelativePath(helixPath, browseFolder) {
+  const full = helixPathToListKey(helixPath);
+  const base = normalizeFolderPath(browseFolder);
+  if (!base) return full;
+  if (full === base) return lastSegment(full) || full;
+  if (full.startsWith(`${base}/`)) return full.slice(base.length + 1);
+  return full;
+}
+
+/**
+ * @param {{ helixPath: string }[]} pages
+ * @param {string} browseFolder
+ * @returns {{ helixPath: string }[]}
+ */
+export function sortPagesByListPath(pages, browseFolder) {
+  return [...pages].sort((a, b) => pageListRelativePath(a.helixPath, browseFolder).localeCompare(
+    pageListRelativePath(b.helixPath, browseFolder),
+    undefined,
+    { sensitivity: 'base', numeric: true },
+  ));
+}
+
+/**
  * @param {string} helixPath
  * @param {string} name
+ * @param {string} [browseFolder]
  * @returns {{ title: string, subtitle: string | null }}
  */
-export function formatPageListLabel(helixPath, name) {
-  const path = displayPath(helixPath);
-  const segments = path.split('/').filter(Boolean);
-  if (segments.length <= 1) {
-    return { title: name, subtitle: path !== '/' && path !== `/${name}` ? path : null };
-  }
-  return { title: path, subtitle: name };
+export function formatPageListLabel(helixPath, _name, browseFolder = '') {
+  return { title: pageListRelativePath(helixPath, browseFolder), subtitle: null };
 }
 
 /**
