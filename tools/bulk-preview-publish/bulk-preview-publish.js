@@ -1,33 +1,35 @@
 import {
   collectPages,
+  fetchPlatformStatusForPaths,
   getJobPollUrl,
   listFolderEntries,
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=16';
+} from './lib/api.js?v=17';
 import {
   displayFolderPath,
   displayPath,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=16';
+} from './lib/paths.js?v=17';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=16';
+} from './lib/urls.js?v=17';
 import {
   filterAndSortPages,
   formatStatusDate,
   getPageStatus,
   loadHistory,
+  mergeStatusEntries,
   PAGE_FILTERS,
   recordPaths,
   saveHistory,
   statusLabel,
-} from './lib/page-history.js?v=16';
+} from './lib/page-history.js?v=17';
 
-const TOOL_VERSION = '16';
+const TOOL_VERSION = '17';
 
 /** @type {Record<'untouched'|'previewed'|'published', { bg: string, border: string, badgeBg: string, badgeColor: string }>} */
 const STATUS_THEME = {
@@ -298,14 +300,34 @@ function buildPageRow(page, entry, onToggle) {
 
 /**
  * @param {Record<string, unknown>} state
+ * @returns {Record<string, import('./lib/page-history.js').PageHistoryEntry>}
+ */
+function buildStatusMap(state) {
+  /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */
+  const map = {};
+  const platform = /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */ (
+    state.platformStatus || {}
+  );
+  const local = /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */ (
+    state.pageHistory || {}
+  );
+  pages.forEach((page) => {
+    map[page.helixPath] = mergeStatusEntries(
+      platform[page.helixPath],
+      local[page.helixPath],
+    );
+  });
+  return map;
+}
+
+/**
+ * @param {Record<string, unknown>} state
  * @returns {DocumentEntry[]}
  */
 function getVisiblePages(state) {
   return filterAndSortPages(
     pages,
-    /** @type {Record<string, import('./lib/page-history.js?v=15').PageHistoryEntry>} */ (
-      state.pageHistory
-    ),
+    buildStatusMap(state),
     String(state.pageFilter || 'all'),
   );
 }
@@ -317,9 +339,9 @@ function buildStatusLegend() {
   const legend = el('div', 'bulk-pp-status-legend');
   legend.setAttribute('aria-label', 'Page status colors');
   [
-    ['untouched', 'Not previewed or published', STATUS_THEME.untouched.border],
-    ['previewed', 'Previewed only', STATUS_THEME.previewed.border],
-    ['published', 'Published to live', STATUS_THEME.published.border],
+    ['untouched', 'Not on preview or live', STATUS_THEME.untouched.border],
+    ['previewed', 'On preview only (.aem.page)', STATUS_THEME.previewed.border],
+    ['published', 'On live (.aem.live)', STATUS_THEME.published.border],
   ].forEach(([key, text, color]) => {
     const item = el('span', `bulk-pp-legend-item bulk-pp-legend-${key}`);
     const dot = el('span', 'bulk-pp-legend-dot');
@@ -372,12 +394,12 @@ function render(root, state) {
     pageScope,
     pageFilter,
     pageHistory,
+    platformStatus,
+    statusCheckFailed,
   } = state;
 
+  const statusMap = buildStatusMap(state);
   const visiblePages = getVisiblePages(state);
-  const historyMap = /** @type {Record<string, import('./lib/page-history.js?v=15').PageHistoryEntry>} */ (
-    pageHistory || {}
-  );
 
   ensureRuntimeStyles();
   root.replaceChildren();
@@ -483,6 +505,11 @@ function render(root, state) {
     filterRow.append(filterField);
     pagesPane.append(filterRow);
 
+    const statusNote = el('p', 'bulk-pp-status-note', statusCheckFailed
+      ? 'Could not load AEM preview/live status — showing local tool history only.'
+      : 'Status from AEM Admin API (preview & live deployment).');
+    pagesPane.append(statusNote);
+
     if (folders.length > 0) {
       pagesPane.append(el('h3', 'bulk-pp-list-heading', 'Folders'));
       const folderWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-folders');
@@ -529,7 +556,7 @@ function render(root, state) {
       visiblePages.forEach((page) => {
         pageList.append(buildPageRow(
           page,
-          historyMap[page.helixPath],
+          statusMap[page.helixPath],
           (checked, path) => {
             if (checked) selected.add(path);
             else selected.delete(path);
@@ -634,6 +661,8 @@ async function main() {
     publishedPaths: [],
     pageFilter: 'all',
     pageHistory: loadHistory(ctx.org, ctx.site, ctx.ref),
+    platformStatus: {},
+    statusCheckFailed: false,
 
     onTab(tab) {
       state.activeTab = tab;
@@ -709,6 +738,28 @@ async function main() {
         });
         if (selected.size === 0) {
           pages.forEach((p) => selected.add(p.helixPath));
+        }
+
+        state.status = 'Checking preview & live status on AEM…';
+        state.statusType = 'info';
+        render(app, state);
+
+        try {
+          state.platformStatus = await fetchPlatformStatusForPaths(
+            daFetch,
+            state.org,
+            state.site,
+            state.ref,
+            pages.map((p) => p.helixPath),
+          );
+          state.statusCheckFailed = false;
+        } catch (statusErr) {
+          state.platformStatus = {};
+          state.statusCheckFailed = true;
+          if (new URLSearchParams(window.location.search).has('debug')) {
+            // eslint-disable-next-line no-console
+            console.warn('[bulk-pp] platform status failed', statusErr);
+          }
         }
 
         const docCount = pages.length;

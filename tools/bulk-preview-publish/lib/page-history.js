@@ -73,6 +73,22 @@ export function getPageStatus(entry) {
   return 'untouched';
 }
 
+/**
+ * Merge AEM platform status with local tool history (platform wins per field).
+ * @param {PageHistoryEntry | undefined} platform
+ * @param {PageHistoryEntry | undefined} local
+ * @returns {PageHistoryEntry}
+ */
+export function mergeStatusEntries(platform, local) {
+  /** @type {PageHistoryEntry} */
+  const entry = {};
+  const previewedAt = platform?.previewedAt ?? local?.previewedAt;
+  const publishedAt = platform?.publishedAt ?? local?.publishedAt;
+  if (previewedAt) entry.previewedAt = previewedAt;
+  if (publishedAt) entry.publishedAt = publishedAt;
+  return entry;
+}
+
 /** @type {ReadonlyArray<[string, string]>} */
 export const PAGE_FILTERS = [
   ['all', 'All pages'],
@@ -151,7 +167,7 @@ export function formatStatusDate(ts) {
  * @returns {string}
  */
 export function statusLabel(status) {
-  if (status === 'published') return 'Published';
-  if (status === 'previewed') return 'Previewed';
-  return 'Not run';
+  if (status === 'published') return 'On live';
+  if (status === 'previewed') return 'On preview';
+  return 'Not deployed';
 }

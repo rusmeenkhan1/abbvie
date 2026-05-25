@@ -419,6 +419,13 @@
   min-width: 200px;
 }
 
+.bulk-pp-status-note {
+  margin: 0 0 12px;
+  font-size: 0.8rem;
+  color: var(--pp-text-muted);
+  font-style: italic;
+}
+
 /* —— Row status colors —— */
 .bulk-pp-list-item-document {
   border-left: 4px solid transparent;

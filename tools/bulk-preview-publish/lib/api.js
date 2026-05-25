@@ -7,7 +7,7 @@ import {
   joinPath,
   normalizeFolderPath,
   toHelixPath,
-} from './paths.js?v=16';
+} from './paths.js?v=17';
 
 /**
  * @param {Response} resp
@@ -397,9 +397,222 @@ export function getJobPollUrl(bulkResponse, org, site, ref, topic) {
   }
 
   if (job && typeof job === 'object') {
-    const { name } = /** @type {{ name?: string }} */ (job);
-    if (name) return `${HLX_ADMIN}/job/${org}/${site}/${ref}/${topic}/${name}`;
+    const { name, topic: jobTopic } = /** @type {{ name?: string, topic?: string }} */ (job);
+    const resolvedTopic = jobTopic || topic;
+    if (name && resolvedTopic) {
+      return `${HLX_ADMIN}/job/${org}/${site}/${ref}/${resolvedTopic}/${name}`;
+    }
   }
 
   return null;
+}
+
+/**
+ * @param {string} helixPath
+ * @returns {string}
+ */
+export function helixPathToApiPath(helixPath) {
+  if (!helixPath || helixPath === '/') return 'index';
+  return helixPath.replace(/^\/+/, '');
+}
+
+/**
+ * @param {unknown} data
+ * @returns {{ previewedAt?: number, publishedAt?: number }}
+ */
+export function parseStatusPayload(data) {
+  if (!data || typeof data !== 'object') return {};
+  const { preview, live } = /** @type {{
+    preview?: { status?: number, lastModified?: string },
+    live?: { status?: number, lastModified?: string },
+  }} */ (data);
+  /** @type {{ previewedAt?: number, publishedAt?: number }} */
+  const entry = {};
+  if (preview && Number(preview.status) === 200 && preview.lastModified) {
+    const ts = Date.parse(String(preview.lastModified));
+    if (!Number.isNaN(ts)) entry.previewedAt = ts;
+  }
+  if (live && Number(live.status) === 200 && live.lastModified) {
+    const ts = Date.parse(String(live.lastModified));
+    if (!Number.isNaN(ts)) entry.publishedAt = ts;
+  }
+  return entry;
+}
+
+/**
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string} helixPath
+ */
+async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath) {
+  const apiPath = helixPathToApiPath(helixPath);
+  const url = `${HLX_ADMIN}/status/${org}/${site}/${ref}/${apiPath}`;
+  const resp = await daFetch(url, { method: 'GET' });
+  const data = await parseJson(resp);
+  if (!resp.ok && resp.status !== 404) return {};
+  return parseStatusPayload(data);
+}
+
+/**
+ * @param {string} path
+ */
+function normalizeWebPath(path) {
+  if (!path) return '/';
+  const p = path.startsWith('/') ? path : `/${path}`;
+  if (p.length > 1 && p.endsWith('/')) return p.slice(0, -1);
+  return p || '/';
+}
+
+/**
+ * @param {unknown} jobData
+ * @returns {Array<Record<string, unknown>>}
+ */
+function extractStatusResources(jobData) {
+  if (!jobData || typeof jobData !== 'object') return [];
+  const root = /** @type {Record<string, unknown>} */ (jobData);
+  const data = root.data && typeof root.data === 'object'
+    ? /** @type {Record<string, unknown>} */ (root.data)
+    : root;
+
+  if (Array.isArray(data.resources)) return data.resources;
+  if (data.resources && typeof data.resources === 'object') {
+    const groups = /** @type {Record<string, unknown[]>} */ (data.resources);
+    const merged = [];
+    ['preview', 'live', 'edit'].forEach((key) => {
+      const bucket = groups[key];
+      if (!Array.isArray(bucket)) return;
+      bucket.forEach((item) => {
+        if (typeof item === 'string') {
+          merged.push({ webPath: item, _bucket: key });
+        } else if (item && typeof item === 'object') {
+          merged.push({ .../** @type {Record<string, unknown>} */ (item), _bucket: key });
+        }
+      });
+    });
+    return merged;
+  }
+  return [];
+}
+
+/**
+ * @param {unknown} jobData
+ * @param {string[]} helixPaths
+ * @returns {Record<string, { previewedAt?: number, publishedAt?: number }>}
+ */
+function mapStatusJobToEntries(jobData, helixPaths) {
+  /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
+  const result = {};
+  helixPaths.forEach((p) => { result[p] = {}; });
+
+  const byWebPath = new Map();
+  helixPaths.forEach((p) => {
+    byWebPath.set(normalizeWebPath(p), p);
+    if (p === '/index' || p.endsWith('/index')) {
+      byWebPath.set('/', p);
+      byWebPath.set('/index', p);
+    }
+  });
+
+  const touchEntry = (webPath, bucket, item) => {
+    const helix = byWebPath.get(normalizeWebPath(webPath));
+    if (!helix) return;
+    const entry = result[helix] || {};
+    const previewTs = item?.previewLastModified || item?.preview?.lastModified;
+    const liveTs = item?.publishLastModified || item?.liveLastModified || item?.live?.lastModified;
+    if (previewTs || bucket === 'preview') {
+      const ts = previewTs ? Date.parse(String(previewTs)) : Date.now();
+      if (!Number.isNaN(ts)) entry.previewedAt = ts;
+    }
+    if (liveTs || bucket === 'live') {
+      const ts = liveTs ? Date.parse(String(liveTs)) : Date.now();
+      if (!Number.isNaN(ts)) entry.publishedAt = ts;
+    }
+    result[helix] = entry;
+  };
+
+  extractStatusResources(jobData).forEach((item) => {
+    if (typeof item === 'string') {
+      touchEntry(item, 'preview', null);
+      return;
+    }
+    const bucket = String(item._bucket || '');
+    touchEntry(String(item.webPath || item.path || ''), bucket, item);
+  });
+
+  return result;
+}
+
+/**
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ */
+async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
+  const url = `${HLX_ADMIN}/status/${org}/${site}/${ref}/*`;
+  const resp = await daFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      paths: helixPaths.map(helixPathToApiPath),
+      select: ['preview', 'live'],
+      forceAsync: helixPaths.length > 5,
+    }),
+  });
+  const data = await parseJson(resp);
+  if (!resp.ok && resp.status !== 202) {
+    throw new Error(data?.message || data?.error || `Status check failed (${resp.status})`);
+  }
+
+  const jobUrl = getJobPollUrl(data || {}, org, site, ref, 'status');
+  if (!jobUrl) return {};
+
+  const finalJob = await pollJob(daFetch, jobUrl);
+  let details = finalJob;
+  try {
+    const detailsResp = await daFetch(`${jobUrl}/details`, { method: 'GET' });
+    const detailsJson = await parseJson(detailsResp);
+    if (detailsResp.ok && detailsJson) details = detailsJson;
+  } catch {
+    // use polled job payload
+  }
+  return mapStatusJobToEntries(details, helixPaths);
+}
+
+/**
+ * Load preview/live timestamps from AEM Admin API (real deployment state).
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ * @returns {Promise<Record<string, { previewedAt?: number, publishedAt?: number }>>}
+ */
+export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helixPaths) {
+  const unique = dedupePaths(helixPaths);
+  if (unique.length === 0) return {};
+
+  if (unique.length > 40) {
+    return fetchBulkPlatformStatus(daFetch, org, site, ref, unique);
+  }
+
+  /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
+  const result = {};
+  let index = 0;
+  const workers = 8;
+  await Promise.all(Array.from({ length: Math.min(workers, unique.length) }, async () => {
+    while (index < unique.length) {
+      const path = unique[index];
+      index += 1;
+      try {
+        result[path] = await fetchSinglePagePlatformStatus(daFetch, org, site, ref, path);
+      } catch {
+        result[path] = {};
+      }
+    }
+  }));
+  return result;
 }
