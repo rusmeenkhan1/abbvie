@@ -1,4 +1,4 @@
-import { sortPagesByListPath } from './paths.js?v=35';
+import { sortPagesByListPath } from './paths.js?v=37';
 
 /**
  * @typedef {{ previewedAt?: number, publishedAt?: number }} PageHistoryEntry
@@ -37,6 +37,24 @@ export function getPageStatus(entry) {
   if (entry?.publishedAt) return 'published';
   if (entry?.previewedAt) return 'previewed';
   return 'untouched';
+}
+
+/**
+ * @param {HistoryMap} statusMap
+ * @param {{ helixPath: string }[]} pageList
+ * @returns {{ preview: number, live: number, none: number }}
+ */
+export function countStatusBreakdown(statusMap, pageList) {
+  let preview = 0;
+  let live = 0;
+  let none = 0;
+  pageList.forEach((p) => {
+    const e = statusMap[p.helixPath];
+    if (e?.publishedAt) live += 1;
+    else if (e?.previewedAt) preview += 1;
+    else none += 1;
+  });
+  return { preview, live, none };
 }
 
 /** @type {ReadonlyArray<[string, string]>} */

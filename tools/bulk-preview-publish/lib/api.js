@@ -9,7 +9,7 @@ import {
   decodeHelixPath,
   helixToWebPath,
   toHelixPath,
-} from './paths.js?v=35';
+} from './paths.js?v=37';
 
 const ADMIN_STATUS_POST_SUFFIX = 'index';
 
@@ -672,18 +672,20 @@ export function parseStatusPayload(data) {
 function buildHelixPathLookup(helixPaths) {
   const lookup = new Map();
   const link = (webPath, helix) => {
+    if (!webPath && webPath !== '') return;
     const key = normalizeWebPath(webPath);
     if (!lookup.has(key)) lookup.set(key, helix);
     const bare = key.replace(/^\//, '');
-    if (bare && bare !== key && !lookup.has(bare)) lookup.set(bare, helix);
+    if (bare && !lookup.has(bare)) lookup.set(bare, helix);
+    if (bare && !lookup.has(`/${bare}`)) lookup.set(`/${bare}`, helix);
   };
   helixPaths.forEach((helix) => {
     link(helix, helix);
     link(helixToWebPath(helix), helix);
+    helixPathToStatusPathKeys(helix).forEach((pathKey) => link(pathKey, helix));
     const norm = normalizeWebPath(helix);
     if (norm.endsWith('/index')) {
-      const parent = norm.slice(0, -'/index'.length) || '/';
-      link(parent, helix);
+      link(norm.slice(0, -'/index'.length) || '/', helix);
     }
     if (norm === '/index' || norm === '/') {
       link('/', helix);
@@ -691,9 +693,60 @@ function buildHelixPathLookup(helixPaths) {
       link('index', helix);
     }
     const bare = norm.replace(/^\//, '');
-    if (bare) link(`${bare}.md`, helix);
+    if (bare) {
+      link(`${bare}.md`, helix);
+      link(`${bare}.html`, helix);
+    }
   });
   return lookup;
+}
+
+/**
+ * @param {Map<string, string>} lookup
+ * @param {string} rawPath
+ * @param {string[]} helixPaths
+ * @returns {string | undefined}
+ */
+function resolveHelixForWebPath(lookup, rawPath, helixPaths) {
+  if (!rawPath) return undefined;
+  const candidates = [
+    rawPath,
+    normalizeWebPath(rawPath),
+    helixToWebPath(rawPath),
+  ];
+  for (let i = 0; i < candidates.length; i += 1) {
+    const key = normalizeWebPath(candidates[i]);
+    const hit = lookup.get(key) || lookup.get(key.replace(/^\//, ''));
+    if (hit) return hit;
+  }
+  const norm = normalizeWebPath(rawPath);
+  const slug = norm.split('/').filter(Boolean).pop();
+  if (!slug) return undefined;
+  const matches = helixPaths.filter(
+    (h) => h === norm
+      || h.endsWith(`/${slug}`)
+      || h.endsWith(`/${slug}/index`)
+      || normalizeWebPath(h) === norm,
+  );
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+/**
+ * @param {unknown} node
+ * @param {(row: Record<string, unknown>) => void} visit
+ * @param {number} [depth]
+ */
+function walkStatusNodes(node, visit, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 12) return;
+  if (Array.isArray(node)) {
+    node.forEach((item) => walkStatusNodes(item, visit, depth + 1));
+    return;
+  }
+  const row = /** @type {Record<string, unknown>} */ (node);
+  if (row.webPath || row.path || row.resourcePath) visit(row);
+  Object.values(row).forEach((value) => {
+    if (value && typeof value === 'object') walkStatusNodes(value, visit, depth + 1);
+  });
 }
 
 /**
@@ -807,85 +860,33 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
     return fetchHardcodedIndexStatus(daFetch, org, site, ref);
   }
 
-  const pathKeys = helixPathToStatusPathKeys(helixPath);
-  /** @type {{ previewedAt?: number, publishedAt?: number }} */
-  let best = {};
+  const pathKeys = helixPathToStatusPathKeys(helixPath).slice(0, 2);
 
-  /* eslint-disable no-await-in-loop -- try path variants until one resolves */
+  /* eslint-disable no-await-in-loop -- try up to 2 path variants */
   for (let i = 0; i < pathKeys.length; i += 1) {
-    const pathKey = pathKeys[i];
-    /** @type {{ previewedAt?: number, publishedAt?: number }} */
-    const entry = {};
-
-    const previewUrl = buildAdminResourceUrl('preview', org, site, ref, pathKey);
+    const previewUrl = buildAdminResourceUrl('preview', org, site, ref, pathKeys[i]);
     try {
       const resp = await daFetchWithRetry(daFetch, previewUrl, { method: 'GET' });
       const data = await parseJson(resp);
       if (resp.ok && data) {
-        const fromPreview = entryFromPreviewBody(data);
-        entry.previewedAt = fromPreview.previewedAt;
-        entry.publishedAt = fromPreview.publishedAt;
+        const entry = entryFromPreviewBody(data);
         const linked = await fetchLinkedStatusFromPreview(daFetch, data);
         entry.previewedAt = entry.previewedAt || linked.previewedAt;
         entry.publishedAt = entry.publishedAt || linked.publishedAt;
         if (entry.previewedAt || entry.publishedAt) return entry;
       }
-    } catch {
-      // try status path next
-    }
-
-    const statusUrl = buildAdminResourceUrl('status', org, site, ref, pathKey);
-    try {
-      const statusResp = await daFetchWithRetry(daFetch, statusUrl, { method: 'GET' });
-      const statusData = await parseJson(statusResp);
-      if (statusResp.ok && statusData) {
-        const parsed = parseStatusPayload(statusData);
-        entry.previewedAt = parsed.previewedAt;
-        entry.publishedAt = parsed.publishedAt;
-        if (entry.previewedAt || entry.publishedAt) return entry;
+    } catch (err) {
+      if (err instanceof Error && /missing ims client id|authorized/i.test(err.message)) throw err;
+      if (err instanceof TypeError) {
+        throw new Error(
+          'Network or CORS error reaching AEM Admin API. Open this tool from https://da.live (Apps), not a .aem.live tab.',
+        );
       }
-    } catch {
-      // continue
     }
-
-    for (const route of /** @type {const} */ (['live'])) {
-      const url = buildAdminResourceUrl(route, org, site, ref, pathKey);
-      let resp;
-      try {
-        resp = await daFetchWithRetry(daFetch, url, { method: 'GET' });
-      } catch (err) {
-        if (err instanceof Error && /missing ims client id/i.test(err.message)) {
-          throw new Error(formatAdminApiError({ message: err.message }, 0) || err.message);
-        }
-        if (err instanceof TypeError) {
-          throw new Error(
-            'Network or CORS error reaching AEM Admin API. Open this tool from https://da.live (Apps), not a .aem.live tab.',
-          );
-        }
-        throw err;
-      }
-      const data = await parseJson(resp);
-
-      if (resp.status === 401 || resp.status === 403) {
-        const msg = formatAdminApiError(data, resp.status);
-        throw new Error(msg || `Not authorized (${resp.status}).`);
-      }
-      if (resp.status === 429) return best;
-      if (resp.status === 404 || !resp.ok) continue;
-
-      const parsed = parseStatusPayload(data);
-      entry.publishedAt = parsed.publishedAt || partitionTimestamp(data);
-    }
-
-    if (entry.previewedAt || entry.publishedAt) return entry;
-    best = {
-      previewedAt: entry.previewedAt || best.previewedAt,
-      publishedAt: entry.publishedAt || best.publishedAt,
-    };
   }
   /* eslint-enable no-await-in-loop */
 
-  return best;
+  return {};
 }
 
 /**
@@ -989,6 +990,17 @@ function entryFromStatusRow(row) {
     const ts = Date.parse(String(row.publishLastModified || row.liveLastModified));
     if (!Number.isNaN(ts)) entry.publishedAt = ts;
   }
+  const bucket = String(row._bucket || '');
+  if (bucket === 'live' && !entry.publishedAt) {
+    const livePart = row.live && typeof row.live === 'object' ? row.live : row;
+    const liveTs = partitionTimestamp(livePart);
+    if (liveTs) entry.publishedAt = liveTs;
+  }
+  if (bucket === 'preview' && !entry.previewedAt) {
+    const previewPart = row.preview && typeof row.preview === 'object' ? row.preview : row;
+    const previewTs = partitionTimestamp(previewPart);
+    if (previewTs) entry.previewedAt = previewTs;
+  }
   return entry;
 }
 
@@ -1011,19 +1023,15 @@ function mapStatusJobToEntries(jobData, helixPaths) {
   helixPaths.forEach((p) => { result[p] = {}; });
   const lookup = buildHelixPathLookup(helixPaths);
 
-  const resolveHelix = (webPath) => {
-    const key = normalizeWebPath(webPath);
-    return lookup.get(key) || lookup.get(key.replace(/^\//, ''));
-  };
-
   const touchEntry = (webPath, bucket, item) => {
-    const helix = resolveHelix(webPath);
+    const helix = resolveHelixForWebPath(lookup, webPath, helixPaths);
     if (!helix) return;
     let patch = {};
     if (typeof item === 'string') {
       patch = bucket === 'live' ? { publishedAt: Date.now() } : { previewedAt: Date.now() };
     } else if (item && typeof item === 'object') {
-      patch = entryFromStatusRow(/** @type {Record<string, unknown>} */ (item));
+      const row = /** @type {Record<string, unknown>} */ (item);
+      patch = entryFromStatusRow({ ...row, _bucket: bucket || row._bucket });
     }
     mergeEntry(result, helix, patch);
   };
@@ -1041,19 +1049,14 @@ function mapStatusJobToEntries(jobData, helixPaths) {
     );
   });
 
-  const root = jobData && typeof jobData === 'object'
-    ? /** @type {Record<string, unknown>} */ (jobData)
-    : null;
-  const data = root?.data && typeof root.data === 'object'
-    ? /** @type {Record<string, unknown>} */ (root.data)
-    : root;
-  const resources = data?.resources;
-  if (Array.isArray(resources)) {
-    resources.forEach((item) => {
-      if (!item || typeof item !== 'object') return;
-      touchEntry(String(item.webPath || item.path || ''), '', item);
-    });
-  }
+  walkStatusNodes(jobData, (row) => {
+    const path = String(row.webPath || row.path || row.resourcePath || '');
+    if (!path) return;
+    const bucket = String(row._bucket || '');
+    if (row.preview || row.live || row.previewLastModified || row.publishLastModified) {
+      touchEntry(path, bucket, row);
+    }
+  });
 
   return result;
 }
@@ -1152,7 +1155,7 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgre
   const unique = dedupePaths(helixPaths);
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   const result = {};
-  const batchSize = 6;
+  const batchSize = 10;
   let done = 0;
 
   /* eslint-disable no-await-in-loop -- rate-limit friendly batches */
@@ -1168,7 +1171,7 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgre
     }));
     done += batch.length;
     if (onProgress) onProgress({ ...result }, done);
-    if (i + batchSize < unique.length) await sleep(300);
+    if (i + batchSize < unique.length) await sleep(120);
   }
   /* eslint-enable no-await-in-loop */
 
@@ -1213,7 +1216,7 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
   const useBulk = typeof window !== 'undefined' && (() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has('noBulkStatus')) return false;
-    return params.has('bulkStatus') || unique.length >= 12;
+    return !params.has('noBulk') && (params.has('bulkStatus') || unique.length >= 3);
   })();
 
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */

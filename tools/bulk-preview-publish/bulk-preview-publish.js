@@ -11,17 +11,17 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=35';
+} from './lib/api.js?v=37';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=35';
+} from './lib/paths.js?v=37';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=35';
+} from './lib/urls.js?v=37';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -29,10 +29,11 @@ import {
   PAGE_FILTERS,
   pathsOnPreview,
   pathsOnPublished,
+  countStatusBreakdown,
   statusLabel,
-} from './lib/page-history.js?v=35';
+} from './lib/page-history.js?v=37';
 
-const TOOL_VERSION = '35';
+const TOOL_VERSION = '37';
 
 /** Reload once if an old ?v= cache param would load admin.da.live rewrite (v31 and below). */
 function ensureLatestToolCache() {
@@ -54,6 +55,17 @@ function countDeployedPages(platformStatus, pageList) {
     const e = platformStatus[p.helixPath];
     return Boolean(e?.previewedAt || e?.publishedAt);
   }).length;
+}
+
+/**
+ * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
+ * @param {{ helixPath: string }[]} pageList
+ * @returns {string}
+ */
+function formatStatusSummary(platformStatus, pageList) {
+  const { preview, live, none } = countStatusBreakdown(platformStatus, pageList);
+  const total = pageList.length;
+  return `${live} live · ${preview} preview only · ${none} not deployed (${total} total)`;
 }
 
 /** @type {Record<'untouched'|'previewed'|'published', string>} */
@@ -369,6 +381,9 @@ function render(root, state) {
     platformStatus,
     statusCheckFailed,
     statusError,
+    statusChecking,
+    statusProgressDone,
+    statusProgressTotal,
   } = state;
 
   const statusMap = buildStatusMap(state);
@@ -488,12 +503,13 @@ function render(root, state) {
         statusError || 'Could not load deployment status from AEM. Open the tool from https://da.live (Document Authoring), not the .aem.live preview URL, then refresh.',
       ));
     } else if (pages.length > 0) {
-      const deployed = countDeployedPages(platformStatus || {}, pages);
-      pagesPane.append(el(
-        'p',
-        'bulk-pp-status-note',
-        `Deployment status from AEM · ${deployed} of ${pages.length} on preview or published`,
-      ));
+      const summary = formatStatusSummary(platformStatus || {}, pages);
+      let noteText = `Deployment status from AEM · ${summary}`;
+      if (statusChecking && statusProgressTotal > 0) {
+        const deployed = countDeployedPages(platformStatus || {}, pages);
+        noteText = `Checking AEM status… ${statusProgressDone}/${statusProgressTotal} · ${deployed} matched so far`;
+      }
+      pagesPane.append(el('p', 'bulk-pp-status-note', noteText));
     }
 
     if (folders.length > 0) {
@@ -596,6 +612,27 @@ function render(root, state) {
   runBody.append(runRow);
   root.append(runPanel);
 
+  if (statusChecking && statusProgressTotal > 0) {
+    const progressWrap = el('div', 'bulk-pp-progress-wrap');
+    progressWrap.setAttribute('role', 'progressbar');
+    progressWrap.setAttribute('aria-valuemin', '0');
+    progressWrap.setAttribute('aria-valuemax', String(statusProgressTotal));
+    progressWrap.setAttribute('aria-valuenow', String(statusProgressDone));
+    progressWrap.setAttribute('aria-label', 'Checking deployment status');
+    const pct = Math.min(100, Math.round((statusProgressDone / statusProgressTotal) * 100));
+    const track = el('div', 'bulk-pp-progress-track');
+    const fill = el('div', 'bulk-pp-progress-fill');
+    fill.style.width = `${pct}%`;
+    track.append(fill);
+    progressWrap.append(track);
+    progressWrap.append(el(
+      'p',
+      'bulk-pp-progress-label',
+      `${statusProgressDone} of ${statusProgressTotal} pages checked (${pct}%)`,
+    ));
+    root.append(progressWrap);
+  }
+
   if (status) {
     const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType || 'info'}`);
     statusEl.append(el('strong', null, status));
@@ -652,6 +689,9 @@ async function main() {
     platformStatus: {},
     statusCheckFailed: false,
     statusError: null,
+    statusChecking: false,
+    statusProgressDone: 0,
+    statusProgressTotal: 0,
 
     onTab(tab) {
       state.activeTab = tab;
@@ -753,6 +793,9 @@ async function main() {
 
         const pathsToCheck = pages.map((p) => p.helixPath);
         const statusLocation = location;
+        state.statusChecking = pathsToCheck.length > 0;
+        state.statusProgressDone = 0;
+        state.statusProgressTotal = pathsToCheck.length;
         fetchPlatformStatusForPaths(
           daFetch,
           state.org,
@@ -761,8 +804,9 @@ async function main() {
           pathsToCheck,
           (partial, done, total) => {
             state.platformStatus = { ...partial };
-            const deployed = countDeployedPages(state.platformStatus, pages);
-            state.status = `Checking deployment status… ${done}/${total} (${deployed} on preview/live)`;
+            state.statusProgressDone = done;
+            state.statusProgressTotal = total;
+            state.status = `Checking deployment status… ${done}/${total} · ${formatStatusSummary(state.platformStatus, pages)}`;
             state.statusType = 'info';
             render(app, state);
           },
@@ -770,13 +814,15 @@ async function main() {
           state.platformStatus = platformStatus;
           state.statusCheckFailed = false;
           state.statusError = null;
-          const deployed = countDeployedPages(platformStatus, pages);
+          state.statusChecking = false;
+          state.statusProgressDone = pathsToCheck.length;
+          state.statusProgressTotal = pathsToCheck.length;
           if (folders.length === 0 && docCount === 0) {
             state.status = `No folders or pages in ${statusLocation}.`;
           } else if (state.pageScope === 'tree') {
-            state.status = `${docCount} page(s) under ${statusLocation} · ${deployed} on preview/live`;
+            state.status = `Status check complete · ${formatStatusSummary(platformStatus, pages)}`;
           } else {
-            state.status = `${docCount} page(s), ${folders.length} folder(s) · ${deployed} on preview/live`;
+            state.status = `Status check complete · ${formatStatusSummary(platformStatus, pages)}`;
           }
           state.statusType = 'success';
           if (new URLSearchParams(window.location.search).has('debug')) {
@@ -785,6 +831,7 @@ async function main() {
           }
           render(app, state);
         }).catch((statusErr) => {
+          state.statusChecking = false;
           state.platformStatus = {};
           state.statusCheckFailed = true;
           const raw = statusErr instanceof Error ? statusErr.message : 'Status check failed';
