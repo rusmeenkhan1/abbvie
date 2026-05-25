@@ -11,17 +11,17 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=39';
+} from './lib/api.js?v=40';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=39';
+} from './lib/paths.js?v=40';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=39';
+} from './lib/urls.js?v=40';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -31,9 +31,9 @@ import {
   pathsOnPublished,
   countStatusBreakdown,
   statusLabel,
-} from './lib/page-history.js?v=39';
+} from './lib/page-history.js?v=40';
 
-const TOOL_VERSION = '39';
+const TOOL_VERSION = '40';
 
 function ensureLatestToolCache() {
   const params = new URLSearchParams(window.location.search);
@@ -265,18 +265,12 @@ function buildStatusDotPending() {
 }
 
 /**
+ * Colored status dots only after the full AEM status check finishes (not per-batch).
  * @param {Record<string, unknown>} state
- * @param {string} helixPath
  * @returns {boolean}
  */
-function shouldShowPageStatus(state, helixPath) {
-  if (state.statusCheckFailed) return false;
-  if (state.statusChecking) {
-    const platform = /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */ (
-      state.platformStatus || {}
-    );
-    return helixPath in platform;
-  }
+function isStatusLoaded(state) {
+  if (state.statusCheckFailed || state.statusChecking) return false;
   return pages.length > 0;
 }
 
@@ -330,10 +324,12 @@ function buildPageRow(page, entry, browseFolder, onToggle, showStatus) {
   labelWrap.append(label);
   if (subtitle) labelWrap.append(el('span', 'bulk-pp-item-subtitle', subtitle));
 
-  const dateParts = [];
-  if (entry?.previewedAt) dateParts.push(`Preview ${formatStatusDate(entry.previewedAt)}`);
-  if (entry?.publishedAt) dateParts.push(`Published ${formatStatusDate(entry.publishedAt)}`);
-  if (dateParts.length) labelWrap.append(el('span', 'bulk-pp-item-dates', dateParts.join(' · ')));
+  if (showStatus) {
+    const dateParts = [];
+    if (entry?.previewedAt) dateParts.push(`Preview ${formatStatusDate(entry.previewedAt)}`);
+    if (entry?.publishedAt) dateParts.push(`Published ${formatStatusDate(entry.publishedAt)}`);
+    if (dateParts.length) labelWrap.append(el('span', 'bulk-pp-item-dates', dateParts.join(' · ')));
+  }
 
   li.append(cb, icon, labelWrap);
   if (showStatus) {
@@ -590,7 +586,7 @@ function render(root, state) {
             else selected.delete(path);
             state.onSelectionChange();
           },
-          shouldShowPageStatus(state, page.helixPath),
+          isStatusLoaded(state),
         ));
       });
     }
@@ -994,6 +990,7 @@ async function main() {
         if (outcome.statusType === 'success') {
           state.activeTab = 'urls';
           try {
+            state.statusChecking = paths.length > 0;
             const refreshed = await fetchPlatformStatusForPaths(
               daFetch,
               state.org,
@@ -1002,7 +999,9 @@ async function main() {
               paths,
             );
             state.platformStatus = { ...state.platformStatus, ...refreshed };
+            state.statusChecking = false;
           } catch (refreshErr) {
+            state.statusChecking = false;
             console.warn('[bulk-pp] status refresh after job failed', refreshErr);
           }
         }
