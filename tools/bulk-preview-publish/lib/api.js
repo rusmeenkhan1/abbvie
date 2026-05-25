@@ -9,7 +9,7 @@ import {
   decodeHelixPath,
   helixToWebPath,
   toHelixPath,
-} from './paths.js?v=37';
+} from './paths.js?v=38';
 
 const ADMIN_STATUS_POST_SUFFIX = 'index';
 
@@ -1190,6 +1190,49 @@ function logStatusApiOnce() {
 }
 
 /**
+ * @param {string} helixPath
+ * @param {{ previewedAt?: number, publishedAt?: number }} [entry]
+ */
+function hasPlatformStatus(entry) {
+  return Boolean(entry?.previewedAt || entry?.publishedAt);
+}
+
+/**
+ * @param {{ useBulk: boolean, total: number, bulkMatched: string[], fallbackMatched: string[], fallbackAttempted: string[], unmatched: string[] }} report
+ */
+function logStatusSourceReport(report) {
+  // eslint-disable-next-line no-console
+  console.group('[bulk-pp] Status source report (bulk API vs per-page fallback)');
+  // eslint-disable-next-line no-console
+  console.info(
+    'Mode:',
+    report.useBulk
+      ? 'POST bulk status job → GET job/details, then per-page fallback for gaps'
+      : 'Per-page only (bulk disabled or <3 pages)',
+  );
+  // eslint-disable-next-line no-console
+  console.info(`Total pages: ${report.total}`);
+  // eslint-disable-next-line no-console
+  console.info(`From bulk API: ${report.bulkMatched.length}`, report.bulkMatched);
+  // eslint-disable-next-line no-console
+  console.info(
+    `From fallback (single-page GET preview): ${report.fallbackMatched.length}`,
+    report.fallbackMatched,
+  );
+  if (report.fallbackAttempted.length > report.fallbackMatched.length) {
+    const failed = report.fallbackAttempted.filter((p) => !report.fallbackMatched.includes(p));
+    // eslint-disable-next-line no-console
+    console.info(`Fallback attempted but no status: ${failed.length}`, failed);
+  }
+  if (report.unmatched.length > 0) {
+    // eslint-disable-next-line no-console
+    console.warn(`Unmatched (neither source): ${report.unmatched.length}`, report.unmatched);
+  }
+  // eslint-disable-next-line no-console
+  console.groupEnd();
+}
+
+/**
  * @param {Function} daFetch
  * @param {string} org
  * @param {string} site
@@ -1221,10 +1264,19 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
 
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   let result = {};
+  /** @type {string[]} */
+  const bulkMatched = [];
 
   if (useBulk) {
+    // eslint-disable-next-line no-console
+    console.info('[bulk-pp] Starting bulk status API (POST …/status/…/index, paths: ["/*"])');
     try {
       result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique);
+      unique.forEach((p) => {
+        if (hasPlatformStatus(result[p])) bulkMatched.push(p);
+      });
+      // eslint-disable-next-line no-console
+      console.info(`[bulk-pp] Bulk API returned status for ${bulkMatched.length}/${unique.length} pages`);
     } catch (bulkErr) {
       console.warn('[bulk-pp] bulk status failed', bulkErr);
       if (new URLSearchParams(window.location.search).has('debug')) {
@@ -1232,15 +1284,17 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
         console.debug('[bulk-pp] Postman endpoints', describeAdminEndpoints(org, site, ref, unique[0]));
       }
     }
+  } else {
+    // eslint-disable-next-line no-console
+    console.info('[bulk-pp] Bulk status API skipped (use ?bulkStatus=1 or 3+ pages; ?noBulkStatus=1 to force off)');
   }
 
-  const missing = unique.filter((p) => {
-    const e = result[p];
-    return !e?.previewedAt && !e?.publishedAt;
-  });
+  const missing = unique.filter((p) => !hasPlatformStatus(result[p]));
 
-  const toFetch = useBulk && Object.keys(result).length > 0 ? missing : unique;
+  const toFetch = useBulk && bulkMatched.length > 0 ? missing : unique;
   const alreadyResolved = unique.length - toFetch.length;
+  /** @type {string[]} */
+  const fallbackMatched = [];
 
   const reportProgress = (doneInBatch, batchTotal) => {
     if (!onProgress) return;
@@ -1253,6 +1307,11 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
   }
 
   if (toFetch.length > 0) {
+    // eslint-disable-next-line no-console
+    console.info(
+      `[bulk-pp] Starting per-page fallback for ${toFetch.length} page(s) (GET …/preview/… per path)`,
+      toFetch,
+    );
     const filled = await fetchStatusParallel(
       daFetch,
       org,
@@ -1262,16 +1321,40 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
       (partial, done) => {
         toFetch.forEach((p) => {
           const e = partial[p];
-          if (e?.previewedAt || e?.publishedAt) result[p] = e;
+          if (hasPlatformStatus(e)) {
+            if (!bulkMatched.includes(p) && !fallbackMatched.includes(p)) {
+              fallbackMatched.push(p);
+              // eslint-disable-next-line no-console
+              console.info('[bulk-pp] fallback matched', p, e);
+            }
+            result[p] = e;
+          }
         });
         reportProgress(done, toFetch.length);
       },
     );
     toFetch.forEach((p) => {
       const e = filled[p];
-      if (e?.previewedAt || e?.publishedAt) result[p] = e;
+      if (hasPlatformStatus(e)) {
+        result[p] = e;
+        if (!bulkMatched.includes(p) && !fallbackMatched.includes(p)) {
+          fallbackMatched.push(p);
+          // eslint-disable-next-line no-console
+          console.info('[bulk-pp] fallback matched', p, e);
+        }
+      }
     });
   }
+
+  const unmatched = unique.filter((p) => !hasPlatformStatus(result[p]));
+  logStatusSourceReport({
+    useBulk,
+    total: unique.length,
+    bulkMatched,
+    fallbackMatched,
+    fallbackAttempted: toFetch,
+    unmatched,
+  });
 
   if (onProgress) onProgress({ ...result }, unique.length, unique.length);
   return result;

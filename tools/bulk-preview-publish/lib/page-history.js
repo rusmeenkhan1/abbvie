@@ -1,4 +1,4 @@
-import { sortPagesByListPath } from './paths.js?v=37';
+import { sortPagesByListPath } from './paths.js?v=38';
 
 /**
  * @typedef {{ previewedAt?: number, publishedAt?: number }} PageHistoryEntry
@@ -148,6 +148,6 @@ export function formatStatusDate(ts) {
  */
 export function statusLabel(status) {
   if (status === 'published') return 'Published';
-  if (status === 'previewed') return 'On preview';
-  return 'Not deployed';
+  if (status === 'previewed') return 'only previewed';
+  return 'not previewed';
 }

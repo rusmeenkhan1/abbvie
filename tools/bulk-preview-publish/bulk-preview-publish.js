@@ -11,17 +11,17 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=37';
+} from './lib/api.js?v=38';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=37';
+} from './lib/paths.js?v=38';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=37';
+} from './lib/urls.js?v=38';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -31,9 +31,9 @@ import {
   pathsOnPublished,
   countStatusBreakdown,
   statusLabel,
-} from './lib/page-history.js?v=37';
+} from './lib/page-history.js?v=38';
 
-const TOOL_VERSION = '37';
+const TOOL_VERSION = '38';
 
 /** Reload once if an old ?v= cache param would load admin.da.live rewrite (v31 and below). */
 function ensureLatestToolCache() {
@@ -326,8 +326,8 @@ function buildStatusLegend() {
   const legend = el('div', 'bulk-pp-status-legend');
   legend.setAttribute('aria-label', 'Status key');
   [
-    ['untouched', 'Not deployed'],
-    ['previewed', 'Preview'],
+    ['untouched', 'not previewed'],
+    ['previewed', 'only previewed'],
     ['published', 'Published'],
   ].forEach(([key, text]) => {
     const item = el('span', 'bulk-pp-legend-item');
