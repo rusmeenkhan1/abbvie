@@ -5,17 +5,17 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=15';
+} from './lib/api.js?v=16';
 import {
   displayFolderPath,
   displayPath,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=15';
+} from './lib/paths.js?v=16';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=15';
+} from './lib/urls.js?v=16';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -25,9 +25,65 @@ import {
   recordPaths,
   saveHistory,
   statusLabel,
-} from './lib/page-history.js?v=15';
+} from './lib/page-history.js?v=16';
 
-const TOOL_VERSION = '15';
+const TOOL_VERSION = '16';
+
+/** @type {Record<'untouched'|'previewed'|'published', { bg: string, border: string, badgeBg: string, badgeColor: string }>} */
+const STATUS_THEME = {
+  untouched: { bg: '#fde8e8', border: '#c9252d', badgeBg: '#fde8e8', badgeColor: '#8b1a1a' },
+  previewed: { bg: '#fff3cd', border: '#c9940a', badgeBg: '#fff3cd', badgeColor: '#7a5a00' },
+  published: { bg: '#d4edda', border: '#2d8a4e', badgeBg: '#d4edda', badgeColor: '#1a5c32' },
+};
+
+let runtimeStylesReady = false;
+
+function ensureRuntimeStyles() {
+  if (runtimeStylesReady || document.getElementById('bulk-pp-runtime-styles')) {
+    runtimeStylesReady = true;
+    return;
+  }
+  const style = document.createElement('style');
+  style.id = 'bulk-pp-runtime-styles';
+  style.textContent = `
+    .bulk-pp-filter-row{display:flex!important;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 0 16px;padding:14px 16px;background:#f0f4fa;border:1px solid #c8d0e0;border-radius:8px}
+    .bulk-pp-status-legend{display:flex!important;flex-wrap:wrap;gap:12px 20px;flex:1}
+    .bulk-pp-legend-item{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#5c6578}
+    .bulk-pp-legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+    .bulk-pp-field-filter{flex:0 1 280px;min-width:200px}
+    .bulk-pp-row-untouched{background:#fde8e8!important;border-left:4px solid #c9252d!important}
+    .bulk-pp-row-previewed{background:#fff3cd!important;border-left:4px solid #c9940a!important}
+    .bulk-pp-row-published{background:#d4edda!important;border-left:4px solid #2d8a4e!important}
+    .bulk-pp-status-badge{display:inline-flex;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+    .bulk-pp-status-badge-untouched{background:#fde8e8;color:#8b1a1a}
+    .bulk-pp-status-badge-previewed{background:#fff3cd;color:#7a5a00}
+    .bulk-pp-status-badge-published{background:#d4edda;color:#1a5c32}
+    .bulk-pp-item-main{flex:1;min-width:0}
+    .bulk-pp-item-dates{display:block;font-size:12px;color:#8a94a8;margin-top:2px}
+  `;
+  document.head.appendChild(style);
+  runtimeStylesReady = true;
+}
+
+/**
+ * @param {HTMLLIElement} li
+ * @param {'untouched'|'previewed'|'published'} status
+ */
+function applyRowStatusStyle(li, status) {
+  const theme = STATUS_THEME[status];
+  li.style.background = theme.bg;
+  li.style.borderLeft = `4px solid ${theme.border}`;
+}
+
+/**
+ * @param {HTMLElement} badge
+ * @param {'untouched'|'previewed'|'published'} status
+ */
+function applyBadgeStyle(badge, status) {
+  const theme = STATUS_THEME[status];
+  badge.style.background = theme.badgeBg;
+  badge.style.color = theme.badgeColor;
+}
 
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
@@ -234,6 +290,8 @@ function buildPageRow(page, entry, onToggle) {
   if (dateParts.length) labelWrap.append(el('span', 'bulk-pp-item-dates', dateParts.join(' · ')));
 
   const badge = el('span', `bulk-pp-status-badge bulk-pp-status-badge-${status}`, statusLabel(status));
+  applyRowStatusStyle(li, status);
+  applyBadgeStyle(badge, status);
   li.append(cb, icon, labelWrap, badge);
   return li;
 }
@@ -259,9 +317,9 @@ function buildStatusLegend() {
   const legend = el('div', 'bulk-pp-status-legend');
   legend.setAttribute('aria-label', 'Page status colors');
   [
-    ['untouched', 'Not previewed or published', 'var(--pp-status-red)'],
-    ['previewed', 'Previewed only', 'var(--pp-status-yellow)'],
-    ['published', 'Published to live', 'var(--pp-status-green)'],
+    ['untouched', 'Not previewed or published', STATUS_THEME.untouched.border],
+    ['previewed', 'Previewed only', STATUS_THEME.previewed.border],
+    ['published', 'Published to live', STATUS_THEME.published.border],
   ].forEach(([key, text, color]) => {
     const item = el('span', `bulk-pp-legend-item bulk-pp-legend-${key}`);
     const dot = el('span', 'bulk-pp-legend-dot');
@@ -321,6 +379,7 @@ function render(root, state) {
     pageHistory || {}
   );
 
+  ensureRuntimeStyles();
   root.replaceChildren();
 
   const header = el('header', 'bulk-pp-header');
@@ -405,6 +464,9 @@ function render(root, state) {
     pagesPane.append(el('p', 'bulk-pp-list-empty', error));
   } else {
     const filterRow = el('div', 'bulk-pp-filter-row');
+    filterRow.style.display = 'flex';
+    filterRow.style.flexWrap = 'wrap';
+    filterRow.style.marginBottom = '16px';
     filterRow.append(buildStatusLegend());
     const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
     filterField.append(el('label', null, 'Filter pages'));
@@ -524,6 +586,10 @@ function render(root, state) {
     if (jobDetail) statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
     root.append(statusEl);
   }
+
+  const versionNote = el('p', 'bulk-pp-version', `Bulk Preview & Publish · v${TOOL_VERSION}`);
+  versionNote.style.cssText = 'margin-top:20px;font-size:12px;color:#8a94a8;text-align:center';
+  root.append(versionNote);
 
   pathInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') state.onLoad(false);
