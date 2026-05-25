@@ -1,13 +1,16 @@
 import {
   DA_ADMIN,
-  HLX_ADMIN,
   dedupePaths,
   classifyEntry,
   getEntryName,
   joinPath,
   normalizeFolderPath,
+  rewriteAdminUrl,
   toHelixPath,
-} from './paths.js?v=22';
+} from './paths.js?v=24';
+
+/** Browser-safe AEM Admin base (CORS); daFetch still supplies auth. */
+const ADMIN_API = DA_ADMIN;
 
 /**
  * @param {Response} resp
@@ -280,7 +283,7 @@ export async function startBulkJob(daFetch, org, site, ref, topic, paths, option
   }
 
   const route = topic === 'live' ? 'live' : 'preview';
-  const url = `${HLX_ADMIN}/${route}/${org}/${site}/${ref}/*`;
+  const url = `${ADMIN_API}/${route}/${org}/${site}/${ref}/*`;
   const body = {
     paths: unique,
     forceUpdate: Boolean(options.forceUpdate),
@@ -321,7 +324,8 @@ async function sleep(ms) {
  * @param {string} jobUrl
  */
 async function fetchJobDetails(daFetch, jobUrl) {
-  const detailsResp = await daFetch(`${jobUrl.replace(/\/$/, '')}/details`, { method: 'GET' });
+  const base = rewriteAdminUrl(jobUrl).replace(/\/$/, '');
+  const detailsResp = await daFetch(`${base}/details`, { method: 'GET' });
   const details = await parseJson(detailsResp);
   if (detailsResp.ok && details) return /** @type {Record<string, unknown>} */ (details);
   return null;
@@ -331,14 +335,15 @@ export async function pollJob(daFetch, jobUrl, onProgress) {
   const terminal = new Set(['stopped', 'succeeded', 'failed', 'cancelled']);
   let last = null;
   let notFoundCount = 0;
+  const resolvedJobUrl = rewriteAdminUrl(jobUrl);
 
   /* eslint-disable no-await-in-loop -- job polling is intentionally sequential */
   for (let i = 0; i < 60; i += 1) {
-    const resp = await daFetch(jobUrl, { method: 'GET' });
+    const resp = await daFetch(resolvedJobUrl, { method: 'GET' });
 
     if (resp.status === 404 || resp.status === 410) {
       notFoundCount += 1;
-      const details = await fetchJobDetails(daFetch, jobUrl);
+      const details = await fetchJobDetails(daFetch, resolvedJobUrl);
       if (details) return details;
       if (notFoundCount >= 2) return last || { state: 'stopped' };
       await sleep(1000);
@@ -357,7 +362,7 @@ export async function pollJob(daFetch, jobUrl, onProgress) {
   }
   /* eslint-enable no-await-in-loop */
 
-  const details = await fetchJobDetails(daFetch, jobUrl);
+  const details = await fetchJobDetails(daFetch, resolvedJobUrl);
   if (details) return details;
   return last || { state: 'timeout' };
 }
@@ -416,14 +421,14 @@ export function getJobPollUrl(bulkResponse, org, site, ref, topic) {
   const { links, job } = bulkResponse || {};
   if (links && typeof links === 'object') {
     const { self } = /** @type {{ self?: string }} */ (links);
-    if (self) return self;
+    if (self) return rewriteAdminUrl(self);
   }
 
   if (job && typeof job === 'object') {
     const { name, topic: jobTopic } = /** @type {{ name?: string, topic?: string }} */ (job);
     const resolvedTopic = jobTopic || topic;
     if (name && resolvedTopic) {
-      return `${HLX_ADMIN}/job/${org}/${site}/${ref}/${resolvedTopic}/${name}`;
+      return `${ADMIN_API}/job/${org}/${site}/${ref}/${resolvedTopic}/${name}`;
     }
   }
 
@@ -431,17 +436,33 @@ export function getJobPollUrl(bulkResponse, org, site, ref, topic) {
 }
 
 /**
- * Helix path → URL segment(s) for GET /status/.../{path}
+ * Path keys to try for GET /status/{org}/{site}/{ref}/{path segments…}
  * @param {string} helixPath
  * @returns {string[]}
  */
-export function helixPathToStatusCandidates(helixPath) {
-  const norm = !helixPath || helixPath === '/' ? '/index' : (
-    helixPath.startsWith('/') ? helixPath : `/${helixPath}`
-  );
-  if (norm === '/index') return ['', 'index'];
-  const bare = norm.replace(/^\//, '');
-  return bare === norm ? [bare] : [bare, norm.replace(/^\//, '')];
+export function helixPathToStatusPathKeys(helixPath) {
+  const bare = !helixPath || helixPath === '/' ? 'index' : helixPath.replace(/^\//, '');
+  const keys = new Set([bare]);
+  if (bare === 'index') keys.add('');
+  if (bare.endsWith('/index')) {
+    const parent = bare.slice(0, -'/index'.length);
+    keys.add(parent);
+  }
+  return [...keys];
+}
+
+/**
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string} pathKey helix path without leading slash (empty = site root)
+ * @returns {string}
+ */
+export function buildStatusGetUrl(org, site, ref, pathKey) {
+  const prefix = `${ADMIN_API}/status/${encodeURIComponent(org)}/${encodeURIComponent(site)}/${encodeURIComponent(ref)}`;
+  if (!pathKey) return `${prefix}/`;
+  const segments = pathKey.split('/').filter(Boolean).map((s) => encodeURIComponent(s));
+  return `${prefix}/${segments.join('/')}`;
 }
 
 /**
@@ -535,19 +556,30 @@ function buildHelixPathLookup(helixPaths) {
  * @param {string} helixPath
  */
 async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath) {
-  const candidates = helixPathToStatusCandidates(helixPath);
+  const pathKeys = helixPathToStatusPathKeys(helixPath);
   /** @type {{ previewedAt?: number, publishedAt?: number }} */
   let best = {};
 
   /* eslint-disable no-await-in-loop -- try path variants until one resolves */
-  for (let i = 0; i < candidates.length; i += 1) {
-    const segment = candidates[i];
-    const url = `${HLX_ADMIN}/status/${org}/${site}/${ref}/${encodeURIComponent(segment)}`;
-    const resp = await daFetch(url, { method: 'GET' });
+  for (let i = 0; i < pathKeys.length; i += 1) {
+    const url = buildStatusGetUrl(org, site, ref, pathKeys[i]);
+    let resp;
+    try {
+      resp = await daFetch(url, { method: 'GET' });
+    } catch (err) {
+      if (err instanceof TypeError) {
+        throw new Error(
+          'Cannot reach AEM status API (network/CORS). Open this tool from https://da.live Document Authoring.',
+        );
+      }
+      throw err;
+    }
     const data = await parseJson(resp);
 
     if (resp.status === 401 || resp.status === 403) {
-      throw new Error(`Not authorized to read page status (${resp.status}). Open from Document Authoring.`);
+      throw new Error(
+        `Not authorized to read page status (${resp.status}). Sign in at da.live and open from Document Authoring.`,
+      );
     }
     if (!resp.ok && resp.status !== 404) continue;
 
@@ -694,7 +726,7 @@ function mapStatusJobToEntries(jobData, helixPaths) {
  */
 async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
   const queryPaths = expandStatusQueryPaths(helixPaths);
-  const url = `${HLX_ADMIN}/status/${org}/${site}/${ref}/*`;
+  const url = `${ADMIN_API}/status/${org}/${site}/${ref}/*`;
   const resp = await daFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -726,7 +758,7 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
   const finalJob = await pollJob(daFetch, jobUrl);
   let details = finalJob;
   try {
-    const detailsResp = await daFetch(`${jobUrl}/details`, { method: 'GET' });
+    const detailsResp = await daFetch(`${rewriteAdminUrl(jobUrl)}/details`, { method: 'GET' });
     const detailsJson = await parseJson(detailsResp);
     if (detailsResp.ok && detailsJson) details = detailsJson;
   } catch {

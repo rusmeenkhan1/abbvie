@@ -4,6 +4,16 @@ const HLX_ADMIN = 'https://admin.hlx.page';
 export { DA_ADMIN, HLX_ADMIN };
 
 /**
+ * Use admin.da.live in the browser (CORS *). Rewrite job links from admin.hlx.page.
+ * @param {string} url
+ * @returns {string}
+ */
+export function rewriteAdminUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  return url.replace(/^https:\/\/admin\.hlx\.page/i, DA_ADMIN);
+}
+
+/**
  * Normalize a DA source folder path (no leading/trailing slashes).
  * @param {string} path
  * @returns {string}

@@ -6,27 +6,45 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=22';
+} from './lib/api.js?v=24';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=22';
+  rewriteAdminUrl,
+} from './lib/paths.js?v=24';
 import {
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=22';
+} from './lib/urls.js?v=24';
 import {
   filterAndSortPages,
   formatStatusDate,
   getPageStatus,
   PAGE_FILTERS,
-  recordPaths,
+  pathsOnPreview,
+  pathsOnPublished,
   statusLabel,
-} from './lib/page-history.js?v=22';
+} from './lib/page-history.js?v=24';
 
-const TOOL_VERSION = '22';
+const TOOL_VERSION = '24';
+
+/**
+ * Wrap fetch so admin.hlx.page URLs use admin.da.live (CORS) and optional DA token is sent.
+ * @param {typeof fetch} baseFetch
+ * @param {string} [token]
+ */
+function wrapAdminFetch(baseFetch, token) {
+  return async (url, init = {}) => {
+    const resolved = rewriteAdminUrl(String(url));
+    const headers = new Headers(init.headers || {});
+    if (token && !headers.has('x-auth-token')) {
+      headers.set('x-auth-token', token);
+    }
+    return baseFetch(resolved, { ...init, headers });
+  };
+}
 
 /**
  * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
@@ -310,7 +328,7 @@ function appendUrlSection(container, title, host, urls) {
   const listWrap = el('div', 'bulk-pp-list-wrap');
   const list = el('ul', 'bulk-pp-url-list');
   if (urls.length === 0) {
-    list.append(el('li', null, 'No URLs yet — run the action on selected pages.'));
+    list.append(el('li', null, 'None in this list yet — AEM reports no matching deployment for loaded pages.'));
   } else {
     urls.forEach((url) => {
       const li = el('li');
@@ -340,8 +358,6 @@ function render(root, state) {
     statusType,
     jobDetail,
     activeTab,
-    previewedPaths,
-    publishedPaths,
     pageScope,
     pageFilter,
     platformStatus,
@@ -463,14 +479,14 @@ function render(root, state) {
       pagesPane.append(el(
         'p',
         'bulk-pp-status-note bulk-pp-status-note-error',
-        statusError || 'Could not load preview/live status from AEM. Open this tool from Document Authoring and refresh.',
+        statusError || 'Could not load deployment status from AEM. Open the tool from https://da.live (Document Authoring), not the .aem.live preview URL, then refresh.',
       ));
     } else if (pages.length > 0) {
       const deployed = countDeployedPages(platformStatus || {}, pages);
       pagesPane.append(el(
         'p',
         'bulk-pp-status-note',
-        `Deployment status from AEM · ${deployed} of ${pages.length} page(s) on preview or live`,
+        `Deployment status from AEM · ${deployed} of ${pages.length} on preview or published`,
       ));
     }
 
@@ -544,8 +560,10 @@ function render(root, state) {
   if (activeTab === 'urls') urlsPane.classList.add('bulk-pp-tab-pane-active');
 
   const host = buildSiteHost(org, site, ref);
-  appendUrlSection(urlsPane, 'Preview (.aem.page)', host, buildUrlsForPaths(previewedPaths, org, site, ref, 'preview'));
-  appendUrlSection(urlsPane, 'Live (.aem.live)', host, buildUrlsForPaths(publishedPaths, org, site, ref, 'live'));
+  const previewUrlPaths = pathsOnPreview(pages, statusMap);
+  const publishedUrlPaths = pathsOnPublished(pages, statusMap);
+  appendUrlSection(urlsPane, 'Preview (.aem.page)', host, buildUrlsForPaths(previewUrlPaths, org, site, ref, 'preview'));
+  appendUrlSection(urlsPane, 'Published (.aem.live)', host, buildUrlsForPaths(publishedUrlPaths, org, site, ref, 'live'));
   contentPanel.append(urlsPane);
   root.append(contentPanel);
 
@@ -601,8 +619,9 @@ async function main() {
   const app = document.getElementById('app');
   if (!app) return;
 
-  const { context, actions } = await initSdk();
-  const daFetch = typeof actions.daFetch === 'function' ? actions.daFetch : fetch;
+  const { context, token, actions } = await initSdk();
+  const baseFetch = typeof actions.daFetch === 'function' ? actions.daFetch : fetch;
+  const daFetch = wrapAdminFetch(baseFetch, token);
   const ctx = resolveSiteContext(context);
   ctx.folderPath = resolveContentFolderPath(ctx.folderPath);
 
@@ -620,8 +639,6 @@ async function main() {
     statusType: 'info',
     jobDetail: null,
     activeTab: 'pages',
-    previewedPaths: [],
-    publishedPaths: [],
     pageFilter: 'all',
     platformStatus: {},
     statusCheckFailed: false,
@@ -854,16 +871,6 @@ async function main() {
 
         const jobUrl = getJobPollUrl(bulkResp, state.org, state.site, state.ref, topic);
         if (!jobUrl) {
-          const historyType = topic === 'live' ? 'live' : 'preview';
-          state.platformStatus = recordPaths(
-            /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */ (
-              state.platformStatus
-            ),
-            paths,
-            historyType,
-          );
-          if (topic === 'preview') state.previewedPaths = [...paths];
-          else state.publishedPaths = [...paths];
           state.status = topic === 'live'
             ? `Bulk publish scheduled (${paths.length} paths).`
             : `Bulk preview scheduled (${paths.length} paths).`;
@@ -890,17 +897,19 @@ async function main() {
         state.status = `${action} ${outcome.message}`;
         state.statusType = outcome.statusType;
         if (outcome.statusType === 'success') {
-          const historyType = topic === 'live' ? 'live' : 'preview';
-          state.platformStatus = recordPaths(
-            /** @type {Record<string, import('./lib/page-history.js').PageHistoryEntry>} */ (
-              state.platformStatus
-            ),
-            paths,
-            historyType,
-          );
-          if (topic === 'preview') state.previewedPaths = [...paths];
-          else state.publishedPaths = [...paths];
           state.activeTab = 'urls';
+          try {
+            const refreshed = await fetchPlatformStatusForPaths(
+              daFetch,
+              state.org,
+              state.site,
+              state.ref,
+              paths,
+            );
+            state.platformStatus = { ...state.platformStatus, ...refreshed };
+          } catch (refreshErr) {
+            console.warn('[bulk-pp] status refresh after job failed', refreshErr);
+          }
         }
         const showDetail = outcome.statusType === 'error'
           || new URLSearchParams(window.location.search).has('debug');

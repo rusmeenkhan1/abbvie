@@ -1,24 +1,32 @@
+import { sortPagesByListPath } from './paths.js?v=24';
+
 /**
  * @typedef {{ previewedAt?: number, publishedAt?: number }} PageHistoryEntry
  * @typedef {Record<string, PageHistoryEntry>} HistoryMap
  */
 
 /**
- * @param {HistoryMap} history
- * @param {string[]} paths
- * @param {'preview'|'live'} type
- * @returns {HistoryMap}
+ * Helix paths that AEM reports as on preview.
+ * @param {{ helixPath: string }[]} pageList
+ * @param {HistoryMap} statusMap
+ * @returns {string[]}
  */
-export function recordPaths(history, paths, type) {
-  const now = Date.now();
-  const next = { ...history };
-  paths.forEach((path) => {
-    const entry = { ...(next[path] || {}) };
-    if (type === 'preview') entry.previewedAt = now;
-    else entry.publishedAt = now;
-    next[path] = entry;
-  });
-  return next;
+export function pathsOnPreview(pageList, statusMap) {
+  return pageList
+    .filter((p) => statusMap[p.helixPath]?.previewedAt)
+    .map((p) => p.helixPath);
+}
+
+/**
+ * Helix paths that AEM reports as published (live).
+ * @param {{ helixPath: string }[]} pageList
+ * @param {HistoryMap} statusMap
+ * @returns {string[]}
+ */
+export function pathsOnPublished(pageList, statusMap) {
+  return pageList
+    .filter((p) => statusMap[p.helixPath]?.publishedAt)
+    .map((p) => p.helixPath);
 }
 
 /**
@@ -41,8 +49,6 @@ export const PAGE_FILTERS = [
   ['oldest-preview', 'Oldest previewed'],
   ['oldest-publish', 'Oldest published'],
 ];
-
-import { sortPagesByListPath } from './paths.js?v=22';
 
 const DATE_SORT_FILTERS = new Set([
   'recent-preview',
