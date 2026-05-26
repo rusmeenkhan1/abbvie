@@ -1,3 +1,5 @@
+import { normalizeFolderPath } from './paths.js?v=41';
+
 /**
  * EDS host: {ref}--{site}--{org}
  * @param {string} org
@@ -54,4 +56,34 @@ export function buildLiveUrl(org, site, ref, helixPath) {
 export function buildUrlsForPaths(helixPaths, org, site, ref, env) {
   const build = env === 'live' ? buildLiveUrl : buildPreviewUrl;
   return helixPaths.map((p) => build(org, site, ref, p));
+}
+
+/**
+ * DA source path for edit navigation (no leading slash, no .html).
+ * @param {string} helixPath
+ * @param {string} [sourcePath]
+ * @returns {string}
+ */
+export function helixPathToDaEditPath(helixPath, sourcePath) {
+  const fromSource = normalizeFolderPath(String(sourcePath || '').replace(/\.html$/i, ''));
+  if (fromSource) return fromSource;
+  const fromHelix = normalizeFolderPath(
+    String(helixPath || '').replace(/^\//, '').replace(/\.html$/i, ''),
+  );
+  return fromHelix || 'index';
+}
+
+/**
+ * Open a page in the DA document editor (see da.live Source API editUrl).
+ * @param {string} org
+ * @param {string} site
+ * @param {string} helixPath
+ * @param {string} [sourcePath]
+ * @param {string} [ref]
+ * @returns {string}
+ */
+export function buildDaEditUrl(org, site, helixPath, sourcePath, ref) {
+  const path = helixPathToDaEditPath(helixPath, sourcePath);
+  const refParam = ref && ref !== 'main' ? `?ref=${encodeURIComponent(ref)}` : '';
+  return `https://da.live/edit${refParam}#/${org}/${site}/${path}`;
 }

@@ -11,17 +11,18 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=40';
+} from './lib/api.js?v=41';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=40';
+} from './lib/paths.js?v=41';
 import {
+  buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=40';
+} from './lib/urls.js?v=41';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -31,9 +32,9 @@ import {
   pathsOnPublished,
   countStatusBreakdown,
   statusLabel,
-} from './lib/page-history.js?v=40';
+} from './lib/page-history.js?v=41';
 
-const TOOL_VERSION = '40';
+const TOOL_VERSION = '41';
 
 function ensureLatestToolCache() {
   const params = new URLSearchParams(window.location.search);
@@ -275,6 +276,30 @@ function isStatusLoaded(state) {
 }
 
 /**
+ * @param {Record<string, unknown> | null | undefined} daActions
+ * @param {string} org
+ * @param {string} site
+ * @param {string} helixPath
+ * @param {string} sourcePath
+ * @param {string} ref
+ */
+function openDaDocument(daActions, org, site, helixPath, sourcePath, ref) {
+  const url = buildDaEditUrl(org, site, helixPath, sourcePath, ref);
+  const navigate = daActions && typeof daActions.setHref === 'function'
+    ? daActions.setHref
+    : null;
+  if (navigate) {
+    navigate(url);
+    return;
+  }
+  if (window.top && window.top !== window) {
+    window.top.location.assign(url);
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+
+/**
  * @param {Record<string, unknown>} state
  * @returns {Record<string, import('./lib/page-history.js').PageHistoryEntry>}
  */
@@ -295,9 +320,11 @@ function buildStatusMap(state) {
  * @param {import('./lib/page-history.js').PageHistoryEntry | undefined} entry
  * @param {string} browseFolder
  * @param {(checked: boolean, path: string) => void} onToggle
+ * @param {boolean} showStatus
+ * @param {{ org: string, site: string, ref: string, daActions?: Record<string, unknown> | null }} siteCtx
  * @returns {HTMLLIElement}
  */
-function buildPageRow(page, entry, browseFolder, onToggle, showStatus) {
+function buildPageRow(page, entry, browseFolder, onToggle, showStatus, siteCtx) {
   const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-document');
 
   const cb = document.createElement('input');
@@ -331,12 +358,31 @@ function buildPageRow(page, entry, browseFolder, onToggle, showStatus) {
     if (dateParts.length) labelWrap.append(el('span', 'bulk-pp-item-dates', dateParts.join(' · ')));
   }
 
-  li.append(cb, icon, labelWrap);
+  const rowActions = el('div', 'bulk-pp-row-actions');
+  const openBtn = el('button', 'bulk-pp-btn bulk-pp-btn-open-da', 'Open');
+  openBtn.type = 'button';
+  openBtn.title = 'Open in Document Authoring';
+  openBtn.setAttribute('aria-label', `Open ${title} in Document Authoring`);
+  openBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openDaDocument(
+      siteCtx.daActions,
+      siteCtx.org,
+      siteCtx.site,
+      page.helixPath,
+      page.sourcePath,
+      siteCtx.ref,
+    );
+  });
+  rowActions.append(openBtn);
   if (showStatus) {
-    li.append(buildStatusDot(getPageStatus(entry)));
+    rowActions.append(buildStatusDot(getPageStatus(entry)));
   } else {
-    li.append(buildStatusDotPending());
+    rowActions.append(buildStatusDotPending());
   }
+
+  li.append(cb, icon, labelWrap, rowActions);
   return li;
 }
 
@@ -587,6 +633,12 @@ function render(root, state) {
             state.onSelectionChange();
           },
           isStatusLoaded(state),
+          {
+            org,
+            site,
+            ref,
+            daActions: /** @type {Record<string, unknown> | null} */ (state.daActions) || null,
+          },
         ));
       });
     }
@@ -714,6 +766,7 @@ async function main() {
     statusChecking: false,
     statusProgressDone: 0,
     statusProgressTotal: 0,
+    daActions: actions,
 
     onTab(tab) {
       state.activeTab = tab;

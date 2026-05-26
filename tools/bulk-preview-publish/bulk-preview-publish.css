@@ -468,12 +468,39 @@
   color: var(--pp-text-subtle);
 }
 
+.bulk-pp-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.bulk-pp-btn-open-da {
+  padding: 4px 10px;
+  min-height: 28px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--pp-blue);
+  background: var(--pp-surface);
+  border: 1px solid var(--pp-border-strong);
+  border-radius: var(--pp-radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bulk-pp-btn-open-da:hover {
+  color: var(--pp-navy);
+  background: var(--pp-blue-soft);
+  border-color: var(--pp-blue);
+}
+
 .bulk-pp-status-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
-  margin-left: auto;
   box-shadow: 0 0 0 1px rgb(255 255 255 / 80%);
 }
 
