@@ -1,4 +1,4 @@
-import { normalizeFolderPath } from './paths.js?v=41';
+import { normalizeFolderPath } from './paths.js?v=42';
 
 /**
  * EDS host: {ref}--{site}--{org}
@@ -74,7 +74,7 @@ export function helixPathToDaEditPath(helixPath, sourcePath) {
 }
 
 /**
- * Open a page in the DA document editor (see da.live Source API editUrl).
+ * DA document URL (same hash scheme as fstab mount: da.live/#/org/site/path).
  * @param {string} org
  * @param {string} site
  * @param {string} helixPath
@@ -85,5 +85,5 @@ export function helixPathToDaEditPath(helixPath, sourcePath) {
 export function buildDaEditUrl(org, site, helixPath, sourcePath, ref) {
   const path = helixPathToDaEditPath(helixPath, sourcePath);
   const refParam = ref && ref !== 'main' ? `?ref=${encodeURIComponent(ref)}` : '';
-  return `https://da.live/edit${refParam}#/${org}/${site}/${path}`;
+  return `https://da.live/${refParam}#/${org}/${site}/${path}`;
 }

@@ -477,11 +477,15 @@
 }
 
 .bulk-pp-btn-open-da {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 4px 10px;
   min-height: 28px;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
+  text-decoration: none;
   color: var(--pp-blue);
   background: var(--pp-surface);
   border: 1px solid var(--pp-border-strong);
@@ -494,6 +498,12 @@
   color: var(--pp-navy);
   background: var(--pp-blue-soft);
   border-color: var(--pp-blue);
+}
+
+.bulk-pp-btn-open-da-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: not-allowed;
 }
 
 .bulk-pp-status-dot {
