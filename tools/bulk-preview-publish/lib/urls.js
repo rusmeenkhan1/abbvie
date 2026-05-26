@@ -1,4 +1,4 @@
-import { helixPathToDaDocumentPath } from './paths.js?v=43';
+import { helixPathToDaDocumentPath } from './paths.js?v=44';
 
 /**
  * EDS host: {ref}--{site}--{org}
@@ -64,12 +64,11 @@ export function buildUrlsForPaths(helixPaths, org, site, ref, env) {
  * @param {string} site
  * @param {string} helixPath
  * @param {string} [sourcePath]
- * @param {string} [documentName]
  * @param {string} [ref]
  * @returns {string}
  */
-export function buildDaEditUrl(org, site, helixPath, sourcePath, documentName, ref) {
-  const path = helixPathToDaDocumentPath(helixPath, sourcePath, documentName);
+export function buildDaEditUrl(org, site, helixPath, sourcePath, ref) {
+  const path = helixPathToDaDocumentPath(helixPath, sourcePath);
   const refParam = ref && ref !== 'main' ? `?ref=${encodeURIComponent(ref)}` : '';
   return `https://da.live/edit${refParam}#/${org}/${site}/${path}`;
 }
