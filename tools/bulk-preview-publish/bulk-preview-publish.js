@@ -11,18 +11,18 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=42';
+} from './lib/api.js?v=43';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=42';
+} from './lib/paths.js?v=43';
 import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=42';
+} from './lib/urls.js?v=43';
 import {
   filterAndSortPages,
   formatStatusDate,
@@ -32,9 +32,9 @@ import {
   pathsOnPublished,
   countStatusBreakdown,
   statusLabel,
-} from './lib/page-history.js?v=42';
+} from './lib/page-history.js?v=43';
 
-const TOOL_VERSION = '42';
+const TOOL_VERSION = '43';
 
 function ensureLatestToolCache() {
   const params = new URLSearchParams(window.location.search);
@@ -340,6 +340,7 @@ function buildPageRow(page, entry, browseFolder, onToggle, showStatus, siteCtx) 
     siteCtx.site,
     page.helixPath,
     page.sourcePath,
+    page.name,
     siteCtx.ref,
   );
   const daLink = document.createElement('a');

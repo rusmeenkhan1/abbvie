@@ -1,4 +1,4 @@
-import { normalizeFolderPath } from './paths.js?v=42';
+import { helixPathToDaDocumentPath } from './paths.js?v=43';
 
 /**
  * EDS host: {ref}--{site}--{org}
@@ -59,31 +59,17 @@ export function buildUrlsForPaths(helixPaths, org, site, ref, env) {
 }
 
 /**
- * DA source path for edit navigation (no leading slash, no .html).
- * @param {string} helixPath
- * @param {string} [sourcePath]
- * @returns {string}
- */
-export function helixPathToDaEditPath(helixPath, sourcePath) {
-  const fromSource = normalizeFolderPath(String(sourcePath || '').replace(/\.html$/i, ''));
-  if (fromSource) return fromSource;
-  const fromHelix = normalizeFolderPath(
-    String(helixPath || '').replace(/^\//, '').replace(/\.html$/i, ''),
-  );
-  return fromHelix || 'index';
-}
-
-/**
- * DA document URL (same hash scheme as fstab mount: da.live/#/org/site/path).
+ * DA document editor URL (opens the page doc, not an empty browse folder).
  * @param {string} org
  * @param {string} site
  * @param {string} helixPath
  * @param {string} [sourcePath]
+ * @param {string} [documentName]
  * @param {string} [ref]
  * @returns {string}
  */
-export function buildDaEditUrl(org, site, helixPath, sourcePath, ref) {
-  const path = helixPathToDaEditPath(helixPath, sourcePath);
+export function buildDaEditUrl(org, site, helixPath, sourcePath, documentName, ref) {
+  const path = helixPathToDaDocumentPath(helixPath, sourcePath, documentName);
   const refParam = ref && ref !== 'main' ? `?ref=${encodeURIComponent(ref)}` : '';
-  return `https://da.live/${refParam}#/${org}/${site}/${path}`;
+  return `https://da.live/edit${refParam}#/${org}/${site}/${path}`;
 }

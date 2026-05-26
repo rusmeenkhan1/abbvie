@@ -308,6 +308,59 @@ export function toHelixPath(folderPath, fileName) {
 }
 
 /**
+ * DA paths where the page is a single extensionless doc at the path (not a folder + index).
+ * @param {string} path
+ * @returns {boolean}
+ */
+export function isSingleFileDaDocumentPath(path) {
+  const normalized = normalizeFolderPath(path);
+  return /^library\/blocks(\/|$)/.test(normalized)
+    || /^library\/fragments(\/|$)/.test(normalized);
+}
+
+/**
+ * Path to the DA source document for edit navigation (not the browse folder).
+ * Site pages use folder/index; library blocks use a single doc at the path.
+ * @param {string} helixPath
+ * @param {string} [sourcePath]
+ * @param {string} [documentName] DA list entry name (e.g. index, brand-partnerships)
+ * @returns {string}
+ */
+export function helixPathToDaDocumentPath(helixPath, sourcePath, documentName) {
+  const normalizedSource = normalizeFolderPath(String(sourcePath || '').replace(/\.html$/i, ''));
+  const fromHelix = normalizeFolderPath(
+    String(helixPath || '').replace(/^\//, '').replace(/\.html$/i, ''),
+  );
+  const path = normalizedSource || fromHelix || 'index';
+  const segments = path.split('/').filter(Boolean);
+  const last = segments[segments.length - 1] || '';
+  const leaf = String(documentName || '').replace(/\.html$/i, '');
+  const leafLower = leaf.toLowerCase();
+
+  if (KNOWN_PAGE_DOC_NAMES.has(last.toLowerCase()) || last === 'index') {
+    return path;
+  }
+
+  if (leafLower === 'index' && last !== 'index') {
+    return joinPath(path, 'index');
+  }
+
+  if (isSingleFileDaDocumentPath(path)) {
+    return path;
+  }
+
+  if (leaf && leafLower === last) {
+    return joinPath(path, 'index');
+  }
+
+  if (!leaf && fromHelix && !isSingleFileDaDocumentPath(fromHelix)) {
+    return joinPath(fromHelix, 'index');
+  }
+
+  return path;
+}
+
+/**
  * @param {string} helixPath
  * @returns {string} display label
  */
