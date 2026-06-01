@@ -11,18 +11,18 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=46';
+} from './lib/api.js?v=47';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=46';
+} from './lib/paths.js?v=47';
 import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=46';
+} from './lib/urls.js?v=47';
 import {
   filterAndSortPages,
   filterPagesBySearch,
@@ -33,9 +33,9 @@ import {
   pathsOnPublished,
   countStatusBreakdown,
   statusLabel,
-} from './lib/page-history.js?v=46';
+} from './lib/page-history.js?v=47';
 
-const TOOL_VERSION = '46';
+const TOOL_VERSION = '47';
 
 function ensureLatestToolCache() {
   const params = new URLSearchParams(window.location.search);
@@ -451,6 +451,10 @@ function appendUrlSection(container, title, host, urls) {
 }
 
 function render(root, state) {
+  const listWrapBefore = document.getElementById('bulk-pp-page-list-wrap');
+  const savedListScroll = listWrapBefore ? listWrapBefore.scrollTop : null;
+  const savedWindowY = window.scrollY;
+
   const {
     org,
     site,
@@ -639,6 +643,7 @@ function render(root, state) {
     toolbar.append(toolbarActions, selectionPill);
 
     const pageWrap = el('div', 'bulk-pp-list-wrap');
+    pageWrap.id = 'bulk-pp-page-list-wrap';
     const pageList = el('ul', 'bulk-pp-list');
     pageList.id = 'bulk-pp-page-list';
     if (pages.length === 0) {
@@ -758,6 +763,16 @@ function render(root, state) {
   publishBtn.addEventListener('click', () => state.onRun('live'));
   pagesTabBtn.addEventListener('click', () => state.onTab('pages'));
   urlsTabBtn.addEventListener('click', () => state.onTab('urls'));
+
+  if (savedListScroll != null || savedWindowY > 0) {
+    requestAnimationFrame(() => {
+      if (savedListScroll != null) {
+        const listWrap = document.getElementById('bulk-pp-page-list-wrap');
+        if (listWrap) listWrap.scrollTop = savedListScroll;
+      }
+      if (savedWindowY > 0) window.scrollTo(0, savedWindowY);
+    });
+  }
 }
 
 async function main() {
@@ -870,9 +885,6 @@ async function main() {
         pages.forEach((p) => {
           if (prevSelected.has(p.helixPath)) selected.add(p.helixPath);
         });
-        if (selected.size === 0) {
-          pages.forEach((p) => selected.add(p.helixPath));
-        }
 
         const docCount = pages.length;
         const location = displayFolderPath(state.folderPath) || 'site root';
