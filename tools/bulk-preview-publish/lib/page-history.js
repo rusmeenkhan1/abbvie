@@ -1,4 +1,8 @@
-import { sortPagesByListPath } from './paths.js?v=38';
+import {
+  formatPageListLabel,
+  pageListRelativePath,
+  sortPagesByListPath,
+} from './paths.js?v=46';
 
 /**
  * @typedef {{ previewedAt?: number, publishedAt?: number }} PageHistoryEntry
@@ -82,6 +86,24 @@ const DATE_SORT_FILTERS = new Set([
  * @param {string} [browseFolder]
  * @returns {{ helixPath: string }[]}
  */
+/**
+ * Filter pages by search query (page name / list label).
+ * @param {{ helixPath: string, name?: string }[]} pages
+ * @param {string} query
+ * @param {string} [browseFolder]
+ * @returns {{ helixPath: string, name?: string }[]}
+ */
+export function filterPagesBySearch(pages, query, browseFolder = '') {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return pages;
+  return pages.filter((page) => {
+    const name = String(page.name || '').toLowerCase();
+    const path = pageListRelativePath(page.helixPath, browseFolder).toLowerCase();
+    const { title } = formatPageListLabel(page.helixPath, page.name, browseFolder);
+    return name.includes(q) || path.includes(q) || title.toLowerCase().includes(q);
+  });
+}
+
 export function filterAndSortPages(pages, history, filterId, browseFolder = '') {
   if (filterId === 'all') return sortPagesByListPath(pages, browseFolder);
 

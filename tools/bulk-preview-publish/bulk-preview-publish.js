@@ -11,20 +11,21 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=44';
+} from './lib/api.js?v=46';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=44';
+} from './lib/paths.js?v=46';
 import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=44';
+} from './lib/urls.js?v=46';
 import {
   filterAndSortPages,
+  filterPagesBySearch,
   formatStatusDate,
   getPageStatus,
   PAGE_FILTERS,
@@ -32,9 +33,9 @@ import {
   pathsOnPublished,
   countStatusBreakdown,
   statusLabel,
-} from './lib/page-history.js?v=44';
+} from './lib/page-history.js?v=46';
 
-const TOOL_VERSION = '44';
+const TOOL_VERSION = '46';
 
 function ensureLatestToolCache() {
   const params = new URLSearchParams(window.location.search);
@@ -292,6 +293,31 @@ function buildStatusMap(state) {
 }
 
 /**
+ * @param {Record<string, unknown>} state
+ * @returns {{
+ *   visible: DocumentEntry[],
+ *   statusMap: Record<string, import('./lib/page-history.js').PageHistoryEntry>,
+ *   browseFolder: string,
+ * }}
+ */
+function getVisiblePages(state) {
+  const statusMap = buildStatusMap(state);
+  const browseFolder = resolveContentFolderPath(state.folderPath);
+  let visible = filterAndSortPages(
+    pages,
+    statusMap,
+    String(state.pageFilter || 'all'),
+    browseFolder,
+  );
+  visible = /** @type {DocumentEntry[]} */ (filterPagesBySearch(
+    visible,
+    String(state.pageSearch || ''),
+    browseFolder,
+  ));
+  return { visible, statusMap, browseFolder };
+}
+
+/**
  * @param {DocumentEntry} page
  * @param {import('./lib/page-history.js').PageHistoryEntry | undefined} entry
  * @param {string} browseFolder
@@ -444,16 +470,10 @@ function render(root, state) {
     statusChecking,
     statusProgressDone,
     statusProgressTotal,
+    pageSearch,
   } = state;
 
-  const statusMap = buildStatusMap(state);
-  const browseFolder = resolveContentFolderPath(folderPath);
-  const visiblePages = filterAndSortPages(
-    pages,
-    statusMap,
-    String(pageFilter || 'all'),
-    browseFolder,
-  );
+  const { visible: visiblePages, statusMap, browseFolder } = getVisiblePages(state);
 
   document.getElementById('bulk-pp-runtime-styles')?.remove();
 
@@ -585,6 +605,19 @@ function render(root, state) {
 
     pagesPane.append(el('h3', 'bulk-pp-list-heading', 'Pages'));
 
+    const searchRow = el('div', 'bulk-pp-search-row');
+    const searchField = el('div', 'bulk-pp-field bulk-pp-field-search');
+    searchField.append(el('label', null, 'Search pages'));
+    const searchInput = document.createElement('input');
+    searchInput.type = 'search';
+    searchInput.id = 'bulk-pp-page-search';
+    searchInput.placeholder = 'Filter by page name…';
+    searchInput.autocomplete = 'off';
+    searchInput.value = String(pageSearch || '');
+    searchField.append(searchInput);
+    searchRow.append(searchField);
+    pagesPane.append(searchRow);
+
     const toolbar = el('div', 'bulk-pp-toolbar');
     const toolbarActions = el('div', 'bulk-pp-toolbar-actions');
     const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost', 'Select all');
@@ -613,7 +646,10 @@ function render(root, state) {
         ? 'No pages in this folder tree.'
         : 'No pages in this folder.'));
     } else if (visiblePages.length === 0) {
-      pageList.append(el('li', 'bulk-pp-list-empty', 'No pages match this filter.'));
+      const emptyMsg = String(pageSearch || '').trim()
+        ? 'No pages match this search.'
+        : 'No pages match this filter.';
+      pageList.append(el('li', 'bulk-pp-list-empty', emptyMsg));
     } else {
       visiblePages.forEach((page) => {
         pageList.append(buildPageRow(
@@ -635,6 +671,10 @@ function render(root, state) {
 
     filterSelect.addEventListener('change', () => {
       state.pageFilter = filterSelect.value;
+      render(root, state);
+    });
+    searchInput.addEventListener('input', () => {
+      state.pageSearch = searchInput.value;
       render(root, state);
     });
   }
@@ -748,6 +788,7 @@ async function main() {
     jobDetail: null,
     activeTab: 'pages',
     pageFilter: 'all',
+    pageSearch: '',
     platformStatus: {},
     statusCheckFailed: false,
     statusError: null,
@@ -762,6 +803,7 @@ async function main() {
 
     async onNavigate(targetPath) {
       state.folderPath = resolveContentFolderPath(targetPath);
+      state.pageSearch = '';
       syncUrlPath(state.ref, state.folderPath);
       await state.onLoad(true);
     },
@@ -788,9 +830,10 @@ async function main() {
         return;
       }
 
-      state.loading = true;
-      state.error = null;
-      state.status = 'Loading…';
+        state.loading = true;
+        state.error = null;
+        if (!fromFolderNav) state.pageSearch = '';
+        state.status = 'Loading…';
       state.statusType = 'info';
       render(app, state);
 
@@ -920,12 +963,7 @@ async function main() {
     },
 
     onSelectAll(checked) {
-      const visible = filterAndSortPages(
-        pages,
-        buildStatusMap(state),
-        String(state.pageFilter || 'all'),
-        resolveContentFolderPath(state.folderPath),
-      );
+      const { visible } = getVisiblePages(state);
       if (checked) {
         visible.forEach((p) => selected.add(p.helixPath));
       } else {
@@ -938,12 +976,7 @@ async function main() {
       const root = /** @type {HTMLElement | null} */ (state.root);
       if (!root) return;
 
-      const visible = filterAndSortPages(
-        pages,
-        buildStatusMap(state),
-        String(state.pageFilter || 'all'),
-        resolveContentFolderPath(state.folderPath),
-      );
+      const { visible } = getVisiblePages(state);
       const pill = root.querySelector('#bulk-pp-selection-pill');
       if (pill) {
         const visibleCount = visible.length;

@@ -392,6 +392,19 @@
   min-width: 180px;
 }
 
+.bulk-pp-search-row {
+  margin-bottom: 10px;
+}
+
+.bulk-pp-field-search {
+  flex: 1 1 100%;
+  max-width: 360px;
+}
+
+.bulk-pp-field-search input[type='search'] {
+  width: 100%;
+}
+
 .bulk-pp-status-legend {
   display: flex;
   flex-wrap: wrap;
