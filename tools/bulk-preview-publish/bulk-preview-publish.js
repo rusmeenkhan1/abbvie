@@ -11,18 +11,19 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=47';
+} from './lib/api.js?v=48';
 import {
   displayFolderPath,
   formatPageListLabel,
+  isSiteShellPage,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=47';
+} from './lib/paths.js?v=48';
 import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=47';
+} from './lib/urls.js?v=48';
 import {
   filterAndSortPages,
   filterPagesBySearch,
@@ -33,9 +34,9 @@ import {
   pathsOnPublished,
   countStatusBreakdown,
   statusLabel,
-} from './lib/page-history.js?v=47';
+} from './lib/page-history.js?v=48';
 
-const TOOL_VERSION = '47';
+const TOOL_VERSION = '48';
 
 function ensureLatestToolCache() {
   const params = new URLSearchParams(window.location.search);
@@ -266,8 +267,14 @@ function buildStatusDotPending() {
   return dot;
 }
 
+/** Remove site shell pages (index, nav, footer) from the selection set. */
+function pruneSiteShellFromSelection() {
+  pages.forEach((p) => {
+    if (isSiteShellPage(p)) selected.delete(p.helixPath);
+  });
+}
+
 /**
- * Colored status dots only after the full AEM status check finishes (not per-batch).
  * @param {Record<string, unknown>} state
  * @returns {boolean}
  */
@@ -334,7 +341,7 @@ function buildPageRow(page, entry, browseFolder, onToggle, showStatus, siteCtx) 
   cb.className = 'bulk-pp-page-cb';
   cb.value = page.helixPath;
   cb.dataset.path = page.helixPath;
-  cb.checked = selected.has(page.helixPath);
+  cb.checked = !isSiteShellPage(page) && selected.has(page.helixPath);
   cb.id = `page-${page.helixPath.replace(/\W/g, '_')}`;
   cb.addEventListener('change', (e) => {
     const input = /** @type {HTMLInputElement} */ (e.target);
@@ -882,9 +889,12 @@ async function main() {
 
         const prevSelected = new Set(selected);
         selected.clear();
-        pages.forEach((p) => {
-          if (prevSelected.has(p.helixPath)) selected.add(p.helixPath);
-        });
+        if (fromFolderNav) {
+          pages.forEach((p) => {
+            if (prevSelected.has(p.helixPath)) selected.add(p.helixPath);
+          });
+        }
+        pruneSiteShellFromSelection();
 
         const docCount = pages.length;
         const location = displayFolderPath(state.folderPath) || 'site root';
@@ -976,11 +986,13 @@ async function main() {
 
     onSelectAll(checked) {
       const { visible } = getVisiblePages(state);
+      const selectable = visible.filter((p) => !isSiteShellPage(p));
       if (checked) {
-        visible.forEach((p) => selected.add(p.helixPath));
+        selectable.forEach((p) => selected.add(p.helixPath));
       } else {
-        visible.forEach((p) => selected.delete(p.helixPath));
+        selectable.forEach((p) => selected.delete(p.helixPath));
       }
+      pruneSiteShellFromSelection();
       render(/** @type {HTMLElement} */ (state.root), state);
     },
 
