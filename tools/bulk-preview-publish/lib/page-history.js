@@ -2,7 +2,7 @@ import {
   formatPageListLabel,
   pageListRelativePath,
   sortPagesByListPath,
-} from './paths.js?v=48';
+} from './paths.js?v=49';
 
 /**
  * @typedef {{ previewedAt?: number, publishedAt?: number }} PageHistoryEntry
@@ -87,15 +87,17 @@ const DATE_SORT_FILTERS = new Set([
  * @returns {{ helixPath: string }[]}
  */
 /**
- * Filter pages by search query (page name / list label).
+ * Filter pages by search query (page name / list label). Requires at least minLen characters.
  * @param {{ helixPath: string, name?: string }[]} pages
  * @param {string} query
  * @param {string} [browseFolder]
+ * @param {number} [minLen]
  * @returns {{ helixPath: string, name?: string }[]}
  */
-export function filterPagesBySearch(pages, query, browseFolder = '') {
+export function filterPagesBySearch(pages, query, browseFolder = '', minLen = 3) {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return pages;
+  if (q.length < minLen) return pages;
   return pages.filter((page) => {
     const name = String(page.name || '').toLowerCase();
     const path = pageListRelativePath(page.helixPath, browseFolder).toLowerCase();

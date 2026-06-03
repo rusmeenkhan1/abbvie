@@ -1202,8 +1202,9 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
  * @param {string} ref
  * @param {string[]} helixPaths
  * @param {(partial: Record<string, { previewedAt?: number, publishedAt?: number }>, done: number) => void} [onProgress]
+ * @param {AbortSignal} [signal]
  */
-async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgress) {
+async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgress, signal) {
   const unique = dedupePaths(helixPaths);
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   const result = {};
@@ -1212,6 +1213,7 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgre
 
   /* eslint-disable no-await-in-loop -- rate-limit friendly batches */
   for (let i = 0; i < unique.length; i += batchSize) {
+    if (signal?.aborted) throw new DOMException('Status check cancelled', 'AbortError');
     const batch = unique.slice(i, i + batchSize);
     await Promise.all(batch.map(async (path) => {
       try {
@@ -1244,11 +1246,27 @@ function hasPlatformStatus(entry) {
  * @param {string} ref
  * @param {string[]} helixPaths
  * @param {StatusProgressFn} [onProgress]
+ * @param {{ signal?: AbortSignal }} [options]
  */
-export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helixPaths, onProgress) {
+export async function fetchPlatformStatusForPaths(
+  daFetch,
+  org,
+  site,
+  ref,
+  helixPaths,
+  onProgress,
+  options = {},
+) {
+  const { signal } = options;
+
+  const throwIfAborted = () => {
+    if (signal?.aborted) throw new DOMException('Status check cancelled', 'AbortError');
+  };
+
   const unique = dedupePaths(helixPaths);
   if (unique.length === 0) return {};
   assertAdminContext(org, site, ref);
+  throwIfAborted();
 
   if (isHardcodeIndexTest()) {
     const indexStatus = await fetchHardcodedIndexStatus(daFetch, org, site, ref);
@@ -1273,6 +1291,7 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
 
   if (useBulk) {
     try {
+      throwIfAborted();
       result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique);
       unique.forEach((p) => {
         if (hasPlatformStatus(result[p])) bulkMatched.push(p);
@@ -1314,6 +1333,7 @@ export async function fetchPlatformStatusForPaths(daFetch, org, site, ref, helix
         });
         reportProgress(done, toFetch.length);
       },
+      signal,
     );
     toFetch.forEach((p) => {
       const e = filled[p];
