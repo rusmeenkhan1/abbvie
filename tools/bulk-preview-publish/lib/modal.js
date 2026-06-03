@@ -39,14 +39,19 @@ export function showConfirmModal(opts) {
     dialog.setAttribute('aria-labelledby', 'bulk-pp-modal-title');
 
     const head = el('div', 'bulk-pp-modal-head');
-    head.append(el('h2', 'bulk-pp-modal-title', title));
+    if (variant === 'warning') {
+      head.append(el('span', 'bulk-pp-modal-icon', '!'));
+    }
+    const titleWrap = el('div', 'bulk-pp-modal-title-wrap');
+    titleWrap.append(el('h2', 'bulk-pp-modal-title', title));
+    head.append(titleWrap);
     head.id = 'bulk-pp-modal-title';
 
     const content = el('p', 'bulk-pp-modal-body', body);
 
     const actions = el('div', 'bulk-pp-modal-actions');
-    const cancelBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost', cancelLabel);
-    const confirmBtn = el('button', `bulk-pp-btn ${variant === 'warning' ? 'bulk-pp-btn-primary' : 'bulk-pp-btn-primary'}`, confirmLabel);
+    const cancelBtn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-cancel', cancelLabel);
+    const confirmBtn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-confirm', confirmLabel);
     cancelBtn.type = 'button';
     confirmBtn.type = 'button';
     actions.append(cancelBtn, confirmBtn);

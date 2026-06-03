@@ -10,26 +10,33 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=50';
+} from './lib/api.js?v=52';
 import {
   displayFolderPath,
   formatPageListLabel,
   isSiteShellPage,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=50';
+} from './lib/paths.js?v=52';
 import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=50';
+} from './lib/urls.js?v=52';
 import {
   formatStatusDate,
   getPageStatus,
   PAGE_FILTERS,
   statusLabel,
-} from './lib/page-history.js?v=50';
-import { confirmTreeScopeFetch } from './lib/modal.js?v=50';
+} from './lib/page-history.js?v=52';
+import { confirmTreeScopeFetch } from './lib/modal.js?v=52';
+import {
+  bindSearchInput,
+  buildSearchField,
+  patchFolderSearchResults,
+  patchPageSearchResults,
+  searchHintText,
+} from './lib/search-ui.js?v=52';
 import {
   buildStatusMap,
   cancelStatusCheck,
@@ -41,9 +48,9 @@ import {
   resetWorkspace,
   SEARCH_MIN_LEN,
   selectAllVisible,
-} from './lib/state.js?v=50';
+} from './lib/state.js?v=52';
 
-const TOOL_VERSION = '50';
+const TOOL_VERSION = '52';
 
 /** @type {number | null} */
 let progressPatchRaf = null;
@@ -578,35 +585,28 @@ function render(root, state, opts = {}) {
       const folderCountLabel = folderSearchDraft && !folderSearchTooShort
         ? `${visibleFolders.length} of ${state.folders.length}`
         : String(state.folders.length);
+      const folderCountEl = el('span', 'bulk-pp-section-count', folderCountLabel);
+      folderCountEl.id = 'bulk-pp-folder-count';
       folderHead.append(
         el('h3', 'bulk-pp-section-title', 'Folders'),
-        el('span', 'bulk-pp-section-count', folderCountLabel),
+        folderCountEl,
       );
       folderSection.append(folderHead);
 
+      const { wrap: folderSearchField, input: folderSearchInput } = buildSearchField(
+        'bulk-pp-folder-search',
+        'Search folders',
+        String(folderSearch || ''),
+        statusChecking,
+        searchHintText(folderSearch),
+      );
       const folderSearchRow = el('div', 'bulk-pp-search-row');
-      const folderSearchField = el('div', 'bulk-pp-field bulk-pp-field-search');
-      folderSearchField.append(el('label', null, 'Search folders'));
-      const folderSearchInput = document.createElement('input');
-      folderSearchInput.type = 'search';
-      folderSearchInput.id = 'bulk-pp-folder-search';
-      folderSearchInput.placeholder = `Type at least ${SEARCH_MIN_LEN} characters…`;
-      folderSearchInput.autocomplete = 'off';
-      folderSearchInput.value = String(folderSearch || '');
-      folderSearchInput.disabled = statusChecking;
-      folderSearchField.append(folderSearchInput);
-      if (folderSearchTooShort) {
-        folderSearchField.append(el(
-          'span',
-          'bulk-pp-search-hint',
-          `Enter at least ${SEARCH_MIN_LEN} characters to filter`,
-        ));
-      }
       folderSearchRow.append(folderSearchField);
       folderSection.append(folderSearchRow);
 
       const folderWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-folders');
       const folderList = el('ul', 'bulk-pp-list');
+      folderList.id = 'bulk-pp-folder-list';
       if (visibleFolders.length === 0) {
         const folderEmptyMsg = folderSearchTooShort
           ? `Type at least ${SEARCH_MIN_LEN} characters to search.`
@@ -627,17 +627,21 @@ function render(root, state, opts = {}) {
       folderSection.append(folderWrap);
       pagesPane.append(folderSection);
 
-      folderSearchInput.addEventListener('input', () => {
-        state.folderSearch = folderSearchInput.value;
-        render(root, state);
+      bindSearchInput(folderSearchInput, state, 'folder', () => {
+        patchFolderSearchResults(root, state, buildFolderRow);
       });
     }
 
     const pagesSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-pages');
     const pagesHead = el('div', 'bulk-pp-section-head');
+    const pageCountLabel = searchDraft && !searchTooShort
+      ? `${visiblePages.length} of ${state.pages.length}`
+      : String(state.pages.length);
+    const pageCountEl = el('span', 'bulk-pp-section-count', pageCountLabel);
+    pageCountEl.id = 'bulk-pp-page-count';
     pagesHead.append(
       el('h3', 'bulk-pp-section-title', 'Pages'),
-      el('span', 'bulk-pp-section-count', String(state.pages.length)),
+      pageCountEl,
     );
     pagesSection.append(pagesHead);
 
@@ -645,24 +649,14 @@ function render(root, state, opts = {}) {
     pagesMeta.append(buildStatusLegend());
     pagesSection.append(pagesMeta);
 
+    const { wrap: searchField, input: searchInput } = buildSearchField(
+      'bulk-pp-page-search',
+      'Search pages',
+      String(pageSearch || ''),
+      statusChecking,
+      searchHintText(pageSearch),
+    );
     const searchRow = el('div', 'bulk-pp-search-row');
-    const searchField = el('div', 'bulk-pp-field bulk-pp-field-search');
-    searchField.append(el('label', null, 'Search pages'));
-    const searchInput = document.createElement('input');
-    searchInput.type = 'search';
-    searchInput.id = 'bulk-pp-page-search';
-    searchInput.placeholder = `Type at least ${SEARCH_MIN_LEN} characters…`;
-    searchInput.autocomplete = 'off';
-    searchInput.value = String(pageSearch || '');
-    searchInput.disabled = statusChecking;
-    searchField.append(searchInput);
-    if (searchTooShort) {
-      searchField.append(el(
-        'span',
-        'bulk-pp-search-hint',
-        `Enter at least ${SEARCH_MIN_LEN} characters to filter`,
-      ));
-    }
     searchRow.append(searchField);
     pagesSection.append(searchRow);
 
@@ -672,6 +666,8 @@ function render(root, state, opts = {}) {
     const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost', 'Select none');
     selectAllBtn.type = 'button';
     selectNoneBtn.type = 'button';
+    selectAllBtn.id = 'bulk-pp-select-all';
+    selectNoneBtn.id = 'bulk-pp-select-none';
     selectAllBtn.disabled = visiblePages.length === 0 || statusChecking;
     selectNoneBtn.disabled = visiblePages.length === 0 || statusChecking;
     selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
@@ -689,6 +685,7 @@ function render(root, state, opts = {}) {
     const pageWrap = el('div', 'bulk-pp-list-wrap');
     pageWrap.id = 'bulk-pp-page-list-wrap';
     const pageList = el('ul', 'bulk-pp-list');
+    pageList.id = 'bulk-pp-page-list';
     if (state.pages.length === 0) {
       pageList.append(el('li', 'bulk-pp-list-empty', 'No pages in this scope.'));
     } else if (visiblePages.length === 0) {
@@ -717,11 +714,10 @@ function render(root, state, opts = {}) {
 
     filterSelect.addEventListener('change', () => {
       state.pageFilter = filterSelect.value;
-      render(root, state);
+      patchPageSearchResults(root, state, { org, site, ref }, buildPageRow);
     });
-    searchInput.addEventListener('input', () => {
-      state.pageSearch = searchInput.value;
-      render(root, state);
+    bindSearchInput(searchInput, state, 'page', () => {
+      patchPageSearchResults(root, state, { org, site, ref }, buildPageRow);
     });
   }
   contentPanel.append(pagesPane);
@@ -1020,7 +1016,17 @@ async function main() {
 
   state.onSelectAll = (checked) => {
     selectAllVisible(state, checked);
-    render(app, state);
+    const root = state.root;
+    if (root?.querySelector('#bulk-pp-page-list')) {
+      patchPageSearchResults(
+        root,
+        state,
+        { org: state.org, site: state.site, ref: state.ref },
+        buildPageRow,
+      );
+    } else {
+      render(app, state);
+    }
   };
 
   state.onSelectionChange = () => {
