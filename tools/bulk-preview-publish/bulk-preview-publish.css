@@ -478,15 +478,6 @@
   opacity: 0.85;
 }
 
-.bulk-pp-field-search {
-  flex: 1 1 100%;
-  max-width: 360px;
-}
-
-.bulk-pp-field-search input[type='search'] {
-  width: 100%;
-}
-
 .bulk-pp-status-legend {
   display: flex;
   flex-wrap: wrap;
@@ -625,27 +616,7 @@
   background: var(--pp-status-green);
 }
 
-.bulk-pp-version {
-  margin-top: 24px;
-  font-size: 0.72rem;
-  color: var(--pp-text-subtle);
-  text-align: center;
-}
 
-.bulk-pp-list-heading {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--pp-text-muted);
-  margin: 16px 0 8px;
-}
-
-.bulk-pp-list-heading:first-of-type {
-  margin-top: 0;
-}
-
-/* —— Content sections (folders vs pages) —— */
 .bulk-pp-content-section {
   margin-bottom: 24px;
   border: 1px solid var(--pp-border);
@@ -653,6 +624,10 @@
   overflow: hidden;
   background: var(--pp-surface);
   box-shadow: var(--pp-shadow);
+}
+
+.bulk-pp-list-empty-error {
+  color: var(--pp-error-text);
 }
 
 .bulk-pp-content-section-folders {
@@ -1180,22 +1155,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.bulk-pp-options label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--pp-text);
-  margin: 0;
-}
-
-.bulk-pp-options input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--pp-blue);
 }
 
 .bulk-pp-run-actions {

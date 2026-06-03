@@ -3,14 +3,8 @@ import {
   getVisiblePages,
   isStatusLoaded,
   SEARCH_MIN_LEN,
-} from './state.js?v=52';
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text != null) node.textContent = text;
-  return node;
-}
+} from './state.js';
+import { el } from './dom.js';
 
 /**
  * @param {string} id
@@ -59,7 +53,7 @@ export function searchHintText(draft) {
 
 /**
  * @param {HTMLElement} root
- * @param {ReturnType<typeof import('./state.js?v=52').createAppState>} state
+ * @param {ReturnType<typeof import('./state.js').createAppState>} state
  * @param {(folder: { name: string, folderPath: string }, onNavigate: (p: string) => void, locked: boolean) => HTMLElement} buildFolderRow
  */
 export function patchFolderSearchResults(root, state, buildFolderRow) {
@@ -104,7 +98,7 @@ export function patchFolderSearchResults(root, state, buildFolderRow) {
 
 /**
  * @param {HTMLElement} root
- * @param {ReturnType<typeof import('./state.js?v=52').createAppState>} state
+ * @param {ReturnType<typeof import('./state.js').createAppState>} state
  * @param {{ org: string, site: string, ref: string }} siteCtx
  * @param {Function} buildPageRow
  */
@@ -171,7 +165,7 @@ export function patchPageSearchResults(root, state, siteCtx, buildPageRow) {
 
 /**
  * @param {HTMLInputElement} input
- * @param {ReturnType<typeof import('./state.js?v=52').createAppState>} state
+ * @param {ReturnType<typeof import('./state.js').createAppState>} state
  * @param {'folder'|'page'} kind
  * @param {() => void} patchFn
  */

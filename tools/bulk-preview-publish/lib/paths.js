@@ -4,28 +4,6 @@ const HLX_ADMIN = 'https://admin.hlx.page';
 export { DA_ADMIN, HLX_ADMIN };
 
 /**
- * Optional rewrite for legacy callers (bulk tool uses admin.hlx.page as-is via SDK).
- * @param {string} url
- * @returns {string}
- */
-export function rewriteAdminUrl(url) {
-  if (!url || typeof url !== 'string') return url;
-  return url.replace(/https?:\/\/admin\.hlx\.page/gi, DA_ADMIN);
-}
-
-/**
- * @param {string} url
- */
-export function isHlxAdminUrl(url) {
-  return /https?:\/\/admin\.hlx\.page/i.test(String(url || ''));
-}
-
-/**
- * Helix bulk path → AEM web path (strip /index folder homepage suffix).
- * @param {string} helixPath
- * @returns {string}
- */
-/**
  * Undo accidental URI encoding in paths (e.g. who-we-are%2Four-stories%2Fpage).
  * @param {string} path
  * @returns {string}
@@ -45,6 +23,7 @@ export function decodeHelixPath(path) {
   return p;
 }
 
+/** Helix bulk path → AEM web path (strip /index folder homepage suffix). */
 export function helixToWebPath(helixPath) {
   const decoded = decodeHelixPath(helixPath);
   const norm = !decoded || decoded === '/' ? '/' : (
@@ -306,9 +285,6 @@ export function isPageDocument(item) {
   return false;
 }
 
-/** @deprecated Use isPageDocument */
-export const isHtmlPage = isPageDocument;
-
 /**
  * DA source path (e.g. drafts/foo/page.html) → Helix bulk path (/drafts/foo/page).
  * @param {string} folderPath
@@ -339,14 +315,6 @@ export function helixPathToDaDocumentPath(helixPath, sourcePath) {
     return fromSource.slice(0, -'/index'.length) || 'index';
   }
   return fromSource || 'index';
-}
-
-/**
- * @param {string} helixPath
- * @returns {string} display label
- */
-export function displayPath(helixPath) {
-  return helixPath || '/';
 }
 
 /**

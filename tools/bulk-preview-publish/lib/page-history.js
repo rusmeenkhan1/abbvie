@@ -2,36 +2,12 @@ import {
   formatPageListLabel,
   pageListRelativePath,
   sortPagesByListPath,
-} from './paths.js?v=52';
+} from './paths.js';
 
 /**
  * @typedef {{ previewedAt?: number, publishedAt?: number }} PageHistoryEntry
  * @typedef {Record<string, PageHistoryEntry>} HistoryMap
  */
-
-/**
- * Helix paths that AEM reports as on preview.
- * @param {{ helixPath: string }[]} pageList
- * @param {HistoryMap} statusMap
- * @returns {string[]}
- */
-export function pathsOnPreview(pageList, statusMap) {
-  return pageList
-    .filter((p) => statusMap[p.helixPath]?.previewedAt)
-    .map((p) => p.helixPath);
-}
-
-/**
- * Helix paths that AEM reports as published (live).
- * @param {{ helixPath: string }[]} pageList
- * @param {HistoryMap} statusMap
- * @returns {string[]}
- */
-export function pathsOnPublished(pageList, statusMap) {
-  return pageList
-    .filter((p) => statusMap[p.helixPath]?.publishedAt)
-    .map((p) => p.helixPath);
-}
 
 /**
  * @param {PageHistoryEntry | undefined} entry
@@ -61,6 +37,32 @@ export function countStatusBreakdown(statusMap, pageList) {
   return { preview, live, none };
 }
 
+/**
+ * @param {Record<string, PageHistoryEntry>} platformStatus
+ * @param {{ helixPath: string }[]} pageList
+ */
+export function countDeployedPages(platformStatus, pageList) {
+  const map = /** @type {HistoryMap} */ ({});
+  pageList.forEach((p) => {
+    map[p.helixPath] = platformStatus[p.helixPath] || {};
+  });
+  const { live, preview } = countStatusBreakdown(map, pageList);
+  return live + preview;
+}
+
+/**
+ * @param {Record<string, PageHistoryEntry>} platformStatus
+ * @param {{ helixPath: string }[]} pageList
+ */
+export function formatDeploymentSummary(platformStatus, pageList) {
+  const map = /** @type {HistoryMap} */ ({});
+  pageList.forEach((p) => {
+    map[p.helixPath] = platformStatus[p.helixPath] || {};
+  });
+  const { live, preview, none } = countStatusBreakdown(map, pageList);
+  return `${live} live · ${preview} preview only · ${none} not deployed (${pageList.length} total)`;
+}
+
 /** @type {ReadonlyArray<[string, string]>} */
 export const PAGE_FILTERS = [
   ['all', 'All pages'],
@@ -79,13 +81,6 @@ const DATE_SORT_FILTERS = new Set([
   'oldest-publish',
 ]);
 
-/**
- * @param {{ helixPath: string }[]} pages
- * @param {HistoryMap} history
- * @param {string} filterId
- * @param {string} [browseFolder]
- * @returns {{ helixPath: string }[]}
- */
 /**
  * Filter pages by search query (page name / list label). Requires at least minLen characters.
  * @param {{ helixPath: string, name?: string }[]} pages

@@ -9,17 +9,12 @@ import {
   decodeHelixPath,
   helixToWebPath,
   toHelixPath,
-} from './paths.js?v=38';
+} from './paths.js';
 
 const ADMIN_STATUS_POST_SUFFIX = 'index';
 
 /** AEM Admin API (preview / live / status / jobs) — same host as Postman. */
 const adminApiBase = HLX_ADMIN;
-
-/** @param {{ useSdkFetch?: boolean }} [_options] */
-export function configureAdminApi(_options = {}) {
-  // no-op; kept for callers
-}
 
 /**
  * Pass through to DA SDK daFetch (adds Bearer + x-content-source-authorization on admin.hlx.page).
@@ -80,9 +75,8 @@ export function assertAdminContext(org, site, ref) {
  * @param {string} site
  * @param {string} ref
  * @param {string} [helixPath]
- * @returns {{ auth: string, endpoints: Array<{ method: string, url: string, body?: object }> }}
  */
-export function describeAdminEndpoints(org, site, ref, helixPath = '/nav') {
+function describeAdminEndpoints(org, site, ref, helixPath = '/nav') {
   const web = helixToWebPath(helixPath);
   const bare = web === '/' ? 'index' : web.replace(/^\//, '');
   const segments = bare.split('/').filter(Boolean).join('/');
@@ -239,7 +233,7 @@ async function fetchPaginated(daFetch, url) {
  * @param {string} folderPath
  * @returns {Promise<Array<Record<string, unknown>>>}
  */
-export async function listFolder(daFetch, org, repo, folderPath) {
+async function listFolder(daFetch, org, repo, folderPath) {
   const normalized = normalizeFolderPath(folderPath);
   const listPath = normalized ? `/${normalized}` : '';
   const listUrl = `${DA_ADMIN}/list/${org}/${repo}${listPath}`;
@@ -386,10 +380,9 @@ export async function collectPages(daFetch, org, repo, rootPath, maxDepth) {
  * @param {string} ref
  * @param {'preview'|'live'} topic
  * @param {string[]} paths
- * @param {{ forceUpdate?: boolean }} options
  * @returns {Promise<Record<string, unknown>>}
  */
-export async function startBulkJob(daFetch, org, site, ref, topic, paths, options = {}) {
+export async function startBulkJob(daFetch, org, site, ref, topic, paths) {
   const unique = dedupePaths(paths);
   if (unique.length === 0) {
     throw new Error('No pages selected.');
@@ -399,7 +392,6 @@ export async function startBulkJob(daFetch, org, site, ref, topic, paths, option
   const url = `${adminApiBase}/${route}/${org}/${site}/${ref}/*`;
   const body = {
     paths: unique,
-    forceUpdate: Boolean(options.forceUpdate),
     forceAsync: unique.length > 5,
   };
 
@@ -553,7 +545,7 @@ export function getJobPollUrl(bulkResponse, org, site, ref, topic) {
  * @param {string} helixPath
  * @returns {string[]}
  */
-export function helixPathToStatusPathKeys(helixPath) {
+function helixPathToStatusPathKeys(helixPath) {
   const decoded = decodeHelixPath(helixPath);
   const norm = normalizeWebPath(decoded);
   const web = helixToWebPath(decoded);
@@ -607,24 +599,6 @@ function buildAdminResourceUrl(route, org, site, ref, pathKey) {
 }
 
 /**
- * Paths for bulk status POST (leading slash, per AEM Admin API).
- * @param {string[]} helixPaths
- * @returns {string[]}
- */
-export function expandStatusQueryPaths(helixPaths) {
-  const out = new Set();
-  helixPaths.forEach((hp) => {
-    const norm = !hp || hp === '/' ? '/index' : (hp.startsWith('/') ? hp : `/${hp}`);
-    out.add(norm);
-    if (norm === '/index') {
-      out.add('/');
-      out.add('/index');
-    }
-  });
-  return [...out];
-}
-
-/**
  * @param {unknown} partition
  * @returns {number | undefined}
  */
@@ -650,7 +624,7 @@ function partitionTimestamp(partition) {
  * @param {unknown} data
  * @returns {{ previewedAt?: number, publishedAt?: number }}
  */
-export function parseStatusPayload(data) {
+function parseStatusPayload(data) {
   if (!data || typeof data !== 'object') return {};
   const { preview, live } = /** @type {{
     preview?: Record<string, unknown>,
@@ -803,7 +777,7 @@ function isIndexHelixPath(helixPath) {
  * @param {string} site
  * @param {string} ref
  */
-export async function fetchHardcodedIndexStatus(daFetch, org, site, ref) {
+async function fetchHardcodedIndexStatus(daFetch, org, site, ref) {
   assertAdminContext(org, site, ref);
 
   const previewUrl = `${HLX_ADMIN}/preview/${org}/${site}/${ref}/index`;

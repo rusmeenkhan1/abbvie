@@ -1,6 +1,5 @@
 import {
   collectPages,
-  configureAdminApi,
   fetchPlatformStatusForPaths,
   isHardcodeIndexTest,
   wrapDaFetch,
@@ -10,35 +9,36 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=52';
+} from './lib/api.js';
 import {
   displayFolderPath,
   formatPageListLabel,
   isSiteShellPage,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=52';
+} from './lib/paths.js';
 import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=52';
+} from './lib/urls.js';
 import {
+  countDeployedPages,
+  formatDeploymentSummary,
   formatStatusDate,
   getPageStatus,
   PAGE_FILTERS,
   statusLabel,
-} from './lib/page-history.js?v=52';
-import { confirmTreeScopeFetch } from './lib/modal.js?v=52';
+} from './lib/page-history.js';
+import { confirmTreeScopeFetch } from './lib/modal.js';
 import {
   bindSearchInput,
   buildSearchField,
   patchFolderSearchResults,
   patchPageSearchResults,
   searchHintText,
-} from './lib/search-ui.js?v=52';
+} from './lib/search-ui.js';
 import {
-  buildStatusMap,
   cancelStatusCheck,
   createAppState,
   getVisiblePages,
@@ -48,49 +48,8 @@ import {
   resetWorkspace,
   SEARCH_MIN_LEN,
   selectAllVisible,
-} from './lib/state.js?v=52';
-
-const TOOL_VERSION = '52';
-
-/** @type {number | null} */
-let progressPatchRaf = null;
-
-function ensureLatestToolCache() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('v') === TOOL_VERSION) return;
-  params.set('v', TOOL_VERSION);
-  const next = new URL(window.location.href);
-  next.search = params.toString();
-  window.location.replace(next.toString());
-}
-
-/**
- * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
- * @param {{ helixPath: string }[]} pageList
- */
-function countDeployedPages(platformStatus, pageList) {
-  return pageList.filter((p) => {
-    const e = platformStatus[p.helixPath];
-    return Boolean(e?.previewedAt || e?.publishedAt);
-  }).length;
-}
-
-/**
- * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
- * @param {{ helixPath: string }[]} pageList
- */
-function formatStatusSummary(platformStatus, pageList) {
-  let preview = 0;
-  let live = 0;
-  let none = 0;
-  pageList.forEach((p) => {
-    const e = platformStatus[p.helixPath];
-    if (e?.publishedAt) live += 1;
-    else if (e?.previewedAt) preview += 1;
-    else none += 1;
-  });
-  return `${live} live · ${preview} preview only · ${none} not deployed (${pageList.length} total)`;
-}
+} from './lib/state.js';
+import { el } from './lib/dom.js';
 
 /** @type {Record<'untouched'|'previewed'|'published', string>} */
 const STATUS_COLOR = {
@@ -109,8 +68,8 @@ async function initSdk() {
   try {
     const mod = await import(SDK_URL);
     const sdk = await Promise.race([mod.default, timeout]);
-    const { context = {}, token, actions = {} } = sdk;
-    return { context, token, actions };
+    const { context = {}, actions = {} } = sdk;
+    return { context, actions };
   } catch {
     return {
       context: {
@@ -149,13 +108,6 @@ function syncUrlPath(ref, folderPath) {
   const qs = params.toString();
   const url = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
   window.history.replaceState(null, '', url);
-}
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text != null) node.textContent = text;
-  return node;
 }
 
 function createPanel(title, extraClass = '') {
@@ -389,18 +341,6 @@ function patchStatusProgressUI(root, state) {
   }
 }
 
-/**
- * @param {HTMLElement} root
- * @param {ReturnType<typeof createAppState>} state
- */
-function scheduleProgressPatch(root, state) {
-  if (progressPatchRaf) return;
-  progressPatchRaf = requestAnimationFrame(() => {
-    progressPatchRaf = null;
-    patchStatusProgressUI(root, state);
-  });
-}
-
 function appendUrlSection(container, title, host, urls) {
   const section = el('div', 'bulk-pp-url-section');
   section.append(el('h3', 'bulk-pp-url-section-title', title));
@@ -429,10 +369,8 @@ function appendUrlSection(container, title, host, urls) {
 /**
  * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
- * @param {{ full?: boolean }} [opts]
  */
-function render(root, state, opts = {}) {
-  const { full = true } = opts;
+function render(root, state) {
   const listWrapBefore = document.getElementById('bulk-pp-page-list-wrap');
   const savedListScroll = listWrapBefore ? listWrapBefore.scrollTop : null;
   const savedWindowY = window.scrollY;
@@ -451,11 +389,6 @@ function render(root, state, opts = {}) {
   const folderSearchDraft = String(folderSearch || '').trim();
   const folderSearchTooShort = folderSearchDraft.length > 0
     && folderSearchDraft.length < SEARCH_MIN_LEN;
-
-  if (!full && statusChecking) {
-    scheduleProgressPatch(root, state);
-    return;
-  }
 
   root.replaceChildren();
 
@@ -561,24 +494,6 @@ function render(root, state, opts = {}) {
     filterRow.append(filterField);
     pagesPane.append(filterRow);
 
-    if (statusChecking) {
-      pagesPane.append(buildStatusProgressBar(state, true));
-    } else if (statusCheckFailed) {
-      pagesPane.append(el(
-        'p',
-        'bulk-pp-status-note bulk-pp-status-note-error',
-        statusError || 'Could not load deployment status from AEM.',
-      ));
-    } else if (state.pages.length > 0) {
-      pagesPane.append(el(
-        'p',
-        'bulk-pp-status-note',
-        `Deployment status from AEM · ${formatStatusSummary(state.platformStatus, state.pages)}`,
-      ));
-      const note = pagesPane.querySelector('.bulk-pp-status-note:last-of-type');
-      if (note) note.id = 'bulk-pp-status-note';
-    }
-
     if (state.folders.length > 0) {
       const folderSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-folders');
       const folderHead = el('div', 'bulk-pp-section-head');
@@ -630,6 +545,24 @@ function render(root, state, opts = {}) {
       bindSearchInput(folderSearchInput, state, 'folder', () => {
         patchFolderSearchResults(root, state, buildFolderRow);
       });
+    }
+
+    if (statusChecking) {
+      pagesPane.append(buildStatusProgressBar(state, true));
+    } else if (statusCheckFailed) {
+      pagesPane.append(el(
+        'p',
+        'bulk-pp-status-note bulk-pp-status-note-error',
+        statusError || 'Could not load deployment status from AEM.',
+      ));
+    } else if (state.pages.length > 0) {
+      pagesPane.append(el(
+        'p',
+        'bulk-pp-status-note',
+        `Deployment status from AEM · ${formatDeploymentSummary(state.platformStatus, state.pages)}`,
+      ));
+      const note = pagesPane.querySelector('.bulk-pp-status-note:last-of-type');
+      if (note) note.id = 'bulk-pp-status-note';
     }
 
     const pagesSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-pages');
@@ -743,14 +676,6 @@ function render(root, state, opts = {}) {
 
   if (!statusChecking) {
     const { panel: runPanel, body: runBody } = createPanel('Run bulk actions', 'bulk-pp-actions-panel');
-    const options = el('div', 'bulk-pp-options');
-    const forceLabel = document.createElement('label');
-    const forceCb = document.createElement('input');
-    forceCb.type = 'checkbox';
-    forceCb.id = 'bulk-pp-force';
-    forceLabel.append(forceCb, document.createTextNode('Force update (republish even if unchanged)'));
-    options.append(forceLabel);
-    runBody.append(options);
     const runRow = el('div', 'bulk-pp-run-actions');
     const previewBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary', 'Preview selected');
     const publishBtn = el('button', 'bulk-pp-btn bulk-pp-btn-danger', 'Publish to live');
@@ -775,8 +700,6 @@ function render(root, state, opts = {}) {
     root.append(statusEl);
   }
 
-  root.append(el('p', 'bulk-pp-version', `v${TOOL_VERSION}`));
-
   pathInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') state.onFetch(false);
   });
@@ -784,9 +707,6 @@ function render(root, state, opts = {}) {
     state.folderPath = normalizeFolderPath(pathInput.value.trim());
   });
   fetchBtn.addEventListener('click', () => state.onFetch(false));
-  depthSelect.addEventListener('change', () => {
-    /* scope applied on Fetch */
-  });
   pagesTabBtn.addEventListener('click', () => state.onTab('pages'));
   urlsTabBtn.addEventListener('click', () => state.onTab('urls'));
 
@@ -849,7 +769,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusAbort = null;
     state.statusProgressDone = pathsToCheck.length;
     state.statusProgressTotal = pathsToCheck.length;
-    state.status = `Status check complete · ${formatStatusSummary(platformStatus, state.pages)}`;
+    state.status = `Status check complete · ${formatDeploymentSummary(platformStatus, state.pages)}`;
     state.statusType = 'success';
     render(/** @type {HTMLElement} */ (state.root), state);
   }).catch((statusErr) => {
@@ -869,13 +789,11 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
 }
 
 async function main() {
-  ensureLatestToolCache();
   const app = document.getElementById('app');
   if (!app) return;
 
   const { context, actions } = await initSdk();
   const hasSdkFetch = typeof actions.daFetch === 'function';
-  configureAdminApi({ useSdkFetch: hasSdkFetch });
   const daFetch = hasSdkFetch ? wrapDaFetch(actions.daFetch) : null;
   const ctx = resolveSiteContext(context);
 
@@ -1056,9 +974,6 @@ async function main() {
     const paths = [...state.selected];
     if (paths.length === 0) return;
 
-    const forceEl = document.getElementById('bulk-pp-force');
-    const forceUpdate = forceEl instanceof HTMLInputElement && forceEl.checked;
-
     if (topic === 'live') {
       // eslint-disable-next-line no-alert
       if (!window.confirm(`Publish ${paths.length} page(s) to LIVE?\n\nThis updates the production site.`)) return;
@@ -1083,7 +998,6 @@ async function main() {
         state.ref,
         topic,
         paths,
-        { forceUpdate },
       );
 
       const jobUrl = getJobPollUrl(bulkResp, state.org, state.site, state.ref, topic);
