@@ -10,39 +10,40 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?v=49';
+} from './lib/api.js?v=50';
 import {
   displayFolderPath,
   formatPageListLabel,
   isSiteShellPage,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?v=49';
+} from './lib/paths.js?v=50';
 import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?v=49';
+} from './lib/urls.js?v=50';
 import {
   formatStatusDate,
   getPageStatus,
   PAGE_FILTERS,
   statusLabel,
-} from './lib/page-history.js?v=49';
-import { confirmTreeScopeFetch } from './lib/modal.js?v=49';
+} from './lib/page-history.js?v=50';
+import { confirmTreeScopeFetch } from './lib/modal.js?v=50';
 import {
   buildStatusMap,
   cancelStatusCheck,
   createAppState,
   getVisiblePages,
+  getVisibleFolders,
   isStatusLoaded,
   pruneSiteShellFromSelection,
   resetWorkspace,
   SEARCH_MIN_LEN,
   selectAllVisible,
-} from './lib/state.js?v=49';
+} from './lib/state.js?v=50';
 
-const TOOL_VERSION = '49';
+const TOOL_VERSION = '50';
 
 /** @type {number | null} */
 let progressPatchRaf = null;
@@ -159,12 +160,13 @@ function createPanel(title, extraClass = '') {
   return { panel, body };
 }
 
-function buildBreadcrumb(folderPath, onNavigate) {
+function buildBreadcrumb(folderPath, onNavigate, locked = false) {
   const nav = el('nav', 'bulk-pp-breadcrumb');
   nav.setAttribute('aria-label', 'Folder path');
   const rootBtn = el('button', 'bulk-pp-breadcrumb-segment', 'Back to root');
   rootBtn.type = 'button';
-  rootBtn.addEventListener('click', () => onNavigate(''));
+  rootBtn.disabled = locked;
+  if (!locked) rootBtn.addEventListener('click', () => onNavigate(''));
   nav.append(rootBtn);
   const segments = normalizeFolderPath(folderPath).split('/').filter(Boolean);
   segments.forEach((segment, index) => {
@@ -175,28 +177,45 @@ function buildBreadcrumb(folderPath, onNavigate) {
     } else {
       const btn = el('button', 'bulk-pp-breadcrumb-segment', segment);
       btn.type = 'button';
-      btn.addEventListener('click', () => onNavigate(path));
+      btn.disabled = locked;
+      if (!locked) btn.addEventListener('click', () => onNavigate(path));
       nav.append(btn);
     }
   });
   return nav;
 }
 
-function buildFolderRow(folder, onNavigate) {
+function buildFolderRow(folder, onNavigate, locked = false) {
   const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-folder');
+  if (locked) li.classList.add('bulk-pp-list-item-locked');
   const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-folder', '');
   icon.setAttribute('aria-hidden', 'true');
   const link = el('button', 'bulk-pp-folder-link', folder.name);
   link.type = 'button';
+  link.disabled = locked;
+  if (locked) {
+    link.title = 'Unavailable while status is loading';
+    link.setAttribute('aria-disabled', 'true');
+  } else {
+    link.title = `Open ${folder.name}`;
+    link.setAttribute('aria-label', `Open folder ${folder.name}`);
+  }
   link.addEventListener('click', (e) => {
+    if (locked) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     onNavigate(folder.folderPath);
   });
   li.append(icon, link);
-  li.addEventListener('click', (e) => {
-    if (e.target !== link) link.click();
-  });
+  if (!locked) {
+    li.addEventListener('click', (e) => {
+      if (e.target !== link) link.click();
+    });
+  }
   return li;
 }
 
@@ -213,7 +232,7 @@ function buildStatusDotPending() {
   return dot;
 }
 
-function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx) {
+function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, interactionsLocked = false) {
   const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-document');
   const cb = document.createElement('input');
   cb.type = 'checkbox';
@@ -221,6 +240,7 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx) {
   cb.value = page.helixPath;
   cb.dataset.path = page.helixPath;
   cb.checked = !isSiteShellPage(page) && state.selected.has(page.helixPath);
+  cb.disabled = interactionsLocked;
   cb.id = `page-${page.helixPath.replace(/\W/g, '_')}`;
   cb.addEventListener('change', (e) => {
     const input = /** @type {HTMLInputElement} */ (e.target);
@@ -252,20 +272,31 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx) {
   const daUrl = buildDaEditUrl(siteCtx.org, siteCtx.site, page.helixPath, page.sourcePath, siteCtx.ref);
   const daLink = document.createElement('a');
   daLink.className = 'bulk-pp-btn bulk-pp-btn-open-da';
-  daLink.href = daUrl;
-  daLink.target = '_top';
-  daLink.rel = 'noopener noreferrer';
-  daLink.textContent = 'DA';
-  daLink.title = 'Open in Document Authoring';
-  daLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      (window.top || window).location.assign(daUrl);
-    } catch {
-      window.open(daUrl, '_blank', 'noopener,noreferrer');
-    }
-  });
+  if (interactionsLocked) {
+    daLink.classList.add('bulk-pp-btn-open-da-disabled');
+    daLink.setAttribute('aria-disabled', 'true');
+    daLink.title = 'Unavailable while status is loading';
+    daLink.textContent = 'DA';
+    daLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  } else {
+    daLink.href = daUrl;
+    daLink.target = '_top';
+    daLink.rel = 'noopener noreferrer';
+    daLink.textContent = 'DA';
+    daLink.title = 'Open in Document Authoring';
+    daLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        (window.top || window).location.assign(daUrl);
+      } catch {
+        window.open(daUrl, '_blank', 'noopener,noreferrer');
+      }
+    });
+  }
   rowActions.append(daLink);
   rowActions.append(showStatus ? buildStatusDot(getPageStatus(entry)) : buildStatusDotPending());
   li.append(cb, icon, labelWrap, rowActions);
@@ -402,13 +433,17 @@ function render(root, state, opts = {}) {
   const {
     org, site, ref, folderPath, loading, error, status, statusType, jobDetail,
     activeTab, pageScope, pageFilter, statusCheckFailed, statusError,
-    statusChecking, pageSearch, contentLoading, lastOperation,
+    statusChecking, pageSearch, folderSearch, contentLoading, lastOperation,
   } = state;
 
   const { visible: visiblePages, statusMap, browseFolder } = getVisiblePages(state);
+  const visibleFolders = getVisibleFolders(state);
   const busy = loading || contentLoading || statusChecking;
   const searchDraft = String(pageSearch || '').trim();
   const searchTooShort = searchDraft.length > 0 && searchDraft.length < SEARCH_MIN_LEN;
+  const folderSearchDraft = String(folderSearch || '').trim();
+  const folderSearchTooShort = folderSearchDraft.length > 0
+    && folderSearchDraft.length < SEARCH_MIN_LEN;
 
   if (!full && statusChecking) {
     scheduleProgressPatch(root, state);
@@ -489,7 +524,7 @@ function render(root, state, opts = {}) {
 
   const pagesPane = el('div', 'bulk-pp-tab-pane');
   if (activeTab === 'pages') pagesPane.classList.add('bulk-pp-tab-pane-active');
-  pagesPane.append(buildBreadcrumb(safeFolder, (path) => state.onNavigate(path)));
+  pagesPane.append(buildBreadcrumb(safeFolder, (path) => state.onNavigate(path), statusChecking));
 
   if (contentLoading && activeTab === 'pages') {
     pagesPane.append(el('p', 'bulk-pp-list-empty', 'Fetching content…'));
@@ -540,19 +575,62 @@ function render(root, state, opts = {}) {
     if (state.folders.length > 0) {
       const folderSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-folders');
       const folderHead = el('div', 'bulk-pp-section-head');
+      const folderCountLabel = folderSearchDraft && !folderSearchTooShort
+        ? `${visibleFolders.length} of ${state.folders.length}`
+        : String(state.folders.length);
       folderHead.append(
         el('h3', 'bulk-pp-section-title', 'Folders'),
-        el('span', 'bulk-pp-section-count', String(state.folders.length)),
+        el('span', 'bulk-pp-section-count', folderCountLabel),
       );
       folderSection.append(folderHead);
+
+      const folderSearchRow = el('div', 'bulk-pp-search-row');
+      const folderSearchField = el('div', 'bulk-pp-field bulk-pp-field-search');
+      folderSearchField.append(el('label', null, 'Search folders'));
+      const folderSearchInput = document.createElement('input');
+      folderSearchInput.type = 'search';
+      folderSearchInput.id = 'bulk-pp-folder-search';
+      folderSearchInput.placeholder = `Type at least ${SEARCH_MIN_LEN} characters…`;
+      folderSearchInput.autocomplete = 'off';
+      folderSearchInput.value = String(folderSearch || '');
+      folderSearchInput.disabled = statusChecking;
+      folderSearchField.append(folderSearchInput);
+      if (folderSearchTooShort) {
+        folderSearchField.append(el(
+          'span',
+          'bulk-pp-search-hint',
+          `Enter at least ${SEARCH_MIN_LEN} characters to filter`,
+        ));
+      }
+      folderSearchRow.append(folderSearchField);
+      folderSection.append(folderSearchRow);
+
       const folderWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-folders');
       const folderList = el('ul', 'bulk-pp-list');
-      state.folders.forEach((folder) => {
-        folderList.append(buildFolderRow(folder, (path) => state.onNavigate(path)));
-      });
+      if (visibleFolders.length === 0) {
+        const folderEmptyMsg = folderSearchTooShort
+          ? `Type at least ${SEARCH_MIN_LEN} characters to search.`
+          : folderSearchDraft
+            ? 'No folders match this search.'
+            : 'No folders in this location.';
+        folderList.append(el('li', 'bulk-pp-list-empty', folderEmptyMsg));
+      } else {
+        visibleFolders.forEach((folder) => {
+          folderList.append(buildFolderRow(
+            folder,
+            (path) => state.onNavigate(path),
+            statusChecking,
+          ));
+        });
+      }
       folderWrap.append(folderList);
       folderSection.append(folderWrap);
       pagesPane.append(folderSection);
+
+      folderSearchInput.addEventListener('input', () => {
+        state.folderSearch = folderSearchInput.value;
+        render(root, state);
+      });
     }
 
     const pagesSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-pages');
@@ -629,6 +707,7 @@ function render(root, state, opts = {}) {
           state,
           isStatusLoaded(state),
           { org, site, ref },
+          statusChecking,
         ));
       });
     }
@@ -823,6 +902,7 @@ async function main() {
     cancelStatusCheck(state, false);
     state.folderPath = resolveContentFolderPath(targetPath);
     state.pageSearch = '';
+    state.folderSearch = '';
     syncUrlPath(state.ref, state.folderPath);
     await state.onFetch(true);
   };
@@ -861,6 +941,7 @@ async function main() {
     state.statusError = null;
     if (!fromFolderNav) {
       state.pageSearch = '';
+      state.folderSearch = '';
       state.selected.clear();
     }
     state.status = 'Fetching content…';

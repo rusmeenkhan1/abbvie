@@ -634,6 +634,10 @@
   background: transparent;
 }
 
+.bulk-pp-content-section-folders .bulk-pp-search-row {
+  margin: 0;
+}
+
 .bulk-pp-content-section .bulk-pp-list-wrap {
   border: none;
   border-radius: 0;
@@ -711,7 +715,17 @@
 }
 
 .bulk-pp-modal-warning {
-  border-top: 4px solid #c9940a;
+  border-top: 4px solid #b45309;
+  background: #fff8eb;
+}
+
+.bulk-pp-modal-warning .bulk-pp-modal-title {
+  color: var(--pp-navy);
+}
+
+.bulk-pp-modal-warning .bulk-pp-modal-body {
+  color: var(--pp-text);
+  font-weight: 500;
 }
 
 .bulk-pp-modal-head {
@@ -729,7 +743,7 @@
   margin: 0 0 20px;
   font-size: 0.92rem;
   line-height: 1.55;
-  color: var(--pp-text-muted);
+  color: var(--pp-text);
 }
 
 .bulk-pp-modal-actions {
@@ -837,6 +851,30 @@
 
 .bulk-pp-list-item-folder:hover {
   background: var(--pp-blue-soft);
+}
+
+.bulk-pp-list-item-locked {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.bulk-pp-list-item-locked .bulk-pp-folder-link {
+  color: var(--pp-text-muted);
+  cursor: not-allowed;
+}
+
+.bulk-pp-list-item-locked:hover {
+  background: var(--pp-surface);
+}
+
+.bulk-pp-breadcrumb-segment:disabled {
+  color: var(--pp-text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.bulk-pp-breadcrumb-segment:disabled:hover {
+  background: transparent;
 }
 
 .bulk-pp-list-item-document:hover {

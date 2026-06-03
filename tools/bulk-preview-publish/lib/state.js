@@ -1,11 +1,11 @@
 import {
   filterAndSortPages,
   filterPagesBySearch,
-} from './page-history.js?v=49';
+} from './page-history.js?v=50';
 import {
   isSiteShellPage,
   resolveContentFolderPath,
-} from './paths.js?v=49';
+} from './paths.js?v=50';
 
 /** @typedef {{ kind: 'folder', name: string, folderPath: string }} FolderEntry */
 /** @typedef {{ kind: 'document', helixPath: string, sourcePath: string, name: string }} DocumentEntry */
@@ -43,6 +43,7 @@ export function createAppState(ctx) {
     activeTab: 'pages',
     pageFilter: 'all',
     pageSearch: '',
+    folderSearch: '',
     platformStatus: {},
     statusCheckFailed: false,
     statusError: null,
@@ -79,6 +80,7 @@ export function resetWorkspace(state) {
   state.activeTab = 'pages';
   state.pageFilter = 'all';
   state.pageSearch = '';
+  state.folderSearch = '';
   state.platformStatus = {};
   state.statusCheckFailed = false;
   state.statusError = null;
@@ -162,6 +164,26 @@ export function getVisiblePages(state) {
     SEARCH_MIN_LEN,
   ));
   return { visible, statusMap, browseFolder };
+}
+
+/**
+ * @param {{ name: string, folderPath: string }[]} folders
+ * @param {string} query
+ * @param {number} [minLen]
+ */
+export function filterFoldersBySearch(folders, query, minLen = SEARCH_MIN_LEN) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q || q.length < minLen) return folders;
+  return folders.filter((f) => (
+    f.name.toLowerCase().includes(q) || f.folderPath.toLowerCase().includes(q)
+  ));
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function getVisibleFolders(state) {
+  return filterFoldersBySearch(state.folders, state.folderSearch, SEARCH_MIN_LEN);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { helixPathToDaDocumentPath } from './paths.js?v=49';
+import { helixPathToDaDocumentPath } from './paths.js?v=50';
 
 /**
  * EDS host: {ref}--{site}--{org}
