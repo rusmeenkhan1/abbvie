@@ -9,6 +9,34 @@ import {
 import { el } from './dom.js';
 
 /**
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof import('./state.js').createAppState>} state
+ */
+function syncOpenSelectedActionButtons(root, state) {
+  const count = getActiveSelectionCount(state);
+  const disabled = count === 0 || state.statusChecking || state.loading || state.contentLoading;
+  const group = root.querySelector('#bulk-pp-open-selected-group');
+  if (group instanceof HTMLElement) group.hidden = count === 0;
+
+  const countHint = count === 1 ? '1 page' : `${count} pages`;
+  const daBtn = root.querySelector('#bulk-pp-open-selected-da');
+  const previewBtn = root.querySelector('#bulk-pp-open-selected-preview');
+  const liveBtn = root.querySelector('#bulk-pp-open-selected-live');
+  if (daBtn instanceof HTMLButtonElement) {
+    daBtn.disabled = disabled;
+    daBtn.title = `Open Document Authoring for ${countHint} in new tabs`;
+  }
+  if (previewBtn instanceof HTMLButtonElement) {
+    previewBtn.disabled = disabled;
+    previewBtn.title = `Open .aem.page URLs for ${countHint} in new tabs`;
+  }
+  if (liveBtn instanceof HTMLButtonElement) {
+    liveBtn.disabled = disabled;
+    liveBtn.title = `Open .aem.live URLs for ${countHint} in new tabs`;
+  }
+}
+
+/**
  * @param {string} id
  * @param {string} label
  * @param {string} value
@@ -86,6 +114,8 @@ export function syncSelectionUI(root, state) {
   root.querySelectorAll('#bulk-pp-preview-btn, #bulk-pp-publish-btn').forEach((btn) => {
     if (btn instanceof HTMLButtonElement) btn.disabled = actionsDisabled;
   });
+
+  syncOpenSelectedActionButtons(root, state);
 }
 
 /**

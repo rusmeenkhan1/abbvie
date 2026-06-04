@@ -52,6 +52,8 @@ export function createAppState(ctx) {
     statusCancelled: false,
     statusProgressDone: 0,
     statusProgressTotal: 0,
+    /** @type {number | null} */
+    statusFetchStartedAt: null,
     /** @type {LastOperation | null} */
     lastOperation: null,
     /** @type {AbortController | null} */
@@ -91,6 +93,7 @@ export function resetWorkspace(state) {
   state.statusCancelled = false;
   state.statusProgressDone = 0;
   state.statusProgressTotal = 0;
+  state.statusFetchStartedAt = null;
   state.lastOperation = null;
   state.folders = [];
   state.pages = [];
@@ -109,6 +112,7 @@ export function cancelStatusCheck(state, setMessage = true) {
   }
   if (!state.statusChecking) return;
   state.statusChecking = false;
+  state.statusFetchStartedAt = null;
   if (setMessage) {
     const checked = state.statusProgressDone;
     const total = state.statusProgressTotal;
@@ -193,6 +197,16 @@ export function getActiveSelectionCount(state) {
     if (pagePaths.has(path)) count += 1;
   });
   return count;
+}
+
+/**
+ * Helix paths currently selected and present in the loaded page list.
+ * @param {ReturnType<typeof createAppState>} state
+ * @returns {string[]}
+ */
+export function getSelectedHelixPaths(state) {
+  const pagePaths = new Set(state.pages.map((p) => p.helixPath));
+  return [...state.selected].filter((path) => pagePaths.has(path));
 }
 
 /**

@@ -450,6 +450,27 @@
   gap: 8px;
 }
 
+.bulk-pp-open-selected-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-left: 8px;
+  margin-left: 4px;
+  border-left: 1px solid var(--pp-border);
+}
+
+.bulk-pp-btn-open-selected-da {
+  color: var(--pp-navy);
+  border-color: var(--pp-border-strong);
+  background: #fff;
+}
+
+.bulk-pp-btn-open-selected-da:hover:not(:disabled) {
+  background: var(--pp-blue-soft);
+  border-color: var(--pp-blue);
+}
+
 .bulk-pp-selection-pill {
   display: inline-flex;
   align-items: center;
@@ -1633,6 +1654,13 @@
 .bulk-pp-progress-label {
   margin: 8px 0 0;
   font-size: 0.82rem;
+  color: var(--pp-info-text);
+}
+
+.bulk-pp-progress-eta {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--pp-info-text);
 }
 

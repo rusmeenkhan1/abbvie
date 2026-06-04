@@ -34,6 +34,10 @@ import {
 } from './lib/page-history.js';
 import { confirmOpenUrlsInNewTabs, confirmTreeScopeFetch } from './lib/modal.js';
 import {
+  formatRuntimeStatusEta,
+  formatStatusFetchEta,
+} from './lib/status-estimate.js';
+import {
   bindSearchInput,
   buildSearchField,
   patchFolderSearchResults,
@@ -46,6 +50,7 @@ import {
   createAppState,
   formatSelectionPillText,
   getActiveSelectionCount,
+  getSelectedHelixPaths,
   getVisiblePages,
   getVisibleFolders,
   isStatusLoaded,
@@ -356,6 +361,90 @@ async function openDeployedUrls(state, env) {
   await openUrlsInNewTabs(paths.map((helixPath) => build(state.org, state.site, state.ref, helixPath)));
 }
 
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {'preview'|'live'} env
+ */
+async function openSelectedUrls(state, env) {
+  const paths = getSelectedHelixPaths(state);
+  if (paths.length === 0) return;
+  const build = env === 'live' ? buildLiveUrl : buildPreviewUrl;
+  await openUrlsInNewTabs(paths.map((helixPath) => build(state.org, state.site, state.ref, helixPath)));
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+async function openSelectedDa(state) {
+  const pageByPath = new Map(state.pages.map((p) => [p.helixPath, p]));
+  const urls = getSelectedHelixPaths(state)
+    .map((path) => pageByPath.get(path))
+    .filter(Boolean)
+    .map((page) => buildDaEditUrl(
+      state.org,
+      state.site,
+      page.helixPath,
+      page.sourcePath,
+      state.ref,
+    ));
+  await openUrlsInNewTabs(urls);
+}
+
+/**
+ * @param {HTMLElement} container
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function appendOpenSelectedActionButtons(container, state) {
+  const count = getActiveSelectionCount(state);
+  const group = el('div', 'bulk-pp-open-selected-group');
+  group.id = 'bulk-pp-open-selected-group';
+  if (count === 0) group.hidden = true;
+
+  const countHint = count === 1 ? '1 page' : `${count} pages`;
+
+  const daBtn = el(
+    'button',
+    'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-selected-da',
+    'Open DA for all selected',
+  );
+  daBtn.type = 'button';
+  daBtn.id = 'bulk-pp-open-selected-da';
+  daBtn.title = `Open Document Authoring for ${countHint} in new tabs`;
+  daBtn.disabled = count === 0 || state.statusChecking;
+  daBtn.addEventListener('click', () => {
+    void openSelectedDa(state);
+  });
+
+  const previewBtn = el(
+    'button',
+    'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls bulk-pp-btn-open-selected-preview',
+    'Open preview for all selected',
+  );
+  previewBtn.type = 'button';
+  previewBtn.id = 'bulk-pp-open-selected-preview';
+  previewBtn.title = `Open .aem.page URLs for ${countHint} in new tabs`;
+  previewBtn.disabled = count === 0 || state.statusChecking;
+  previewBtn.addEventListener('click', () => {
+    void openSelectedUrls(state, 'preview');
+  });
+
+  const liveBtn = el(
+    'button',
+    'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls bulk-pp-btn-open-urls-live bulk-pp-btn-open-selected-live',
+    'Open live for all selected',
+  );
+  liveBtn.type = 'button';
+  liveBtn.id = 'bulk-pp-open-selected-live';
+  liveBtn.title = `Open .aem.live URLs for ${countHint} in new tabs`;
+  liveBtn.disabled = count === 0 || state.statusChecking;
+  liveBtn.addEventListener('click', () => {
+    void openSelectedUrls(state, 'live');
+  });
+
+  group.append(daBtn, previewBtn, liveBtn);
+  container.append(group);
+}
+
 function buildStatusLegend() {
   const legend = el('div', 'bulk-pp-status-legend');
   legend.setAttribute('aria-label', 'Status key');
@@ -403,6 +492,12 @@ function buildStatusProgressBar(state, showCancel) {
   ));
   const label = wrap.querySelector('.bulk-pp-progress-label');
   if (label) label.id = 'bulk-pp-progress-label';
+  const etaText = formatStatusFetchEta(state.statusProgressTotal);
+  if (etaText) {
+    const eta = el('p', 'bulk-pp-progress-eta', `Estimated time: ${etaText}`);
+    eta.id = 'bulk-pp-progress-eta';
+    wrap.append(eta);
+  }
   wrap.setAttribute('role', 'progressbar');
   wrap.setAttribute('aria-valuemin', '0');
   wrap.setAttribute('aria-valuemax', String(state.statusProgressTotal));
@@ -418,6 +513,7 @@ function patchStatusProgressUI(root, state) {
   root.classList.toggle('bulk-pp-status-fetching', state.statusChecking);
   const fill = root.querySelector('#bulk-pp-progress-fill');
   const label = root.querySelector('#bulk-pp-progress-label');
+  const etaEl = root.querySelector('#bulk-pp-progress-eta');
   const note = root.querySelector('#bulk-pp-status-note');
   const active = root.querySelector('#bulk-pp-status-active');
   const pct = state.statusProgressTotal > 0
@@ -426,6 +522,17 @@ function patchStatusProgressUI(root, state) {
   if (fill instanceof HTMLElement) fill.style.width = `${pct}%`;
   if (label) {
     label.textContent = `${state.statusProgressDone} of ${state.statusProgressTotal} pages checked (${pct}%)`;
+  }
+  if (etaEl) {
+    const runtime = formatRuntimeStatusEta(
+      state.statusFetchStartedAt,
+      state.statusProgressDone,
+      state.statusProgressTotal,
+    );
+    const fallback = formatStatusFetchEta(state.statusProgressTotal);
+    etaEl.textContent = runtime
+      ? runtime
+      : (fallback ? `Estimated time: ${fallback}` : '');
   }
   if (active) {
     active.setAttribute('aria-valuenow', String(state.statusProgressDone));
@@ -691,10 +798,13 @@ function render(root, state) {
       pagesSection.append(buildDeploymentStatsBar(state.platformStatus, state.pages));
     } else if (state.pages.length > 0) {
       const statusRow = el('div', 'bulk-pp-status-row');
+      const etaHint = formatStatusFetchEta(state.pages.length);
       statusRow.append(el(
         'p',
         'bulk-pp-status-note bulk-pp-status-note-muted',
-        'Preview/publish status not loaded. Fetch Deployment status to see dots and filters.',
+        etaHint
+          ? `Preview/publish status not loaded. Fetch usually takes ${etaHint} for ${state.pages.length} pages.`
+          : 'Preview/publish status not loaded. Fetch Deployment status to see dots and filters.',
       ));
       const checkStatusBtn = el(
         'button',
@@ -766,6 +876,7 @@ function render(root, state) {
     selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
     selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
     toolbarActions.append(selectAllBtn, selectNoneBtn);
+    appendOpenSelectedActionButtons(toolbarActions, state);
 
     if (statusFetched && !statusChecking) {
       const previewCount = collectDeployedHelixPaths(state, 'preview').length;
@@ -933,6 +1044,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
   state.statusChecking = pathsToCheck.length > 0;
   state.statusProgressDone = 0;
   state.statusProgressTotal = pathsToCheck.length;
+  state.statusFetchStartedAt = pathsToCheck.length > 0 ? Date.now() : null;
   state.statusAbort = new AbortController();
 
   if (pathsToCheck.length === 0) {
@@ -967,6 +1079,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusChecking = false;
     state.statusFetched = true;
     state.statusAbort = null;
+    state.statusFetchStartedAt = null;
     state.statusProgressDone = pathsToCheck.length;
     state.statusProgressTotal = pathsToCheck.length;
     state.status = `Status check complete · ${formatDeploymentSummary(platformStatus, state.pages)}`;
@@ -975,12 +1088,14 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
   }).catch((statusErr) => {
     if (statusErr instanceof DOMException && statusErr.name === 'AbortError') {
       state.statusAbort = null;
+      state.statusFetchStartedAt = null;
       render(/** @type {HTMLElement} */ (state.root), state);
       return;
     }
     state.statusChecking = false;
     state.statusFetched = false;
     state.statusAbort = null;
+    state.statusFetchStartedAt = null;
     state.statusCheckFailed = true;
     const raw = statusErr instanceof Error ? statusErr.message : 'Status check failed';
     state.statusError = formatAdminApiError({ message: raw }, 0) || raw;
