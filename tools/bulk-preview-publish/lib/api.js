@@ -436,7 +436,7 @@ async function fetchJobDetails(daFetch, jobUrl) {
   return null;
 }
 
-export async function pollJob(daFetch, jobUrl, onProgress) {
+export async function pollJob(daFetch, jobUrl, onProgress, signal) {
   const terminal = new Set(['stopped', 'succeeded', 'failed', 'cancelled']);
   let last = null;
   let notFoundCount = 0;
@@ -444,6 +444,7 @@ export async function pollJob(daFetch, jobUrl, onProgress) {
 
   /* eslint-disable no-await-in-loop -- job polling is intentionally sequential */
   for (let i = 0; i < 60; i += 1) {
+    if (signal?.aborted) throw new DOMException('Job cancelled', 'AbortError');
     const resp = await daFetch(resolvedJobUrl, { method: 'GET' });
 
     if (resp.status === 404 || resp.status === 410) {
@@ -452,6 +453,7 @@ export async function pollJob(daFetch, jobUrl, onProgress) {
       if (details) return details;
       if (notFoundCount >= 2) return last || { state: 'stopped' };
       await sleep(1000);
+      if (signal?.aborted) throw new DOMException('Job cancelled', 'AbortError');
       continue;
     }
 
@@ -464,6 +466,7 @@ export async function pollJob(daFetch, jobUrl, onProgress) {
       if (state && terminal.has(String(state))) return last;
     }
     await sleep(2000);
+    if (signal?.aborted) throw new DOMException('Job cancelled', 'AbortError');
   }
   /* eslint-enable no-await-in-loop */
 

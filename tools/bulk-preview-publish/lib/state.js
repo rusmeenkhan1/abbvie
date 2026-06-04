@@ -58,6 +58,15 @@ export function createAppState(ctx) {
     lastOperation: null,
     /** @type {AbortController | null} */
     statusAbort: null,
+    /** @type {AbortController | null} */
+    /** @type {AbortController | null} */
+    jobAbort: null,
+    /** @type {number | null} */
+    jobStartedAt: null,
+    jobProgressProcessed: 0,
+    jobProgressTotal: 0,
+    /** @type {'preview'|'live'|null} */
+    jobTopic: null,
     /** @type {FolderEntry[]} */
     folders: [],
     /** @type {DocumentEntry[]} */
@@ -94,11 +103,33 @@ export function resetWorkspace(state) {
   state.statusProgressDone = 0;
   state.statusProgressTotal = 0;
   state.statusFetchStartedAt = null;
+  state.jobStartedAt = null;
+  state.jobProgressProcessed = 0;
+  state.jobProgressTotal = 0;
+  state.jobTopic = null;
   state.lastOperation = null;
   state.folders = [];
   state.pages = [];
   state.selected.clear();
   cancelStatusCheck(state, false);
+  cancelBulkJob(state, false);
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {boolean} [setMessage]
+ */
+export function cancelBulkJob(state, setMessage = true) {
+  if (state.jobAbort) {
+    state.jobAbort.abort();
+  }
+  if (!state.loading) return;
+  state.loading = false;
+  state.jobStartedAt = null;
+  if (setMessage) {
+    state.status = 'Bulk preview/publish stopped. The server job may still be running.';
+    state.statusType = 'info';
+  }
 }
 
 /**

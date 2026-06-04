@@ -1075,14 +1075,9 @@
   color: var(--pp-error-text);
 }
 
-.bulk-pp-btn-cancel-status {
+.bulk-pp-status-modal-head .bulk-pp-status-modal-cancel {
   flex-shrink: 0;
-  color: var(--pp-error-text);
-  border-color: var(--pp-error-border);
-}
-
-.bulk-pp-btn-cancel-status:hover:not(:disabled) {
-  background: var(--pp-error-bg);
+  min-width: 5.5rem;
 }
 
 .bulk-pp-url-operation-note {

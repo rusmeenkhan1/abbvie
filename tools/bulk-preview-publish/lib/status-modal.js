@@ -54,7 +54,7 @@ export function openStatusFetchModal(appRoot, state, onCancel) {
 
   const head = el('div', 'bulk-pp-status-modal-head');
   head.append(el('h2', 'bulk-pp-status-modal-title', 'Fetching deployment status'));
-  const cancelBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-cancel-status', 'Cancel');
+  const cancelBtn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-cancel bulk-pp-status-modal-cancel', 'Cancel');
   cancelBtn.type = 'button';
   cancelBtn.id = 'bulk-pp-status-modal-cancel';
   cancelBtn.hidden = false;

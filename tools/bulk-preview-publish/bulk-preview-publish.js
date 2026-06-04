@@ -34,6 +34,15 @@ import {
 import { confirmOpenUrlsInNewTabs, confirmPublishToLive, confirmTreeScopeFetch } from './lib/modal.js';
 import { copyTextToClipboard, detectPopupBlock, runButtonAction } from './lib/ui-utils.js';
 import {
+  closeJobModal,
+  isJobModalOpen,
+  openJobModal,
+  showJobCancelledModal,
+  showJobCompleteModal,
+  showJobErrorModal,
+  updateJobModal,
+} from './lib/job-modal.js';
+import {
   closeStatusFetchModal,
   isStatusFetchModalOpen,
   openStatusFetchModal,
@@ -51,6 +60,7 @@ import {
   syncSelectionUI,
 } from './lib/search-ui.js';
 import {
+  cancelBulkJob,
   cancelStatusCheck,
   createAppState,
   formatSelectionPillText,
@@ -503,6 +513,18 @@ function finishStatusFetchModal(state) {
 }
 
 /**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function finishJobModal(state) {
+  const root = /** @type {HTMLElement | null} */ (state.root);
+  closeJobModal(root);
+  state.jobTopic = null;
+  state.jobAbort = null;
+  state.jobStartedAt = null;
+  if (root) render(root, state);
+}
+
+/**
  * @param {HTMLElement} container
  * @param {string} title
  * @param {string} host
@@ -591,7 +613,7 @@ function render(root, state) {
     && folderSearchDraft.length < SEARCH_MIN_LEN;
 
   root.replaceChildren();
-  root.classList.toggle('bulk-pp-modal-open', isStatusFetchModalOpen());
+  root.classList.toggle('bulk-pp-modal-open', isStatusFetchModalOpen() || isJobModalOpen());
 
   const header = el('header', 'bulk-pp-header');
   const headerInner = el('div', 'bulk-pp-header-inner');
@@ -968,6 +990,7 @@ function render(root, state) {
     const runDisabled = loading
       || contentLoading
       || statusChecking
+      || isJobModalOpen()
       || getActiveSelectionCount(state) === 0;
     previewBtn.disabled = runDisabled;
     publishBtn.disabled = runDisabled;
@@ -1158,6 +1181,19 @@ async function main() {
     render(app, state);
   };
 
+  state.onCancelJob = () => {
+    cancelBulkJob(state, false);
+    showJobCancelledModal({
+      message: 'You stopped watching this job. Preview or publish may still complete on the server.',
+      topic: /** @type {'preview'|'live'} */ (state.jobTopic || 'preview'),
+      onClose: () => {
+        state.status = 'Bulk operation cancelled.';
+        state.statusType = 'info';
+        finishJobModal(state);
+      },
+    });
+  };
+
   state.onCheckStatus = () => {
     if (state.statusChecking || state.contentLoading || state.pages.length === 0) return;
     state.fetchStatus = true;
@@ -1343,16 +1379,24 @@ async function main() {
       if (!ok) return;
     }
 
+    const appRoot = /** @type {HTMLElement} */ (app);
     state.loading = true;
+    state.jobTopic = topic;
+    state.jobDetail = null;
+    state.jobAbort = new AbortController();
+    state.jobStartedAt = Date.now();
+    state.jobProgressProcessed = 0;
+    state.jobProgressTotal = paths.length;
     state.status = topic === 'live'
       ? `Starting bulk publish for ${paths.length} page(s)…`
       : `Starting bulk preview for ${paths.length} page(s)…`;
     state.statusType = 'info';
-    state.jobDetail = null;
+    openJobModal(appRoot, topic, paths.length, () => state.onCancelJob());
     render(app, state);
 
     const host = buildSiteHost(state.org, state.site, state.ref);
     const env = topic === 'live' ? 'live' : 'preview';
+    const action = topic === 'live' ? 'Bulk publish' : 'Bulk preview';
 
     try {
       const bulkResp = await startBulkJob(
@@ -1363,6 +1407,7 @@ async function main() {
         topic,
         paths,
       );
+      if (state.jobAbort?.signal.aborted) return;
 
       const jobUrl = getJobPollUrl(bulkResp, state.org, state.site, state.ref, topic);
       if (!jobUrl) {
@@ -1379,27 +1424,55 @@ async function main() {
           ? `Bulk publish scheduled (${paths.length} paths).`
           : `Bulk preview scheduled (${paths.length} paths).`;
         state.statusType = 'success';
-        state.activeTab = 'urls';
+        updateJobModal({
+          jobStartedAt: state.jobStartedAt,
+          processed: paths.length,
+          total: paths.length,
+          failed: 0,
+          stateLabel: 'complete',
+        });
+        showJobCompleteModal({
+          summary: state.status,
+          topic,
+          urlCount: urls.length,
+          onViewUrls: () => {
+            state.activeTab = 'urls';
+            finishJobModal(state);
+          },
+          onClose: () => finishJobModal(state),
+        });
         return;
       }
 
-      state.status = 'Job running…';
       const finalJob = await pollJob(daFetch, jobUrl, (job) => {
+        if (state.jobAbort?.signal.aborted) return;
         const progress = job.progress || job.job?.progress;
         if (progress && typeof progress === 'object') {
           const { total, processed, failed } = /** @type {{ total?: number, processed?: number, failed?: number }} */ (progress);
-          state.status = `Job: ${job.state || 'running'} — ${processed ?? 0}/${total ?? '?'} processed (${failed ?? 0} failed)`;
-          render(app, state);
+          const proc = Number(processed ?? 0);
+          const tot = Number(total ?? paths.length);
+          state.jobProgressProcessed = proc;
+          state.jobProgressTotal = tot || paths.length;
+          updateJobModal({
+            jobStartedAt: state.jobStartedAt,
+            processed: proc,
+            total: tot || paths.length,
+            failed: Number(failed ?? 0),
+            stateLabel: String(job.state || job.job?.state || 'running'),
+          });
         }
-      });
+      }, state.jobAbort?.signal);
+
+      if (state.jobAbort?.signal.aborted) return;
 
       const outcome = resolveJobOutcome(finalJob);
-      const action = topic === 'live' ? 'Bulk publish' : 'Bulk preview';
       state.status = `${action} ${outcome.message}`;
       state.statusType = outcome.statusType;
 
+      let urlCount = 0;
       if (outcome.statusType === 'success') {
         const urls = buildUrlsForPaths(paths, state.org, state.site, state.ref, env);
+        urlCount = urls.length;
         state.lastOperation = {
           topic,
           paths,
@@ -1408,7 +1481,6 @@ async function main() {
           title: topic === 'live' ? 'Published (.aem.live)' : 'Preview (.aem.page)',
           completedAt: Date.now(),
         };
-        state.activeTab = 'urls';
         try {
           const refreshed = await fetchPlatformStatusForPaths(
             daFetch,
@@ -1427,14 +1499,41 @@ async function main() {
         || new URLSearchParams(window.location.search).has('debug')
         ? JSON.stringify(finalJob, null, 2)
         : null;
+
+      if (outcome.statusType === 'error') {
+        showJobErrorModal({
+          message: state.status,
+          topic,
+          onClose: () => finishJobModal(state),
+        });
+      } else {
+        showJobCompleteModal({
+          summary: state.status,
+          topic,
+          urlCount,
+          onViewUrls: () => {
+            state.activeTab = 'urls';
+            finishJobModal(state);
+          },
+          onClose: () => finishJobModal(state),
+        });
+      }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       const raw = err.message || 'Operation failed.';
-      state.status = formatAdminApiError(err.data || { message: raw }, err.status) || raw;
+      const msg = formatAdminApiError(err.data || { message: raw }, err.status) || raw;
+      state.status = msg;
       state.statusType = 'error';
       if (err.data) state.jobDetail = JSON.stringify(err.data, null, 2);
+      showJobErrorModal({
+        message: msg,
+        topic,
+        onClose: () => finishJobModal(state),
+      });
     } finally {
       state.loading = false;
-      render(app, state);
+      state.jobAbort = null;
+      state.jobStartedAt = null;
     }
   };
 
