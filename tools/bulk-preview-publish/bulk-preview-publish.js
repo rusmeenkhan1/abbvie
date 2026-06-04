@@ -19,6 +19,8 @@ import {
 } from './lib/paths.js';
 import {
   buildDaEditUrl,
+  buildLiveUrl,
+  buildPreviewUrl,
   buildSiteHost,
   buildUrlsForPaths,
 } from './lib/urls.js';
@@ -262,6 +264,34 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
   return li;
 }
 
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {'preview'|'live'} env
+ * @returns {string[]}
+ */
+function collectDeployedHelixPaths(state, env) {
+  return state.pages
+    .map((p) => p.helixPath)
+    .filter((helixPath) => {
+      const entry = state.platformStatus[helixPath];
+      if (env === 'live') return Boolean(entry?.publishedAt);
+      return Boolean(entry?.previewedAt);
+    });
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {'preview'|'live'} env
+ */
+function openDeployedUrls(state, env) {
+  const paths = collectDeployedHelixPaths(state, env);
+  if (paths.length === 0) return;
+  const build = env === 'live' ? buildLiveUrl : buildPreviewUrl;
+  paths.forEach((helixPath) => {
+    window.open(build(state.org, state.site, state.ref, helixPath), '_blank', 'noopener,noreferrer');
+  });
+}
+
 function buildStatusLegend() {
   const legend = el('div', 'bulk-pp-status-legend');
   legend.setAttribute('aria-label', 'Status key');
@@ -283,7 +313,7 @@ function buildStatusProgressBar(state, showCancel) {
   const wrap = el('div', 'bulk-pp-status-active');
   wrap.id = 'bulk-pp-status-active';
   const head = el('div', 'bulk-pp-status-active-head');
-  head.append(el('strong', null, 'Checking preview & publish status'));
+  head.append(el('strong', null, 'Fetching deployment status'));
   if (showCancel) {
     const cancelBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-cancel-status', 'Cancel');
     cancelBtn.type = 'button';
@@ -462,7 +492,7 @@ function render(root, state) {
     el(
       'span',
       'bulk-pp-status-fetch-hint',
-      'Leave off to browse folders quickly. Use Check status in the Pages section when you need deployment dots.',
+      'Select checkbox to fetch Deployment status of pages',
     ),
   );
   statusOptLabel.append(statusOptCb, statusCopy);
@@ -486,7 +516,6 @@ function render(root, state) {
 
   const pagesPane = el('div', 'bulk-pp-tab-pane');
   if (activeTab === 'pages') pagesPane.classList.add('bulk-pp-tab-pane-active');
-  pagesPane.append(buildBreadcrumb(safeFolder, (path) => state.onNavigate(path), statusChecking));
 
   if (contentLoading && activeTab === 'pages') {
     pagesPane.append(el('p', 'bulk-pp-list-empty', 'Fetching content…'));
@@ -496,10 +525,14 @@ function render(root, state) {
     pagesPane.append(el(
       'p',
       'bulk-pp-list-empty',
-      'Choose a folder scope and click Fetch to load pages.',
+      'No folders or pages in this location.',
     ));
   } else {
-    if (state.folders.length > 0) {
+    const contentGrid = el('div', 'bulk-pp-content-grid');
+    const inSubfolder = Boolean(normalizeFolderPath(safeFolder));
+    const showFolderSection = state.folders.length > 0 || inSubfolder;
+
+    if (showFolderSection) {
       const folderSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-folders');
       const folderHead = el('div', 'bulk-pp-section-head');
       const folderCountLabel = folderSearchDraft && !folderSearchTooShort
@@ -512,6 +545,14 @@ function render(root, state) {
         folderCountEl,
       );
       folderSection.append(folderHead);
+
+      if (inSubfolder) {
+        folderSection.append(buildBreadcrumb(
+          safeFolder,
+          (path) => state.onNavigate(path),
+          statusChecking,
+        ));
+      }
 
       const { wrap: folderSearchField, input: folderSearchInput } = buildSearchField(
         'bulk-pp-folder-search',
@@ -545,7 +586,7 @@ function render(root, state) {
       }
       folderWrap.append(folderList);
       folderSection.append(folderWrap);
-      pagesPane.append(folderSection);
+      contentGrid.append(folderSection);
 
       bindSearchInput(folderSearchInput, state, 'folder', () => {
         patchFolderSearchResults(root, state, buildFolderRow);
@@ -586,9 +627,13 @@ function render(root, state) {
       statusRow.append(el(
         'p',
         'bulk-pp-status-note bulk-pp-status-note-muted',
-        'Preview/publish status not loaded.',
+        'Preview/publish status not loaded. Fetch Deployment status to see dots and filters.',
       ));
-      const checkStatusBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-check-status', 'Check status');
+      const checkStatusBtn = el(
+        'button',
+        'bulk-pp-btn bulk-pp-btn-fetch-deployment',
+        'Fetch Deployment status',
+      );
       checkStatusBtn.type = 'button';
       checkStatusBtn.id = 'bulk-pp-check-status';
       checkStatusBtn.disabled = contentLoading || statusChecking;
@@ -599,7 +644,7 @@ function render(root, state) {
 
     const filterBar = el('div', 'bulk-pp-pages-filter-bar');
     const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
-    filterField.append(el('label', null, 'Show pages'));
+    filterField.append(el('label', null, 'Filter pages'));
     const filterSelect = document.createElement('select');
     filterSelect.id = 'bulk-pp-page-filter';
     const filtersLocked = statusChecking || !statusFetched;
@@ -616,19 +661,17 @@ function render(root, state) {
       filterSelect.append(opt);
     });
     filterField.append(filterSelect);
-    filterBar.append(filterField);
+    const filterMain = el('div', 'bulk-pp-pages-filter-main');
+    filterMain.append(filterField, buildStatusLegend());
+    filterBar.append(filterMain);
     filterBar.append(el(
       'p',
       'bulk-pp-pages-filter-note',
       filtersLocked
-        ? 'Deployment filters unlock after you load status. Resets to All when you change folder.'
+        ? 'Fetch Deployment status to unlock Filtering options'
         : 'Applies to this folder only · resets when you navigate to another folder',
     ));
     pagesSection.append(filterBar);
-
-    const pagesMeta = el('div', 'bulk-pp-pages-meta');
-    pagesMeta.append(buildStatusLegend());
-    pagesSection.append(pagesMeta);
 
     const { wrap: searchField, input: searchInput } = buildSearchField(
       'bulk-pp-page-search',
@@ -654,6 +697,33 @@ function render(root, state) {
     selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
     selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
     toolbarActions.append(selectAllBtn, selectNoneBtn);
+
+    if (statusFetched && !statusChecking) {
+      const previewCount = collectDeployedHelixPaths(state, 'preview').length;
+      const liveCount = collectDeployedHelixPaths(state, 'live').length;
+      if (previewCount > 0) {
+        const openPreviewBtn = el(
+          'button',
+          'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls',
+          `Open ${previewCount} preview URL${previewCount === 1 ? '' : 's'}`,
+        );
+        openPreviewBtn.type = 'button';
+        openPreviewBtn.title = 'Open .aem.page URLs for previewed pages in new tabs';
+        openPreviewBtn.addEventListener('click', () => openDeployedUrls(state, 'preview'));
+        toolbarActions.append(openPreviewBtn);
+      }
+      if (liveCount > 0) {
+        const openLiveBtn = el(
+          'button',
+          'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls bulk-pp-btn-open-urls-live',
+          `Open ${liveCount} live URL${liveCount === 1 ? '' : 's'}`,
+        );
+        openLiveBtn.type = 'button';
+        openLiveBtn.title = 'Open .aem.live URLs for published pages in new tabs';
+        openLiveBtn.addEventListener('click', () => openDeployedUrls(state, 'live'));
+        toolbarActions.append(openLiveBtn);
+      }
+    }
     const visibleCount = visiblePages.length;
     const totalCount = state.pages.length;
     const pillText = visibleCount === totalCount
@@ -691,7 +761,8 @@ function render(root, state) {
     }
     pageWrap.append(pageList);
     pagesSection.append(pageWrap);
-    pagesPane.append(pagesSection);
+    contentGrid.append(pagesSection);
+    pagesPane.append(contentGrid);
 
     filterSelect.addEventListener('change', () => {
       state.pageFilter = filterSelect.value;
@@ -857,9 +928,11 @@ function finishContentLoadWithoutStatus(state, location, docCount, folderCount) 
   if (folderCount === 0 && docCount === 0) {
     state.status = `No folders or pages in ${location}.`;
   } else if (state.pageScope === 'tree') {
-    state.status = `Loaded ${docCount} page(s) under ${location}. Use Check status when you need preview/publish dots.`;
+    state.status = `Loaded ${docCount} page(s) under ${location}. `
+      + 'Use Fetch Deployment status for preview/publish dots.';
   } else {
-    state.status = `Loaded ${docCount} page(s) and ${folderCount} folder(s) in ${location}. Use Check status when you need preview/publish dots.`;
+    state.status = `Loaded ${docCount} page(s) and ${folderCount} folder(s) in ${location}. `
+      + 'Use Fetch Deployment status for preview/publish dots.';
   }
   state.statusType = 'info';
   render(/** @type {HTMLElement} */ (state.root), state);
@@ -877,7 +950,12 @@ async function main() {
   const state = createAppState(ctx);
   state.root = app;
   resetWorkspace(state);
-  syncUrlPath(state.ref, '');
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlRef = urlParams.get('ref');
+  if (urlRef) state.ref = urlRef;
+  const urlPath = urlParams.get('path');
+  if (urlPath) state.folderPath = resolveContentFolderPath(normalizeFolderPath(urlPath));
+  syncUrlPath(state.ref, state.folderPath);
 
   state.onTab = (tab) => {
     state.activeTab = tab;
@@ -1195,7 +1273,11 @@ async function main() {
     return;
   }
 
+  state.contentLoading = true;
+  state.status = 'Fetching content…';
+  state.statusType = 'info';
   render(app, state);
+  await state.onFetch(false);
 }
 
 function showBootError(err) {
