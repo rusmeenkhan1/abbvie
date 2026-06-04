@@ -448,27 +448,26 @@ function render(root, state) {
   row.append(fetchBtn);
   browseBody.append(row);
 
-  const optionsRow = el('div', 'bulk-pp-row bulk-pp-row-options');
-  const statusOpt = el('div', 'bulk-pp-field bulk-pp-field-option');
+  const statusCard = el('div', 'bulk-pp-status-fetch-option');
   const statusOptLabel = document.createElement('label');
-  statusOptLabel.className = 'bulk-pp-option-label';
+  statusOptLabel.className = 'bulk-pp-status-fetch-label';
   const statusOptCb = document.createElement('input');
   statusOptCb.type = 'checkbox';
   statusOptCb.id = 'bulk-pp-fetch-status';
   statusOptCb.checked = Boolean(fetchStatus);
   statusOptCb.disabled = busy;
-  statusOptLabel.append(
-    statusOptCb,
-    document.createTextNode('Load preview & publish status on Fetch'),
+  const statusCopy = el('span', 'bulk-pp-status-fetch-copy');
+  statusCopy.append(
+    el('span', 'bulk-pp-status-fetch-title', 'Load preview & publish status on Fetch'),
+    el(
+      'span',
+      'bulk-pp-status-fetch-hint',
+      'Leave off to browse folders quickly. Use Check status in the Pages section when you need deployment dots.',
+    ),
   );
-  statusOpt.append(statusOptLabel);
-  statusOpt.append(el(
-    'span',
-    'bulk-pp-option-hint',
-    'Off by default — browse folders quickly. Use Check status on the Pages section when you need AEM dots.',
-  ));
-  optionsRow.append(statusOpt);
-  browseBody.append(optionsRow);
+  statusOptLabel.append(statusOptCb, statusCopy);
+  statusCard.append(statusOptLabel);
+  browseBody.append(statusCard);
   root.append(browse);
 
   const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content');
@@ -500,23 +499,6 @@ function render(root, state) {
       'Choose a folder scope and click Fetch to load pages.',
     ));
   } else {
-    const filterRow = el('div', 'bulk-pp-filter-row');
-    const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
-    filterField.append(el('label', null, 'Filter'));
-    const filterSelect = document.createElement('select');
-    filterSelect.id = 'bulk-pp-page-filter';
-    filterSelect.disabled = statusChecking || (state.pages.length > 0 && !statusFetched);
-    PAGE_FILTERS.forEach(([value, label]) => {
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = label;
-      if (value === (pageFilter || 'all')) opt.selected = true;
-      filterSelect.append(opt);
-    });
-    filterField.append(filterSelect);
-    filterRow.append(filterField);
-    pagesPane.append(filterRow);
-
     if (state.folders.length > 0) {
       const folderSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-folders');
       const folderHead = el('div', 'bulk-pp-section-head');
@@ -570,21 +552,34 @@ function render(root, state) {
       });
     }
 
+    const pagesSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-pages');
+    const pagesHead = el('div', 'bulk-pp-section-head');
+    const pageCountLabel = searchDraft && !searchTooShort
+      ? `${visiblePages.length} of ${state.pages.length}`
+      : String(state.pages.length);
+    const pageCountEl = el('span', 'bulk-pp-section-count', pageCountLabel);
+    pageCountEl.id = 'bulk-pp-page-count';
+    pagesHead.append(
+      el('h3', 'bulk-pp-section-title', 'Pages'),
+      pageCountEl,
+    );
+    pagesSection.append(pagesHead);
+
     if (statusChecking) {
-      pagesPane.append(buildStatusProgressBar(state, true));
+      pagesSection.append(buildStatusProgressBar(state, true));
     } else if (statusCheckFailed) {
-      pagesPane.append(el(
+      pagesSection.append(el(
         'p',
         'bulk-pp-status-note bulk-pp-status-note-error',
         statusError || 'Could not load deployment status from AEM.',
       ));
     } else if (state.pages.length > 0 && statusFetched) {
-      pagesPane.append(el(
+      pagesSection.append(el(
         'p',
         'bulk-pp-status-note',
         `Deployment status from AEM · ${formatDeploymentSummary(state.platformStatus, state.pages)}`,
       ));
-      const note = pagesPane.querySelector('.bulk-pp-status-note:last-of-type');
+      const note = pagesSection.querySelector('.bulk-pp-status-note:last-of-type');
       if (note) note.id = 'bulk-pp-status-note';
     } else if (state.pages.length > 0) {
       const statusRow = el('div', 'bulk-pp-status-row');
@@ -599,21 +594,37 @@ function render(root, state) {
       checkStatusBtn.disabled = contentLoading || statusChecking;
       checkStatusBtn.addEventListener('click', () => state.onCheckStatus());
       statusRow.append(checkStatusBtn);
-      pagesPane.append(statusRow);
+      pagesSection.append(statusRow);
     }
 
-    const pagesSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-pages');
-    const pagesHead = el('div', 'bulk-pp-section-head');
-    const pageCountLabel = searchDraft && !searchTooShort
-      ? `${visiblePages.length} of ${state.pages.length}`
-      : String(state.pages.length);
-    const pageCountEl = el('span', 'bulk-pp-section-count', pageCountLabel);
-    pageCountEl.id = 'bulk-pp-page-count';
-    pagesHead.append(
-      el('h3', 'bulk-pp-section-title', 'Pages'),
-      pageCountEl,
-    );
-    pagesSection.append(pagesHead);
+    const filterBar = el('div', 'bulk-pp-pages-filter-bar');
+    const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
+    filterField.append(el('label', null, 'Show pages'));
+    const filterSelect = document.createElement('select');
+    filterSelect.id = 'bulk-pp-page-filter';
+    const filtersLocked = statusChecking || !statusFetched;
+    filterSelect.disabled = filtersLocked;
+    PAGE_FILTERS.forEach(([value, label]) => {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      if (value === (pageFilter || 'all')) opt.selected = true;
+      if (filtersLocked && value !== 'all') {
+        opt.disabled = true;
+        opt.textContent = `${label} (requires status)`;
+      }
+      filterSelect.append(opt);
+    });
+    filterField.append(filterSelect);
+    filterBar.append(filterField);
+    filterBar.append(el(
+      'p',
+      'bulk-pp-pages-filter-note',
+      filtersLocked
+        ? 'Deployment filters unlock after you load status. Resets to All when you change folder.'
+        : 'Applies to this folder only · resets when you navigate to another folder',
+    ));
+    pagesSection.append(filterBar);
 
     const pagesMeta = el('div', 'bulk-pp-pages-meta');
     pagesMeta.append(buildStatusLegend());
@@ -897,6 +908,7 @@ async function main() {
     state.folderPath = resolveContentFolderPath(targetPath);
     state.pageSearch = '';
     state.folderSearch = '';
+    state.pageFilter = 'all';
     syncUrlPath(state.ref, state.folderPath);
     await state.onFetch(true);
   };
@@ -916,9 +928,10 @@ async function main() {
       if (statusOptEl instanceof HTMLInputElement) {
         state.fetchStatus = statusOptEl.checked;
       }
+      state.pageFilter = 'all';
     }
 
-    if (state.pageScope === 'tree' && !fromFolderNav) {
+    if (state.pageScope === 'tree' && state.fetchStatus && !fromFolderNav) {
       const ok = await confirmTreeScopeFetch();
       if (!ok) return;
     }

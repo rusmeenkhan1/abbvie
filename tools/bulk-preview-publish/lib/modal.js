@@ -75,8 +75,8 @@ export function showConfirmModal(opts) {
  */
 export function confirmTreeScopeFetch() {
   return showConfirmModal({
-    title: 'Fetch all subfolders?',
-    body: 'Loading every page under this folder and checking preview/publish status can take several minutes on large sites. You can cancel the status check at any time.',
+    title: 'Load status for all subfolders?',
+    body: 'You chose to load preview/publish status for every page under this folder. On large sites that can take several minutes. You can cancel the status check at any time.',
     confirmLabel: 'Continue',
     cancelLabel: 'Cancel',
     variant: 'warning',
