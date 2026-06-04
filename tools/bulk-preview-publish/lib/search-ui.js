@@ -1,4 +1,6 @@
 import {
+  formatSelectionPillText,
+  getActiveSelectionCount,
   getVisibleFolders,
   getVisiblePages,
   isStatusLoaded,
@@ -49,6 +51,41 @@ export function searchHintText(draft) {
     return `Filtering by “${q}”`;
   }
   return null;
+}
+
+/**
+ * Keeps checkboxes, selection pill, toolbar, and action buttons in sync with state.
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof import('./state.js').createAppState>} state
+ */
+export function syncSelectionUI(root, state) {
+  const { visible: visiblePages } = getVisiblePages(state);
+  const activeCount = getActiveSelectionCount(state);
+  const listBusy = visiblePages.length === 0 || state.statusChecking;
+
+  const pill = root.querySelector('#bulk-pp-selection-pill');
+  if (pill) pill.textContent = formatSelectionPillText(state);
+
+  root.querySelectorAll('.bulk-pp-page-cb').forEach((cb) => {
+    if (!(cb instanceof HTMLInputElement)) return;
+    const path = cb.dataset.path || cb.value;
+    cb.checked = state.selected.has(path);
+  });
+
+  const selectAllBtn = root.querySelector('#bulk-pp-select-all');
+  const selectNoneBtn = root.querySelector('#bulk-pp-select-none');
+  if (selectAllBtn instanceof HTMLButtonElement) selectAllBtn.disabled = listBusy;
+  if (selectNoneBtn instanceof HTMLButtonElement) {
+    selectNoneBtn.disabled = listBusy || activeCount === 0;
+  }
+
+  const actionsDisabled = state.loading
+    || state.contentLoading
+    || state.statusChecking
+    || activeCount === 0;
+  root.querySelectorAll('#bulk-pp-preview-btn, #bulk-pp-publish-btn').forEach((btn) => {
+    if (btn instanceof HTMLButtonElement) btn.disabled = actionsDisabled;
+  });
 }
 
 /**
@@ -121,21 +158,6 @@ export function patchPageSearchResults(root, state, siteCtx, buildPageRow) {
     if (hintMsg) hint.textContent = hintMsg;
   }
 
-  const pill = root.querySelector('#bulk-pp-selection-pill');
-  if (pill) {
-    const visibleCount = visiblePages.length;
-    const totalCount = state.pages.length;
-    pill.textContent = visibleCount === totalCount
-      ? `${state.selected.size} of ${totalCount} selected`
-      : `${state.selected.size} selected · ${visibleCount} shown (${totalCount} total)`;
-  }
-
-  const selectAllBtn = root.querySelector('#bulk-pp-select-all');
-  const selectNoneBtn = root.querySelector('#bulk-pp-select-none');
-  const disabled = visiblePages.length === 0 || state.statusChecking;
-  if (selectAllBtn instanceof HTMLButtonElement) selectAllBtn.disabled = disabled;
-  if (selectNoneBtn instanceof HTMLButtonElement) selectNoneBtn.disabled = disabled;
-
   const list = root.querySelector('#bulk-pp-page-list');
   if (!list) return;
   list.replaceChildren();
@@ -161,6 +183,8 @@ export function patchPageSearchResults(root, state, siteCtx, buildPageRow) {
       ));
     });
   }
+
+  syncSelectionUI(root, state);
 }
 
 /**

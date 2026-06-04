@@ -193,6 +193,20 @@ export function getVisibleFolders(state) {
 }
 
 /**
+ * Selected pages that exist in the current page list (excludes site shell).
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function getActiveSelectionCount(state) {
+  const pageByPath = new Map(state.pages.map((p) => [p.helixPath, p]));
+  let count = 0;
+  state.selected.forEach((path) => {
+    const page = pageByPath.get(path);
+    if (page && !isSiteShellPage(page)) count += 1;
+  });
+  return count;
+}
+
+/**
  * @param {ReturnType<typeof createAppState>} state
  * @param {boolean} checked
  */
@@ -205,4 +219,26 @@ export function selectAllVisible(state, checked) {
     selectable.forEach((p) => state.selected.delete(p.helixPath));
   }
   pruneSiteShellFromSelection(state);
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function formatSelectionPillText(state) {
+  const { visible } = getVisiblePages(state);
+  const activeCount = getActiveSelectionCount(state);
+  const visibleCount = visible.length;
+  const totalCount = state.pages.length;
+  if (activeCount === 0) {
+    return visibleCount === totalCount
+      ? `No pages selected · ${totalCount} in list`
+      : `No pages selected · ${visibleCount} shown (${totalCount} total)`;
+  }
+  if (visibleCount === totalCount) {
+    return `${activeCount} of ${totalCount} selected`;
+  }
+  const visibleSelected = visible.filter((p) => (
+    !isSiteShellPage(p) && state.selected.has(p.helixPath)
+  )).length;
+  return `${activeCount} selected · ${visibleSelected} of ${visibleCount} shown`;
 }

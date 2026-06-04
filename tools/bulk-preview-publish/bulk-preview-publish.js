@@ -40,10 +40,13 @@ import {
   patchFolderSearchResults,
   patchPageSearchResults,
   searchHintText,
+  syncSelectionUI,
 } from './lib/search-ui.js';
 import {
   cancelStatusCheck,
   createAppState,
+  formatSelectionPillText,
+  getActiveSelectionCount,
   getVisiblePages,
   getVisibleFolders,
   isStatusLoaded,
@@ -253,8 +256,9 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
   cb.className = 'bulk-pp-page-cb';
   cb.value = page.helixPath;
   cb.dataset.path = page.helixPath;
-  cb.checked = !isSiteShellPage(page) && state.selected.has(page.helixPath);
-  cb.disabled = interactionsLocked;
+  const shell = isSiteShellPage(page);
+  cb.checked = !shell && state.selected.has(page.helixPath);
+  cb.disabled = interactionsLocked || shell;
   cb.id = `page-${page.helixPath.replace(/\W/g, '_')}`;
   cb.addEventListener('change', (e) => {
     const input = /** @type {HTMLInputElement} */ (e.target);
@@ -752,7 +756,9 @@ function render(root, state) {
     selectAllBtn.id = 'bulk-pp-select-all';
     selectNoneBtn.id = 'bulk-pp-select-none';
     selectAllBtn.disabled = visiblePages.length === 0 || statusChecking;
-    selectNoneBtn.disabled = visiblePages.length === 0 || statusChecking;
+    selectNoneBtn.disabled = visiblePages.length === 0
+      || statusChecking
+      || getActiveSelectionCount(state) === 0;
     selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
     selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
     toolbarActions.append(selectAllBtn, selectNoneBtn);
@@ -783,12 +789,10 @@ function render(root, state) {
         toolbarActions.append(openLiveBtn);
       }
     }
-    const visibleCount = visiblePages.length;
-    const totalCount = state.pages.length;
-    const pillText = visibleCount === totalCount
-      ? `${state.selected.size} of ${totalCount} selected`
-      : `${state.selected.size} selected · ${visibleCount} shown (${totalCount} total)`;
-    toolbar.append(toolbarActions, el('span', 'bulk-pp-selection-pill', pillText));
+    toolbar.append(
+      toolbarActions,
+      el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state)),
+    );
     toolbar.querySelector('.bulk-pp-selection-pill').id = 'bulk-pp-selection-pill';
     pagesSection.append(toolbar);
 
@@ -831,6 +835,7 @@ function render(root, state) {
     bindSearchInput(searchInput, state, 'page', () => {
       patchPageSearchResults(root, state, { org, site, ref }, buildPageRow);
     });
+    syncSelectionUI(root, state);
   }
   contentPanel.append(pagesPane);
 
@@ -862,7 +867,10 @@ function render(root, state) {
     publishBtn.type = 'button';
     previewBtn.id = 'bulk-pp-preview-btn';
     publishBtn.id = 'bulk-pp-publish-btn';
-    const runDisabled = loading || state.pages.length === 0 || state.selected.size === 0;
+    const runDisabled = loading
+      || contentLoading
+      || statusChecking
+      || getActiveSelectionCount(state) === 0;
     previewBtn.disabled = runDisabled;
     publishBtn.disabled = runDisabled;
     runRow.append(previewBtn, publishBtn);
@@ -1180,7 +1188,8 @@ async function main() {
   state.onSelectAll = (checked) => {
     selectAllVisible(state, checked);
     const root = state.root;
-    if (root?.querySelector('#bulk-pp-page-list')) {
+    if (!root) return;
+    if (root.querySelector('#bulk-pp-page-list')) {
       patchPageSearchResults(
         root,
         state,
@@ -1195,28 +1204,15 @@ async function main() {
   state.onSelectionChange = () => {
     const root = state.root;
     if (!root) return;
-    const { visible } = getVisiblePages(state);
-    const pill = root.querySelector('#bulk-pp-selection-pill');
-    if (pill) {
-      const visibleCount = visible.length;
-      const totalCount = state.pages.length;
-      pill.textContent = visibleCount === totalCount
-        ? `${state.selected.size} of ${totalCount} selected`
-        : `${state.selected.size} selected · ${visibleCount} shown (${totalCount} total)`;
-    }
-    root.querySelectorAll('.bulk-pp-page-cb').forEach((cb) => {
-      if (!(cb instanceof HTMLInputElement)) return;
-      const path = cb.dataset.path || cb.value;
-      cb.checked = state.selected.has(path);
-    });
-    const disabled = state.pages.length === 0 || state.selected.size === 0;
-    root.querySelectorAll('#bulk-pp-preview-btn, #bulk-pp-publish-btn').forEach((btn) => {
-      if (btn instanceof HTMLButtonElement) btn.disabled = disabled;
-    });
+    syncSelectionUI(root, state);
   };
 
   state.onRun = async (topic) => {
-    const paths = [...state.selected];
+    const pageByPath = new Map(state.pages.map((p) => [p.helixPath, p]));
+    const paths = [...state.selected].filter((path) => {
+      const page = pageByPath.get(path);
+      return page && !isSiteShellPage(page);
+    });
     if (paths.length === 0) return;
 
     if (topic === 'live') {
