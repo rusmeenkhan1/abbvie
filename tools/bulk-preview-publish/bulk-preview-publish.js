@@ -375,10 +375,6 @@ async function openUrlsInNewTabs(urls, state = null) {
 /**
  * @param {ReturnType<typeof createAppState>} state
  * @param {'preview'|'live'} env
- */
-/**
- * @param {ReturnType<typeof createAppState>} state
- * @param {'preview'|'live'} env
  * @param {string[]} paths
  */
 async function openEnvUrls(state, env, paths) {
@@ -403,19 +399,6 @@ async function openDeployedUrls(state, env) {
  */
 async function openSelectedUrls(state, env) {
   await openEnvUrls(state, env, getSelectedHelixPaths(state));
-}
-
-/**
- * Preview and live URLs for pages with deployment status in the current list.
- * @param {ReturnType<typeof createAppState>} state
- * @returns {string[]}
- */
-function collectDeployedUrlsForOpen(state) {
-  const { org, site, ref } = state;
-  return [
-    ...buildUrlsForPaths(collectDeployedHelixPaths(state, 'preview'), org, site, ref, 'preview'),
-    ...buildUrlsForPaths(collectDeployedHelixPaths(state, 'live'), org, site, ref, 'live'),
-  ];
 }
 
 async function openSelectedDa(state) {
@@ -1089,12 +1072,32 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     const summary = formatDeploymentSummary(platformStatus, state.pages);
     state.status = `Status check complete · ${summary}`;
     state.statusType = 'success';
-    const deployUrls = collectDeployedUrlsForOpen(state);
+    const previewPaths = collectDeployedHelixPaths(state, 'preview');
+    const livePaths = collectDeployedHelixPaths(state, 'live');
+    const previewUrls = buildUrlsForPaths(
+      previewPaths,
+      state.org,
+      state.site,
+      state.ref,
+      'preview',
+    );
+    const liveUrls = buildUrlsForPaths(
+      livePaths,
+      state.org,
+      state.site,
+      state.ref,
+      'live',
+    );
     showStatusFetchCompleteModal({
       summary,
-      urlCount: deployUrls.length,
-      onOpenUrls: async () => {
-        if (deployUrls.length > 0) await openUrlsInNewTabs(deployUrls, state);
+      previewCount: previewPaths.length,
+      liveCount: livePaths.length,
+      onOpenPreviewUrls: async () => {
+        if (previewUrls.length > 0) await openUrlsInNewTabs(previewUrls, state);
+        finishProgressModal(state, 'status');
+      },
+      onOpenLiveUrls: async () => {
+        if (liveUrls.length > 0) await openUrlsInNewTabs(liveUrls, state);
         finishProgressModal(state, 'status');
       },
       onClose: () => finishProgressModal(state, 'status'),

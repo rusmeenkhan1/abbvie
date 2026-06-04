@@ -279,9 +279,11 @@ function replacePanel(panel, nodes) {
  * @param {() => void | Promise<void>} onClick
  * @param {boolean} [disabled]
  * @param {string} [title]
+ * @param {string} [extraClass]
  */
-function confirmActionBtn(label, onClick, disabled = false, title = '') {
-  const btn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-confirm', label);
+function confirmActionBtn(label, onClick, disabled = false, title = '', extraClass = '') {
+  const classes = ['bulk-pp-modal-btn', 'bulk-pp-modal-btn-confirm', extraClass].filter(Boolean).join(' ');
+  const btn = el('button', classes, label);
   btn.type = 'button';
   btn.disabled = disabled;
   if (title) btn.title = title;
@@ -312,34 +314,69 @@ function actionRow(buttons) {
 }
 
 /**
+ * @param {number} previewCount
+ * @param {number} liveCount
+ */
+function statusCompleteHint(previewCount, liveCount) {
+  if (previewCount === 0 && liveCount === 0) {
+    return 'No preview or live URLs were found for this page list. Close to continue browsing.';
+  }
+  const parts = [];
+  if (previewCount > 0) {
+    parts.push(`${previewCount} preview (.aem.page) URL${previewCount === 1 ? '' : 's'}`);
+  }
+  if (liveCount > 0) {
+    parts.push(`${liveCount} live (.aem.live) URL${liveCount === 1 ? '' : 's'}`);
+  }
+  return `Open ${parts.join(' or ')}, or close to continue browsing.`;
+}
+
+/**
  * @param {{
  *   summary: string,
- *   urlCount?: number,
- *   onOpenUrls: () => void | Promise<void>,
+ *   previewCount?: number,
+ *   liveCount?: number,
+ *   onOpenPreviewUrls: () => void | Promise<void>,
+ *   onOpenLiveUrls: () => void | Promise<void>,
  *   onClose: () => void,
  * }} opts
  */
 export function showStatusFetchCompleteModal(opts) {
   if (!modalRef || modalRef.kind !== 'status') return;
-  const { summary, urlCount = 0, onOpenUrls, onClose } = opts;
+  const {
+    summary,
+    previewCount = 0,
+    liveCount = 0,
+    onOpenPreviewUrls,
+    onOpenLiveUrls,
+    onClose,
+  } = opts;
   const { panel } = modalRef;
+  const previewLabel = previewCount > 0
+    ? `Open preview URLs (${previewCount})`
+    : 'Open preview URLs';
+  const liveLabel = liveCount > 0
+    ? `Open live URLs (${liveCount})`
+    : 'Open live URLs';
   replacePanel(panel, [
     el('p', 'bulk-pp-status-modal-success-icon', '✓'),
     el('h3', 'bulk-pp-status-modal-complete-title', 'Status check complete'),
     el('p', 'bulk-pp-status-modal-summary', summary),
-    el(
-      'p',
-      'bulk-pp-status-modal-hint',
-      urlCount > 0
-        ? `Open ${urlCount} preview and live URL${urlCount === 1 ? '' : 's'}, or close to continue browsing.`
-        : 'No preview or live URLs were found for this page list. Close to continue browsing.',
-    ),
+    el('p', 'bulk-pp-status-modal-hint', statusCompleteHint(previewCount, liveCount)),
     actionRow([
       confirmActionBtn(
-        'Open URLs',
-        onOpenUrls,
-        urlCount === 0,
-        'No deployed preview or live URLs to open',
+        previewLabel,
+        onOpenPreviewUrls,
+        previewCount === 0,
+        'No preview (.aem.page) URLs to open',
+        'bulk-pp-status-modal-btn-preview',
+      ),
+      confirmActionBtn(
+        liveLabel,
+        onOpenLiveUrls,
+        liveCount === 0,
+        'No live (.aem.live) URLs to open',
+        'bulk-pp-status-modal-btn-live',
       ),
       closeActionBtn(onClose),
     ]),

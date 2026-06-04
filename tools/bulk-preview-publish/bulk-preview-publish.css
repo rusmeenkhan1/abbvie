@@ -166,6 +166,28 @@
   gap: 10px;
 }
 
+.bulk-pp-status-modal-btn-preview {
+  background: var(--pp-info-bg, #eef4ff);
+  border-color: var(--pp-info-border, #c5d8f5);
+  color: var(--pp-info-text, #0d3d66);
+}
+
+.bulk-pp-status-modal-btn-preview:hover:not(:disabled) {
+  background: #dce8fb;
+  border-color: var(--pp-modal-blue, #0066f5);
+}
+
+.bulk-pp-status-modal-btn-live {
+  background: var(--pp-success-bg, #edf7f0);
+  border-color: var(--pp-success-border, #b8dfc4);
+  color: var(--pp-success-text, #166534);
+}
+
+.bulk-pp-status-modal-btn-live:hover:not(:disabled) {
+  background: #d4eddc;
+  border-color: #86c99a;
+}
+
 .bulk-pp-url-section-actions {
   display: inline-flex;
   flex-wrap: wrap;
