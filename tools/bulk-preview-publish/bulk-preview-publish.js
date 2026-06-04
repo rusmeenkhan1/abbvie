@@ -24,7 +24,6 @@ import {
   buildUrlsForPaths,
 } from './lib/urls.js';
 import {
-  countDeployedPages,
   countStatusBreakdown,
   formatDeploymentSummary,
   formatStatusDate,
@@ -32,7 +31,8 @@ import {
   PAGE_FILTERS,
   statusLabel,
 } from './lib/page-history.js';
-import { confirmOpenUrlsInNewTabs, confirmTreeScopeFetch } from './lib/modal.js';
+import { confirmOpenUrlsInNewTabs, confirmPublishToLive, confirmTreeScopeFetch } from './lib/modal.js';
+import { copyTextToClipboard, detectPopupBlock, runButtonAction } from './lib/ui-utils.js';
 import {
   closeStatusFetchModal,
   isStatusFetchModalOpen,
@@ -345,14 +345,24 @@ function collectDeployedHelixPaths(state, env) {
 
 /**
  * @param {string[]} urls
+ * @param {ReturnType<typeof createAppState>} [state]
  */
-async function openUrlsInNewTabs(urls) {
+async function openUrlsInNewTabs(urls, state = null) {
   if (urls.length === 0) return;
   const ok = await confirmOpenUrlsInNewTabs(urls.length);
   if (!ok) return;
+  let opened = 0;
   urls.forEach((url) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if (win) opened += 1;
   });
+  if (detectPopupBlock(opened, urls.length)) {
+    if (state) {
+      state.status = 'Your browser blocked new tabs. Allow pop-ups for this site, or use Copy URLs.';
+      state.statusType = 'error';
+      if (state.root) render(/** @type {HTMLElement} */ (state.root), state);
+    }
+  }
 }
 
 /**
@@ -363,7 +373,10 @@ async function openDeployedUrls(state, env) {
   const paths = collectDeployedHelixPaths(state, env);
   if (paths.length === 0) return;
   const build = env === 'live' ? buildLiveUrl : buildPreviewUrl;
-  await openUrlsInNewTabs(paths.map((helixPath) => build(state.org, state.site, state.ref, helixPath)));
+  await openUrlsInNewTabs(
+    paths.map((helixPath) => build(state.org, state.site, state.ref, helixPath)),
+    state,
+  );
 }
 
 /**
@@ -374,12 +387,12 @@ async function openSelectedUrls(state, env) {
   const paths = getSelectedHelixPaths(state);
   if (paths.length === 0) return;
   const build = env === 'live' ? buildLiveUrl : buildPreviewUrl;
-  await openUrlsInNewTabs(paths.map((helixPath) => build(state.org, state.site, state.ref, helixPath)));
+  await openUrlsInNewTabs(
+    paths.map((helixPath) => build(state.org, state.site, state.ref, helixPath)),
+    state,
+  );
 }
 
-/**
- * @param {ReturnType<typeof createAppState>} state
- */
 /**
  * Preview and live URLs for pages with deployment status in the current list.
  * @param {ReturnType<typeof createAppState>} state
@@ -391,15 +404,6 @@ function collectDeployedUrlsForOpen(state) {
   const previewUrls = previewPaths.map((p) => buildPreviewUrl(state.org, state.site, state.ref, p));
   const liveUrls = livePaths.map((p) => buildLiveUrl(state.org, state.site, state.ref, p));
   return [...previewUrls, ...liveUrls];
-}
-
-/**
- * @param {string[]} urls
- */
-async function copyUrlsToClipboard(urls) {
-  if (urls.length === 0) return;
-  const text = urls.join('\n');
-  await navigator.clipboard.writeText(text);
 }
 
 async function openSelectedDa(state) {
@@ -414,7 +418,7 @@ async function openSelectedDa(state) {
       page.sourcePath,
       state.ref,
     ));
-  await openUrlsInNewTabs(urls);
+  await openUrlsInNewTabs(urls, state);
 }
 
 /**
@@ -498,7 +502,14 @@ function finishStatusFetchModal(state) {
   if (root) render(root, state);
 }
 
-function appendUrlSection(container, title, host, urls) {
+/**
+ * @param {HTMLElement} container
+ * @param {string} title
+ * @param {string} host
+ * @param {string[]} urls
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function appendUrlSection(container, title, host, urls, state) {
   const section = el('div', 'bulk-pp-url-section');
   const head = el('div', 'bulk-pp-url-section-head');
   const titleEl = el('h3', 'bulk-pp-url-section-title', title);
@@ -513,19 +524,10 @@ function appendUrlSection(container, title, host, urls) {
     );
     copyBtn.type = 'button';
     copyBtn.title = `Copy ${count} URL${count === 1 ? '' : 's'} to clipboard`;
-    copyBtn.addEventListener('click', async () => {
-      try {
-        await copyUrlsToClipboard(urls);
-        copyBtn.textContent = 'Copied';
-        setTimeout(() => {
-          copyBtn.textContent = 'Copy URLs';
-        }, 2000);
-      } catch {
-        copyBtn.textContent = 'Copy failed';
-        setTimeout(() => {
-          copyBtn.textContent = 'Copy URLs';
-        }, 2000);
-      }
+    copyBtn.addEventListener('click', () => {
+      runButtonAction(copyBtn, 'Copied', 'Copy failed', 'Copy URLs', async () => {
+        await copyTextToClipboard(urls.join('\n'));
+      });
     });
     const openAllBtn = el(
       'button',
@@ -535,7 +537,7 @@ function appendUrlSection(container, title, host, urls) {
     openAllBtn.type = 'button';
     openAllBtn.title = `Open ${count} URL${count === 1 ? '' : 's'} in separate browser tabs`;
     openAllBtn.addEventListener('click', () => {
-      void openUrlsInNewTabs(urls);
+      openUrlsInNewTabs(urls, state).catch(() => {});
     });
     actions.append(copyBtn, openAllBtn);
     head.append(actions);
@@ -938,7 +940,7 @@ function render(root, state) {
   const urlsPane = el('div', 'bulk-pp-tab-pane');
   if (activeTab === 'urls') urlsPane.classList.add('bulk-pp-tab-pane-active');
   if (lastOperation) {
-    appendUrlSection(urlsPane, lastOperation.title, lastOperation.host, lastOperation.urls);
+    appendUrlSection(urlsPane, lastOperation.title, lastOperation.host, lastOperation.urls, state);
     urlsPane.append(el(
       'p',
       'bulk-pp-url-operation-note',
@@ -978,6 +980,8 @@ function render(root, state) {
 
   if (status && !statusChecking) {
     const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType || 'info'}`);
+    statusEl.setAttribute('role', statusType === 'error' ? 'alert' : 'status');
+    statusEl.setAttribute('aria-live', 'polite');
     statusEl.append(el('strong', null, status));
     if (jobDetail) statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
     root.append(statusEl);
@@ -1069,7 +1073,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       summary,
       urlCount: deployUrls.length,
       onOpenUrls: async () => {
-        if (deployUrls.length > 0) await openUrlsInNewTabs(deployUrls);
+        if (deployUrls.length > 0) await openUrlsInNewTabs(deployUrls, state);
         finishStatusFetchModal(state);
       },
       onClose: () => finishStatusFetchModal(state),
@@ -1087,7 +1091,10 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusFetchStartedAt = null;
     state.statusCheckFailed = true;
     const raw = statusErr instanceof Error ? statusErr.message : 'Status check failed';
-    state.statusError = formatAdminApiError({ message: raw }, 0) || raw;
+    const payload = statusErr && typeof statusErr === 'object' && 'data' in statusErr && statusErr.data
+      ? statusErr.data
+      : { message: raw };
+    state.statusError = formatAdminApiError(payload, 0) || raw;
     console.warn('[bulk-pp] platform status failed', statusErr);
     showStatusFetchErrorModal({
       message: state.statusError,
@@ -1293,8 +1300,13 @@ async function main() {
       state.pages = [];
       state.selected.clear();
       state.contentLoading = false;
-      state.error = err instanceof Error ? err.message : 'Failed to load content.';
-      state.status = null;
+      const raw = err instanceof Error ? err.message : 'Failed to load content.';
+      const payload = err && typeof err === 'object' && 'data' in err && err.data
+        ? err.data
+        : { message: raw };
+      state.error = formatAdminApiError(payload, 0) || raw;
+      state.status = state.error;
+      state.statusType = 'error';
       render(app, state);
     }
   };
@@ -1327,8 +1339,8 @@ async function main() {
     if (paths.length === 0) return;
 
     if (topic === 'live') {
-      // eslint-disable-next-line no-alert
-      if (!window.confirm(`Publish ${paths.length} page(s) to LIVE?\n\nThis updates the production site.`)) return;
+      const ok = await confirmPublishToLive(paths.length);
+      if (!ok) return;
     }
 
     state.loading = true;

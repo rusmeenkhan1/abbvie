@@ -89,15 +89,27 @@ export function confirmTreeScopeFetch() {
  */
 export function confirmOpenUrlsInNewTabs(count) {
   const tabLabel = count === 1 ? '1 tab' : `${count} tabs`;
-  const scaleNote = count >= 20
-    ? ' Large lists often trigger popup blockers or slow the browser.'
-    : count >= 5
-      ? ' Some browsers may block or limit how many tabs open at once.'
-      : '';
+  let scaleNote = '';
+  if (count >= 20) scaleNote = ' Large lists often trigger popup blockers or slow the browser.';
+  else if (count >= 5) scaleNote = ' Some browsers may block or limit how many tabs open at once.';
   return showConfirmModal({
     title: 'Open URLs in new tabs?',
     body: `This will try to open ${count} URL${count === 1 ? '' : 's'} (${tabLabel}).${scaleNote} Continue only if you intend to review that many pages.`,
     confirmLabel: `Open ${tabLabel}`,
+    cancelLabel: 'Cancel',
+    variant: 'warning',
+  });
+}
+
+/**
+ * @param {number} count
+ * @returns {Promise<boolean>}
+ */
+export function confirmPublishToLive(count) {
+  return showConfirmModal({
+    title: 'Publish to production?',
+    body: `You are about to publish ${count} page${count === 1 ? '' : 's'} to the live site (.aem.live). This updates production content.`,
+    confirmLabel: 'Publish to production',
     cancelLabel: 'Cancel',
     variant: 'warning',
   });

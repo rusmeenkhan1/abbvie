@@ -158,7 +158,7 @@ export function showStatusFetchCompleteModal(opts) {
   if (urlCount === 0) openBtn.title = 'No deployed preview or live URLs to open';
   openBtn.addEventListener('click', () => {
     if (openBtn.disabled) return;
-    void Promise.resolve(onOpenUrls());
+    Promise.resolve(onOpenUrls()).catch(() => {});
   });
   closeBtn.addEventListener('click', onClose);
   actions.append(openBtn, closeBtn);
