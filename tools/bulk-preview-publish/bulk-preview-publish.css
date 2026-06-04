@@ -1157,6 +1157,30 @@
   gap: 20px;
 }
 
+.bulk-pp-boot-error {
+  max-width: 640px;
+  margin: 48px auto;
+  padding: 24px 28px;
+  background: var(--pp-error-bg);
+  border: 1px solid var(--pp-error-border);
+  border-radius: var(--pp-radius);
+  color: var(--pp-error-text);
+}
+
+.bulk-pp-boot-error h1 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.bulk-pp-boot-error p {
+  margin: 0 0 10px;
+}
+
+.bulk-pp-boot-error-hint {
+  font-size: 0.85rem;
+  color: var(--pp-text-muted);
+}
+
 .bulk-pp-run-actions {
   display: flex;
   flex-wrap: wrap;

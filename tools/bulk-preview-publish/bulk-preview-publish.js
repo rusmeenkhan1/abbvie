@@ -9,19 +9,19 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js?t=mpyxlouk';
+} from './lib/api.js';
 import {
   displayFolderPath,
   formatPageListLabel,
   isSiteShellPage,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js?t=mpyxlouk';
+} from './lib/paths.js';
 import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js?t=mpyxlouk';
+} from './lib/urls.js';
 import {
   countDeployedPages,
   formatDeploymentSummary,
@@ -29,15 +29,15 @@ import {
   getPageStatus,
   PAGE_FILTERS,
   statusLabel,
-} from './lib/page-history.js?t=mpyxlouk';
-import { confirmTreeScopeFetch } from './lib/modal.js?t=mpyxlouk';
+} from './lib/page-history.js';
+import { confirmTreeScopeFetch } from './lib/modal.js';
 import {
   bindSearchInput,
   buildSearchField,
   patchFolderSearchResults,
   patchPageSearchResults,
   searchHintText,
-} from './lib/search-ui.js?t=mpyxlouk';
+} from './lib/search-ui.js';
 import {
   cancelStatusCheck,
   createAppState,
@@ -48,8 +48,8 @@ import {
   resetWorkspace,
   SEARCH_MIN_LEN,
   selectAllVisible,
-} from './lib/state.js?t=mpyxlouk';
-import { el } from './lib/dom.js?t=mpyxlouk';
+} from './lib/state.js';
+import { el } from './lib/dom.js';
 
 /** @type {Record<'untouched'|'previewed'|'published', string>} */
 const STATUS_COLOR = {
@@ -1091,4 +1091,18 @@ async function main() {
   render(app, state);
 }
 
-main();
+function showBootError(err) {
+  const app = document.getElementById('app');
+  if (!app) return;
+  const message = err instanceof Error ? err.message : String(err);
+  app.replaceChildren();
+  const panel = el('div', 'bulk-pp-boot-error');
+  panel.append(
+    el('h1', null, 'Bulk Preview & Publish failed to start'),
+    el('p', null, message),
+    el('p', 'bulk-pp-boot-error-hint', 'Hard refresh (Cmd+Shift+R). If this persists, check the browser console for the failing module.'),
+  );
+  app.append(panel);
+}
+
+main().catch(showBootError);

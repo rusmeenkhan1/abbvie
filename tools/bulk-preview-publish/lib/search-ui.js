@@ -3,8 +3,8 @@ import {
   getVisiblePages,
   isStatusLoaded,
   SEARCH_MIN_LEN,
-} from './state.js?t=mpyxlouk';
-import { el } from './dom.js?t=mpyxlouk';
+} from './state.js';
+import { el } from './dom.js';
 
 /**
  * @param {string} id

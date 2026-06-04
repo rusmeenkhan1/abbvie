@@ -1,4 +1,4 @@
-import { helixPathToDaDocumentPath } from './paths.js?t=mpyxlouk';
+import { helixPathToDaDocumentPath } from './paths.js';
 
 /**
  * EDS host: {ref}--{site}--{org}
