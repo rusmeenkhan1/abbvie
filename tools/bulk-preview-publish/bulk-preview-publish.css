@@ -166,28 +166,6 @@
   gap: 10px;
 }
 
-.bulk-pp-status-modal-btn-preview {
-  background: var(--pp-info-bg, #eef4ff);
-  border-color: var(--pp-info-border, #c5d8f5);
-  color: var(--pp-info-text, #0d3d66);
-}
-
-.bulk-pp-status-modal-btn-preview:hover:not(:disabled) {
-  background: #dce8fb;
-  border-color: var(--pp-modal-blue, #0066f5);
-}
-
-.bulk-pp-status-modal-btn-live {
-  background: var(--pp-success-bg, #edf7f0);
-  border-color: var(--pp-success-border, #b8dfc4);
-  color: var(--pp-success-text, #166534);
-}
-
-.bulk-pp-status-modal-btn-live:hover:not(:disabled) {
-  background: #d4eddc;
-  border-color: #86c99a;
-}
-
 .bulk-pp-url-section-actions {
   display: inline-flex;
   flex-wrap: wrap;
@@ -1237,6 +1215,33 @@
 .bulk-pp-modal-btn-confirm:hover {
   background: var(--pp-modal-blue-hover);
   border-color: var(--pp-modal-blue-hover);
+}
+
+/* Status-complete modal: preview vs live (override generic confirm blue) */
+.bulk-pp-modal-btn-confirm.bulk-pp-status-modal-btn-preview {
+  background: var(--pp-info-bg, #eef4ff);
+  border-color: var(--pp-info-border, #c5d8f5);
+  color: var(--pp-info-text, #0d3d66);
+  box-shadow: 0 1px 2px rgb(13 61 102 / 12%);
+}
+
+.bulk-pp-modal-btn-confirm.bulk-pp-status-modal-btn-preview:hover:not(:disabled) {
+  background: #dce8fb;
+  border-color: var(--pp-modal-blue, #0066f5);
+  color: #0a4a7a;
+}
+
+.bulk-pp-modal-btn-confirm.bulk-pp-status-modal-btn-live {
+  background: var(--pp-success-bg, #edf7f0);
+  border-color: var(--pp-success-border, #b8dfc4);
+  color: var(--pp-success-text, #166534);
+  box-shadow: 0 1px 2px rgb(22 101 52 / 12%);
+}
+
+.bulk-pp-modal-btn-confirm.bulk-pp-status-modal-btn-live:hover:not(:disabled) {
+  background: #d4eddc;
+  border-color: #86c99a;
+  color: #14532d;
 }
 
 .bulk-pp-modal-btn:focus-visible {
