@@ -34,9 +34,14 @@ import {
 } from './lib/page-history.js';
 import { confirmOpenUrlsInNewTabs, confirmTreeScopeFetch } from './lib/modal.js';
 import {
-  formatRuntimeStatusEta,
-  formatStatusFetchEta,
-} from './lib/status-estimate.js';
+  closeStatusFetchModal,
+  isStatusFetchModalOpen,
+  openStatusFetchModal,
+  showStatusFetchCompleteModal,
+  showStatusFetchErrorModal,
+  updateStatusFetchModal,
+} from './lib/status-modal.js';
+import { formatStatusFetchEta } from './lib/status-estimate.js';
 import {
   bindSearchInput,
   buildSearchField,
@@ -375,6 +380,28 @@ async function openSelectedUrls(state, env) {
 /**
  * @param {ReturnType<typeof createAppState>} state
  */
+/**
+ * Preview and live URLs for pages with deployment status in the current list.
+ * @param {ReturnType<typeof createAppState>} state
+ * @returns {string[]}
+ */
+function collectDeployedUrlsForOpen(state) {
+  const previewPaths = collectDeployedHelixPaths(state, 'preview');
+  const livePaths = collectDeployedHelixPaths(state, 'live');
+  const previewUrls = previewPaths.map((p) => buildPreviewUrl(state.org, state.site, state.ref, p));
+  const liveUrls = livePaths.map((p) => buildLiveUrl(state.org, state.site, state.ref, p));
+  return [...previewUrls, ...liveUrls];
+}
+
+/**
+ * @param {string[]} urls
+ */
+async function copyUrlsToClipboard(urls) {
+  if (urls.length === 0) return;
+  const text = urls.join('\n');
+  await navigator.clipboard.writeText(text);
+}
+
 async function openSelectedDa(state) {
   const pageByPath = new Map(state.pages.map((p) => [p.helixPath, p]));
   const urls = getSelectedHelixPaths(state)
@@ -462,104 +489,56 @@ function buildStatusLegend() {
   return legend;
 }
 
-function buildStatusProgressBar(state, showCancel) {
-  const wrap = el('div', 'bulk-pp-status-active');
-  wrap.id = 'bulk-pp-status-active';
-  const head = el('div', 'bulk-pp-status-active-head');
-  head.append(el('strong', null, 'Fetching deployment status'));
-  if (showCancel) {
-    const cancelBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-cancel-status', 'Cancel');
-    cancelBtn.type = 'button';
-    cancelBtn.id = 'bulk-pp-cancel-status';
-    cancelBtn.addEventListener('click', () => state.onCancelStatus());
-    head.append(cancelBtn);
-  }
-  wrap.append(head);
-
-  const pct = state.statusProgressTotal > 0
-    ? Math.min(100, Math.round((state.statusProgressDone / state.statusProgressTotal) * 100))
-    : 0;
-  const track = el('div', 'bulk-pp-progress-track');
-  const fill = el('div', 'bulk-pp-progress-fill');
-  fill.id = 'bulk-pp-progress-fill';
-  fill.style.width = `${pct}%`;
-  track.append(fill);
-  wrap.append(track);
-  wrap.append(el(
-    'p',
-    'bulk-pp-progress-label',
-    `${state.statusProgressDone} of ${state.statusProgressTotal} pages checked (${pct}%)`,
-  ));
-  const label = wrap.querySelector('.bulk-pp-progress-label');
-  if (label) label.id = 'bulk-pp-progress-label';
-  const etaText = formatStatusFetchEta(state.statusProgressTotal);
-  if (etaText) {
-    const eta = el('p', 'bulk-pp-progress-eta', `Estimated time: ${etaText}`);
-    eta.id = 'bulk-pp-progress-eta';
-    wrap.append(eta);
-  }
-  wrap.setAttribute('role', 'progressbar');
-  wrap.setAttribute('aria-valuemin', '0');
-  wrap.setAttribute('aria-valuemax', String(state.statusProgressTotal));
-  wrap.setAttribute('aria-valuenow', String(state.statusProgressDone));
-  return wrap;
-}
-
 /**
- * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
  */
-function patchStatusProgressUI(root, state) {
-  root.classList.toggle('bulk-pp-status-fetching', state.statusChecking);
-  const fill = root.querySelector('#bulk-pp-progress-fill');
-  const label = root.querySelector('#bulk-pp-progress-label');
-  const etaEl = root.querySelector('#bulk-pp-progress-eta');
-  const note = root.querySelector('#bulk-pp-status-note');
-  const active = root.querySelector('#bulk-pp-status-active');
-  const pct = state.statusProgressTotal > 0
-    ? Math.min(100, Math.round((state.statusProgressDone / state.statusProgressTotal) * 100))
-    : 0;
-  if (fill instanceof HTMLElement) fill.style.width = `${pct}%`;
-  if (label) {
-    label.textContent = `${state.statusProgressDone} of ${state.statusProgressTotal} pages checked (${pct}%)`;
-  }
-  if (etaEl) {
-    const runtime = formatRuntimeStatusEta(
-      state.statusFetchStartedAt,
-      state.statusProgressDone,
-      state.statusProgressTotal,
-    );
-    const fallback = formatStatusFetchEta(state.statusProgressTotal);
-    etaEl.textContent = runtime
-      ? runtime
-      : (fallback ? `Estimated time: ${fallback}` : '');
-  }
-  if (active) {
-    active.setAttribute('aria-valuenow', String(state.statusProgressDone));
-  }
-  if (note && state.pages.length > 0) {
-    const deployed = countDeployedPages(state.platformStatus, state.pages);
-    note.textContent = `Checking AEM status… ${state.statusProgressDone}/${state.statusProgressTotal} · ${deployed} matched so far`;
-  }
+function finishStatusFetchModal(state) {
+  const root = /** @type {HTMLElement | null} */ (state.root);
+  closeStatusFetchModal(root);
+  if (root) render(root, state);
 }
 
 function appendUrlSection(container, title, host, urls) {
   const section = el('div', 'bulk-pp-url-section');
   const head = el('div', 'bulk-pp-url-section-head');
-  head.append(el('h3', 'bulk-pp-url-section-title', title));
+  const titleEl = el('h3', 'bulk-pp-url-section-title', title);
+  head.append(titleEl);
   if (urls.length > 0) {
     const count = urls.length;
+    const actions = el('div', 'bulk-pp-url-section-actions');
+    const copyBtn = el(
+      'button',
+      'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-copy-urls',
+      'Copy URLs',
+    );
+    copyBtn.type = 'button';
+    copyBtn.title = `Copy ${count} URL${count === 1 ? '' : 's'} to clipboard`;
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await copyUrlsToClipboard(urls);
+        copyBtn.textContent = 'Copied';
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy URLs';
+        }, 2000);
+      } catch {
+        copyBtn.textContent = 'Copy failed';
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy URLs';
+        }, 2000);
+      }
+    });
     const openAllBtn = el(
       'button',
       'bulk-pp-btn bulk-pp-btn-open-urls bulk-pp-btn-open-all-urls',
-      `Open all in new tabs (${count})`,
+      `Open all URLs (${count})`,
     );
     openAllBtn.type = 'button';
     openAllBtn.title = `Open ${count} URL${count === 1 ? '' : 's'} in separate browser tabs`;
     openAllBtn.addEventListener('click', () => {
       void openUrlsInNewTabs(urls);
     });
-    head.append(openAllBtn);
+    actions.append(copyBtn, openAllBtn);
+    head.append(actions);
   }
   section.append(head);
   section.append(el('p', 'bulk-pp-url-host', host));
@@ -610,7 +589,7 @@ function render(root, state) {
     && folderSearchDraft.length < SEARCH_MIN_LEN;
 
   root.replaceChildren();
-  root.classList.toggle('bulk-pp-status-fetching', statusChecking);
+  root.classList.toggle('bulk-pp-modal-open', isStatusFetchModalOpen());
 
   const header = el('header', 'bulk-pp-header');
   const headerInner = el('div', 'bulk-pp-header-inner');
@@ -786,9 +765,7 @@ function render(root, state) {
       : String(state.pages.length);
     pagesSection.append(buildSectionHead('Pages', pageCountLabel, 'bulk-pp-page-count', 'pages'));
 
-    if (statusChecking) {
-      pagesSection.append(buildStatusProgressBar(state, true));
-    } else if (statusCheckFailed) {
+    if (statusCheckFailed && !isStatusFetchModalOpen()) {
       pagesSection.append(el(
         'p',
         'bulk-pp-status-note bulk-pp-status-note-error',
@@ -1058,7 +1035,9 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     return;
   }
 
-  render(/** @type {HTMLElement} */ (state.root), state);
+  const appRoot = /** @type {HTMLElement | null} */ (state.root);
+  openStatusFetchModal(appRoot, state, () => state.onCancelStatus());
+  render(appRoot, state);
 
   fetchPlatformStatusForPaths(
     daFetch,
@@ -1070,7 +1049,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       state.platformStatus = { ...partial };
       state.statusProgressDone = done;
       state.statusProgressTotal = total;
-      patchStatusProgressUI(/** @type {HTMLElement} */ (state.root), state);
+      updateStatusFetchModal(state);
     },
     { signal: state.statusAbort.signal },
   ).then((platformStatus) => {
@@ -1082,14 +1061,24 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusFetchStartedAt = null;
     state.statusProgressDone = pathsToCheck.length;
     state.statusProgressTotal = pathsToCheck.length;
-    state.status = `Status check complete · ${formatDeploymentSummary(platformStatus, state.pages)}`;
+    const summary = formatDeploymentSummary(platformStatus, state.pages);
+    state.status = `Status check complete · ${summary}`;
     state.statusType = 'success';
-    render(/** @type {HTMLElement} */ (state.root), state);
+    const deployUrls = collectDeployedUrlsForOpen(state);
+    showStatusFetchCompleteModal({
+      summary,
+      urlCount: deployUrls.length,
+      onOpenUrls: async () => {
+        if (deployUrls.length > 0) await openUrlsInNewTabs(deployUrls);
+        finishStatusFetchModal(state);
+      },
+      onClose: () => finishStatusFetchModal(state),
+    });
   }).catch((statusErr) => {
     if (statusErr instanceof DOMException && statusErr.name === 'AbortError') {
       state.statusAbort = null;
       state.statusFetchStartedAt = null;
-      render(/** @type {HTMLElement} */ (state.root), state);
+      finishStatusFetchModal(state);
       return;
     }
     state.statusChecking = false;
@@ -1100,7 +1089,10 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     const raw = statusErr instanceof Error ? statusErr.message : 'Status check failed';
     state.statusError = formatAdminApiError({ message: raw }, 0) || raw;
     console.warn('[bulk-pp] platform status failed', statusErr);
-    render(/** @type {HTMLElement} */ (state.root), state);
+    showStatusFetchErrorModal({
+      message: state.statusError,
+      onClose: () => finishStatusFetchModal(state),
+    });
   });
 }
 
@@ -1155,6 +1147,7 @@ async function main() {
 
   state.onCancelStatus = () => {
     cancelStatusCheck(state, true);
+    closeStatusFetchModal(app);
     render(app, state);
   };
 

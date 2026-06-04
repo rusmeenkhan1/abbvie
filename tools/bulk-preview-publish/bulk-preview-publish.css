@@ -93,6 +93,119 @@
   cursor: pointer !important;
 }
 
+.bulk-pp.bulk-pp-modal-open {
+  filter: blur(5px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.bulk-pp-status-modal-backdrop {
+  backdrop-filter: blur(10px);
+  background: rgb(7 29 73 / 52%);
+}
+
+.bulk-pp-status-modal {
+  width: min(100%, 520px);
+  padding: 28px 28px 24px;
+}
+
+.bulk-pp-status-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.bulk-pp-status-modal-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--pp-modal-navy, #071d49);
+}
+
+.bulk-pp-status-modal-body .bulk-pp-progress-track {
+  margin: 14px 0 10px;
+}
+
+.bulk-pp-status-modal-intro {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--pp-modal-muted, #5c6578);
+}
+
+.bulk-pp-status-modal-success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: var(--pp-success-bg);
+  color: var(--pp-success-text);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.bulk-pp-status-modal-complete-title {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--pp-modal-navy, #071d49);
+}
+
+.bulk-pp-status-modal-error-title {
+  color: var(--pp-error-text);
+}
+
+.bulk-pp-status-modal-summary {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  text-align: center;
+  color: var(--pp-modal-muted, #5c6578);
+}
+
+.bulk-pp-status-modal-hint {
+  margin: 0 0 20px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--pp-text-subtle);
+}
+
+.bulk-pp-status-modal-error {
+  color: var(--pp-error-text);
+}
+
+.bulk-pp-status-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.bulk-pp-url-section-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.bulk-pp-btn-copy-urls {
+  color: var(--pp-navy);
+  border-color: var(--pp-border-strong);
+  background: #fff;
+}
+
+.bulk-pp-btn-copy-urls:hover:not(:disabled) {
+  background: var(--pp-surface-muted);
+  border-color: var(--pp-blue);
+}
+
 /* —— Header —— */
 .bulk-pp-header {
   margin-bottom: 24px;
