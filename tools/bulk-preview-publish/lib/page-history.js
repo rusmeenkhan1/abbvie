@@ -20,6 +20,20 @@ export function getPageStatus(entry) {
 }
 
 /**
+ * @param {Record<string, PageHistoryEntry>} platformStatus
+ * @param {{ helixPath: string }[]} pageList
+ * @returns {HistoryMap}
+ */
+function historyMapFrom(platformStatus, pageList) {
+  /** @type {HistoryMap} */
+  const map = {};
+  pageList.forEach((p) => {
+    map[p.helixPath] = platformStatus[p.helixPath] || {};
+  });
+  return map;
+}
+
+/**
  * @param {HistoryMap} statusMap
  * @param {{ helixPath: string }[]} pageList
  * @returns {{ preview: number, live: number, none: number }}
@@ -41,25 +55,11 @@ export function countStatusBreakdown(statusMap, pageList) {
  * @param {Record<string, PageHistoryEntry>} platformStatus
  * @param {{ helixPath: string }[]} pageList
  */
-export function countDeployedPages(platformStatus, pageList) {
-  const map = /** @type {HistoryMap} */ ({});
-  pageList.forEach((p) => {
-    map[p.helixPath] = platformStatus[p.helixPath] || {};
-  });
-  const { live, preview } = countStatusBreakdown(map, pageList);
-  return live + preview;
-}
-
-/**
- * @param {Record<string, PageHistoryEntry>} platformStatus
- * @param {{ helixPath: string }[]} pageList
- */
 export function formatDeploymentSummary(platformStatus, pageList) {
-  const map = /** @type {HistoryMap} */ ({});
-  pageList.forEach((p) => {
-    map[p.helixPath] = platformStatus[p.helixPath] || {};
-  });
-  const { live, preview, none } = countStatusBreakdown(map, pageList);
+  const { live, preview, none } = countStatusBreakdown(
+    historyMapFrom(platformStatus, pageList),
+    pageList,
+  );
   return `${live} live · ${preview} preview only · ${none} not deployed (${pageList.length} total)`;
 }
 

@@ -134,19 +134,6 @@ export const KNOWN_PAGE_DOC_NAMES = new Set([
   'robots',
 ]);
 
-/**
- * Site-wide shell docs (root index, nav, footer, …) — not bulk-selected by default.
- * @param {{ helixPath?: string, name?: string }} page
- * @returns {boolean}
- */
-export function isSiteShellPage(page) {
-  const name = String(page.name || '').replace(/\.html$/i, '').toLowerCase();
-  if (!KNOWN_PAGE_DOC_NAMES.has(name)) return false;
-  const key = normalizeFolderPath(String(page.helixPath || '').replace(/^\//, '').replace(/\.html$/i, ''));
-  if (name === 'index') return key === 'index' || key === '';
-  return key === name;
-}
-
 /** Site config / data files in DA Browse (not bulk-published as pages). */
 export const KNOWN_DATA_DOC_NAMES = new Set([
   'metadata',

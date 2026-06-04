@@ -57,6 +57,22 @@ export function formatAdminApiError(data, status) {
 }
 
 /**
+ * @param {unknown} err
+ * @param {string} [fallback]
+ * @returns {string}
+ */
+export function messageFromApiError(err, fallback = 'Operation failed.') {
+  const raw = err instanceof Error ? err.message : String(err ?? fallback);
+  const data = err && typeof err === 'object' && 'data' in err && err.data
+    ? err.data
+    : { message: raw };
+  const status = err && typeof err === 'object' && 'status' in err
+    ? Number(/** @type {{ status?: number }} */ (err).status)
+    : 0;
+  return formatAdminApiError(data, status) || raw;
+}
+
+/**
  * @param {string} org
  * @param {string} site
  * @param {string} ref
@@ -1150,23 +1166,6 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
   return mapStatusJobToEntries(details || {}, helixPaths);
 }
 
-/**
- * Load preview/live timestamps from AEM Admin API (real deployment state).
- * @param {Function} daFetch
- * @param {string} org
- * @param {string} site
- * @param {string} ref
- * @param {string[]} helixPaths
- * @returns {Promise<Record<string, { previewedAt?: number, publishedAt?: number }>>}
- */
-/**
- * Per-page GET /status (avoids bulk status jobs that 404 on poll via daFetch).
- * @param {Function} daFetch
- * @param {string} org
- * @param {string} site
- * @param {string} ref
- * @param {string[]} helixPaths
- */
 /**
  * @typedef {(partial: Record<string, { previewedAt?: number, publishedAt?: number }>, checked: number, total: number) => void} StatusProgressFn
  */

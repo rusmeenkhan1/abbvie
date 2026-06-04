@@ -3,7 +3,7 @@ import {
   fetchPlatformStatusForPaths,
   isHardcodeIndexTest,
   wrapDaFetch,
-  formatAdminApiError,
+  messageFromApiError,
   getJobPollUrl,
   listFolderEntries,
   pollJob,
@@ -18,8 +18,6 @@ import {
 } from './lib/paths.js';
 import {
   buildDaEditUrl,
-  buildLiveUrl,
-  buildPreviewUrl,
   buildSiteHost,
   buildUrlsForPaths,
 } from './lib/urls.js';
@@ -35,21 +33,20 @@ import { confirmOpenUrlsInNewTabs, confirmPublishToLive, confirmTreeScopeFetch }
 import { copyTextToClipboard, detectPopupBlock, runButtonAction } from './lib/ui-utils.js';
 import {
   closeJobModal,
+  closeStatusFetchModal,
   isJobModalOpen,
+  isProgressModalOpen,
+  isStatusFetchModalOpen,
   openJobModal,
+  openStatusFetchModal,
   showJobCancelledModal,
   showJobCompleteModal,
   showJobErrorModal,
-  updateJobModal,
-} from './lib/job-modal.js';
-import {
-  closeStatusFetchModal,
-  isStatusFetchModalOpen,
-  openStatusFetchModal,
   showStatusFetchCompleteModal,
   showStatusFetchErrorModal,
+  updateJobModal,
   updateStatusFetchModal,
-} from './lib/status-modal.js';
+} from './lib/progress-modal.js';
 import { formatStatusFetchEta } from './lib/status-estimate.js';
 import {
   bindSearchInput,
@@ -379,12 +376,15 @@ async function openUrlsInNewTabs(urls, state = null) {
  * @param {ReturnType<typeof createAppState>} state
  * @param {'preview'|'live'} env
  */
-async function openDeployedUrls(state, env) {
-  const paths = collectDeployedHelixPaths(state, env);
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {'preview'|'live'} env
+ * @param {string[]} paths
+ */
+async function openEnvUrls(state, env, paths) {
   if (paths.length === 0) return;
-  const build = env === 'live' ? buildLiveUrl : buildPreviewUrl;
   await openUrlsInNewTabs(
-    paths.map((helixPath) => build(state.org, state.site, state.ref, helixPath)),
+    buildUrlsForPaths(paths, state.org, state.site, state.ref, env),
     state,
   );
 }
@@ -393,14 +393,16 @@ async function openDeployedUrls(state, env) {
  * @param {ReturnType<typeof createAppState>} state
  * @param {'preview'|'live'} env
  */
+async function openDeployedUrls(state, env) {
+  await openEnvUrls(state, env, collectDeployedHelixPaths(state, env));
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {'preview'|'live'} env
+ */
 async function openSelectedUrls(state, env) {
-  const paths = getSelectedHelixPaths(state);
-  if (paths.length === 0) return;
-  const build = env === 'live' ? buildLiveUrl : buildPreviewUrl;
-  await openUrlsInNewTabs(
-    paths.map((helixPath) => build(state.org, state.site, state.ref, helixPath)),
-    state,
-  );
+  await openEnvUrls(state, env, getSelectedHelixPaths(state));
 }
 
 /**
@@ -409,11 +411,11 @@ async function openSelectedUrls(state, env) {
  * @returns {string[]}
  */
 function collectDeployedUrlsForOpen(state) {
-  const previewPaths = collectDeployedHelixPaths(state, 'preview');
-  const livePaths = collectDeployedHelixPaths(state, 'live');
-  const previewUrls = previewPaths.map((p) => buildPreviewUrl(state.org, state.site, state.ref, p));
-  const liveUrls = livePaths.map((p) => buildLiveUrl(state.org, state.site, state.ref, p));
-  return [...previewUrls, ...liveUrls];
+  const { org, site, ref } = state;
+  return [
+    ...buildUrlsForPaths(collectDeployedHelixPaths(state, 'preview'), org, site, ref, 'preview'),
+    ...buildUrlsForPaths(collectDeployedHelixPaths(state, 'live'), org, site, ref, 'live'),
+  ];
 }
 
 async function openSelectedDa(state) {
@@ -505,22 +507,18 @@ function buildStatusLegend() {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
+ * @param {'status'|'job'} kind
  */
-function finishStatusFetchModal(state) {
+function finishProgressModal(state, kind) {
   const root = /** @type {HTMLElement | null} */ (state.root);
-  closeStatusFetchModal(root);
-  if (root) render(root, state);
-}
-
-/**
- * @param {ReturnType<typeof createAppState>} state
- */
-function finishJobModal(state) {
-  const root = /** @type {HTMLElement | null} */ (state.root);
-  closeJobModal(root);
-  state.jobTopic = null;
-  state.jobAbort = null;
-  state.jobStartedAt = null;
+  if (kind === 'job') {
+    closeJobModal(root);
+    state.jobTopic = null;
+    state.jobAbort = null;
+    state.jobStartedAt = null;
+  } else {
+    closeStatusFetchModal(root);
+  }
   if (root) render(root, state);
 }
 
@@ -613,7 +611,7 @@ function render(root, state) {
     && folderSearchDraft.length < SEARCH_MIN_LEN;
 
   root.replaceChildren();
-  root.classList.toggle('bulk-pp-modal-open', isStatusFetchModalOpen() || isJobModalOpen());
+  root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
 
   const header = el('header', 'bulk-pp-header');
   const headerInner = el('div', 'bulk-pp-header-inner');
@@ -1097,15 +1095,15 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       urlCount: deployUrls.length,
       onOpenUrls: async () => {
         if (deployUrls.length > 0) await openUrlsInNewTabs(deployUrls, state);
-        finishStatusFetchModal(state);
+        finishProgressModal(state, 'status');
       },
-      onClose: () => finishStatusFetchModal(state),
+      onClose: () => finishProgressModal(state, 'status'),
     });
   }).catch((statusErr) => {
     if (statusErr instanceof DOMException && statusErr.name === 'AbortError') {
       state.statusAbort = null;
       state.statusFetchStartedAt = null;
-      finishStatusFetchModal(state);
+      finishProgressModal(state, 'status');
       return;
     }
     state.statusChecking = false;
@@ -1113,15 +1111,11 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusAbort = null;
     state.statusFetchStartedAt = null;
     state.statusCheckFailed = true;
-    const raw = statusErr instanceof Error ? statusErr.message : 'Status check failed';
-    const payload = statusErr && typeof statusErr === 'object' && 'data' in statusErr && statusErr.data
-      ? statusErr.data
-      : { message: raw };
-    state.statusError = formatAdminApiError(payload, 0) || raw;
+    state.statusError = messageFromApiError(statusErr, 'Status check failed');
     console.warn('[bulk-pp] platform status failed', statusErr);
     showStatusFetchErrorModal({
       message: state.statusError,
-      onClose: () => finishStatusFetchModal(state),
+      onClose: () => finishProgressModal(state, 'status'),
     });
   });
 }
@@ -1177,8 +1171,7 @@ async function main() {
 
   state.onCancelStatus = () => {
     cancelStatusCheck(state, true);
-    closeStatusFetchModal(app);
-    render(app, state);
+    finishProgressModal(state, 'status');
   };
 
   state.onCancelJob = () => {
@@ -1189,7 +1182,7 @@ async function main() {
       onClose: () => {
         state.status = 'Bulk operation cancelled.';
         state.statusType = 'info';
-        finishJobModal(state);
+        finishProgressModal(state, 'job');
       },
     });
   };
@@ -1336,11 +1329,7 @@ async function main() {
       state.pages = [];
       state.selected.clear();
       state.contentLoading = false;
-      const raw = err instanceof Error ? err.message : 'Failed to load content.';
-      const payload = err && typeof err === 'object' && 'data' in err && err.data
-        ? err.data
-        : { message: raw };
-      state.error = formatAdminApiError(payload, 0) || raw;
+      state.error = messageFromApiError(err, 'Failed to load content.');
       state.status = state.error;
       state.statusType = 'error';
       render(app, state);
@@ -1437,9 +1426,9 @@ async function main() {
           urlCount: urls.length,
           onViewUrls: () => {
             state.activeTab = 'urls';
-            finishJobModal(state);
+            finishProgressModal(state, 'job');
           },
-          onClose: () => finishJobModal(state),
+          onClose: () => finishProgressModal(state, 'job'),
         });
         return;
       }
@@ -1504,7 +1493,7 @@ async function main() {
         showJobErrorModal({
           message: state.status,
           topic,
-          onClose: () => finishJobModal(state),
+          onClose: () => finishProgressModal(state, 'job'),
         });
       } else {
         showJobCompleteModal({
@@ -1513,22 +1502,23 @@ async function main() {
           urlCount,
           onViewUrls: () => {
             state.activeTab = 'urls';
-            finishJobModal(state);
+            finishProgressModal(state, 'job');
           },
-          onClose: () => finishJobModal(state),
+          onClose: () => finishProgressModal(state, 'job'),
         });
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      const raw = err.message || 'Operation failed.';
-      const msg = formatAdminApiError(err.data || { message: raw }, err.status) || raw;
+      const msg = messageFromApiError(err);
       state.status = msg;
       state.statusType = 'error';
-      if (err.data) state.jobDetail = JSON.stringify(err.data, null, 2);
+      if (err && typeof err === 'object' && 'data' in err && err.data) {
+        state.jobDetail = JSON.stringify(err.data, null, 2);
+      }
       showJobErrorModal({
         message: msg,
         topic,
-        onClose: () => finishJobModal(state),
+        onClose: () => finishProgressModal(state, 'job'),
       });
     } finally {
       state.loading = false;

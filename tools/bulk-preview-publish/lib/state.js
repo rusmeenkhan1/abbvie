@@ -59,7 +59,6 @@ export function createAppState(ctx) {
     /** @type {AbortController | null} */
     statusAbort: null,
     /** @type {AbortController | null} */
-    /** @type {AbortController | null} */
     jobAbort: null,
     /** @type {number | null} */
     jobStartedAt: null,

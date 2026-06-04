@@ -1694,15 +1694,6 @@
   font-size: 0.9rem;
 }
 
-/* —— Status progress —— */
-.bulk-pp-progress-wrap {
-  margin-top: 12px;
-  padding: 12px 16px;
-  background: var(--pp-info-bg);
-  border: 1px solid var(--pp-info-border);
-  border-radius: var(--pp-radius-sm);
-}
-
 .bulk-pp-progress-track {
   height: 8px;
   background: rgb(0 0 0 / 8%);
