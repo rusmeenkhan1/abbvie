@@ -44,6 +44,10 @@ export function createAppState(ctx) {
     pageFilter: 'all',
     pageSearch: '',
     folderSearch: '',
+    /** When false, Fetch loads pages/folders only — no AEM status API calls. */
+    fetchStatus: false,
+    /** True after a successful status check for the current page set. */
+    statusFetched: false,
     platformStatus: {},
     statusCheckFailed: false,
     statusError: null,
@@ -81,6 +85,8 @@ export function resetWorkspace(state) {
   state.pageFilter = 'all';
   state.pageSearch = '';
   state.folderSearch = '';
+  state.fetchStatus = false;
+  state.statusFetched = false;
   state.platformStatus = {};
   state.statusCheckFailed = false;
   state.statusError = null;
@@ -142,7 +148,7 @@ export function buildStatusMap(state) {
  */
 export function isStatusLoaded(state) {
   if (state.statusCheckFailed || state.statusChecking) return false;
-  return state.pages.length > 0;
+  return Boolean(state.statusFetched && state.pages.length > 0);
 }
 
 /**

@@ -344,16 +344,38 @@ export function pageListRelativePath(helixPath, browseFolder) {
 }
 
 /**
+ * Path depth under the folder being browsed (0 = page in this folder, 1 = one subfolder, …).
+ * @param {string} relativePath from pageListRelativePath
+ */
+export function pageListDepth(relativePath) {
+  const rel = String(relativePath || '');
+  if (!rel) return 0;
+  return (rel.match(/\//g) || []).length;
+}
+
+/**
+ * @param {string} path
+ */
+function lastSegment(path) {
+  const parts = String(path || '').split('/').filter(Boolean);
+  return parts[parts.length - 1] || '';
+}
+
+/**
  * @param {{ helixPath: string }[]} pages
  * @param {string} browseFolder
  * @returns {{ helixPath: string }[]}
  */
 export function sortPagesByListPath(pages, browseFolder) {
-  return [...pages].sort((a, b) => pageListRelativePath(a.helixPath, browseFolder).localeCompare(
-    pageListRelativePath(b.helixPath, browseFolder),
-    undefined,
-    { sensitivity: 'base', numeric: true },
-  ));
+  const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+  return [...pages].sort((a, b) => {
+    const relA = pageListRelativePath(a.helixPath, browseFolder);
+    const relB = pageListRelativePath(b.helixPath, browseFolder);
+    const depthA = pageListDepth(relA);
+    const depthB = pageListDepth(relB);
+    if (depthA !== depthB) return depthA - depthB;
+    return collator.compare(relA, relB);
+  });
 }
 
 /**

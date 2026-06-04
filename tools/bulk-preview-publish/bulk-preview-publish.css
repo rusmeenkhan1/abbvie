@@ -1181,6 +1181,56 @@
   color: var(--pp-text-muted);
 }
 
+.bulk-pp-row-options {
+  margin-top: -4px;
+}
+
+.bulk-pp-field-option {
+  flex: 1 1 100%;
+}
+
+.bulk-pp-option-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--pp-text);
+}
+
+.bulk-pp-option-label input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--pp-blue);
+}
+
+.bulk-pp-option-hint {
+  display: block;
+  margin-top: 6px;
+  margin-left: 28px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--pp-text-muted);
+}
+
+.bulk-pp-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bulk-pp-status-note-muted {
+  margin: 0;
+  flex: 1 1 200px;
+}
+
+.bulk-pp-btn-check-status {
+  flex-shrink: 0;
+}
+
 .bulk-pp-run-actions {
   display: flex;
   flex-wrap: wrap;

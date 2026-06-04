@@ -379,6 +379,7 @@ function render(root, state) {
     org, site, ref, folderPath, loading, error, status, statusType, jobDetail,
     activeTab, pageScope, pageFilter, statusCheckFailed, statusError,
     statusChecking, pageSearch, folderSearch, contentLoading, lastOperation,
+    fetchStatus, statusFetched,
   } = state;
 
   const { visible: visiblePages, statusMap, browseFolder } = getVisiblePages(state);
@@ -446,6 +447,28 @@ function render(root, state) {
   fetchBtn.disabled = busy;
   row.append(fetchBtn);
   browseBody.append(row);
+
+  const optionsRow = el('div', 'bulk-pp-row bulk-pp-row-options');
+  const statusOpt = el('div', 'bulk-pp-field bulk-pp-field-option');
+  const statusOptLabel = document.createElement('label');
+  statusOptLabel.className = 'bulk-pp-option-label';
+  const statusOptCb = document.createElement('input');
+  statusOptCb.type = 'checkbox';
+  statusOptCb.id = 'bulk-pp-fetch-status';
+  statusOptCb.checked = Boolean(fetchStatus);
+  statusOptCb.disabled = busy;
+  statusOptLabel.append(
+    statusOptCb,
+    document.createTextNode('Load preview & publish status on Fetch'),
+  );
+  statusOpt.append(statusOptLabel);
+  statusOpt.append(el(
+    'span',
+    'bulk-pp-option-hint',
+    'Off by default — browse folders quickly. Use Check status on the Pages section when you need AEM dots.',
+  ));
+  optionsRow.append(statusOpt);
+  browseBody.append(optionsRow);
   root.append(browse);
 
   const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content');
@@ -482,7 +505,7 @@ function render(root, state) {
     filterField.append(el('label', null, 'Filter'));
     const filterSelect = document.createElement('select');
     filterSelect.id = 'bulk-pp-page-filter';
-    filterSelect.disabled = statusChecking;
+    filterSelect.disabled = statusChecking || (state.pages.length > 0 && !statusFetched);
     PAGE_FILTERS.forEach(([value, label]) => {
       const opt = document.createElement('option');
       opt.value = value;
@@ -555,7 +578,7 @@ function render(root, state) {
         'bulk-pp-status-note bulk-pp-status-note-error',
         statusError || 'Could not load deployment status from AEM.',
       ));
-    } else if (state.pages.length > 0) {
+    } else if (state.pages.length > 0 && statusFetched) {
       pagesPane.append(el(
         'p',
         'bulk-pp-status-note',
@@ -563,6 +586,20 @@ function render(root, state) {
       ));
       const note = pagesPane.querySelector('.bulk-pp-status-note:last-of-type');
       if (note) note.id = 'bulk-pp-status-note';
+    } else if (state.pages.length > 0) {
+      const statusRow = el('div', 'bulk-pp-status-row');
+      statusRow.append(el(
+        'p',
+        'bulk-pp-status-note bulk-pp-status-note-muted',
+        'Preview/publish status not loaded.',
+      ));
+      const checkStatusBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-check-status', 'Check status');
+      checkStatusBtn.type = 'button';
+      checkStatusBtn.id = 'bulk-pp-check-status';
+      checkStatusBtn.disabled = contentLoading || statusChecking;
+      checkStatusBtn.addEventListener('click', () => state.onCheckStatus());
+      statusRow.append(checkStatusBtn);
+      pagesPane.append(statusRow);
     }
 
     const pagesSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-pages');
@@ -706,6 +743,9 @@ function render(root, state) {
   pathInput.addEventListener('change', () => {
     state.folderPath = normalizeFolderPath(pathInput.value.trim());
   });
+  statusOptCb.addEventListener('change', () => {
+    state.fetchStatus = statusOptCb.checked;
+  });
   fetchBtn.addEventListener('click', () => state.onFetch(false));
   pagesTabBtn.addEventListener('click', () => state.onTab('pages'));
   urlsTabBtn.addEventListener('click', () => state.onTab('urls'));
@@ -739,6 +779,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
 
   if (pathsToCheck.length === 0) {
     state.statusChecking = false;
+    state.statusFetched = false;
     state.status = folderCount === 0 && docCount === 0
       ? `No folders or pages in ${location}.`
       : `Loaded ${docCount} page(s) in ${location}.`;
@@ -766,6 +807,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     if (state.statusAbort?.signal.aborted) return;
     state.platformStatus = platformStatus;
     state.statusChecking = false;
+    state.statusFetched = true;
     state.statusAbort = null;
     state.statusProgressDone = pathsToCheck.length;
     state.statusProgressTotal = pathsToCheck.length;
@@ -779,6 +821,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       return;
     }
     state.statusChecking = false;
+    state.statusFetched = false;
     state.statusAbort = null;
     state.statusCheckFailed = true;
     const raw = statusErr instanceof Error ? statusErr.message : 'Status check failed';
@@ -786,6 +829,29 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     console.warn('[bulk-pp] platform status failed', statusErr);
     render(/** @type {HTMLElement} */ (state.root), state);
   });
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {string} location
+ * @param {number} docCount
+ * @param {number} folderCount
+ */
+function finishContentLoadWithoutStatus(state, location, docCount, folderCount) {
+  state.statusChecking = false;
+  state.statusFetched = false;
+  state.statusCheckFailed = false;
+  state.statusError = null;
+  state.platformStatus = {};
+  if (folderCount === 0 && docCount === 0) {
+    state.status = `No folders or pages in ${location}.`;
+  } else if (state.pageScope === 'tree') {
+    state.status = `Loaded ${docCount} page(s) under ${location}. Use Check status when you need preview/publish dots.`;
+  } else {
+    state.status = `Loaded ${docCount} page(s) and ${folderCount} folder(s) in ${location}. Use Check status when you need preview/publish dots.`;
+  }
+  state.statusType = 'info';
+  render(/** @type {HTMLElement} */ (state.root), state);
 }
 
 async function main() {
@@ -812,6 +878,20 @@ async function main() {
     render(app, state);
   };
 
+  state.onCheckStatus = () => {
+    if (state.statusChecking || state.contentLoading || state.pages.length === 0) return;
+    state.fetchStatus = true;
+    const location = displayFolderPath(state.folderPath) || 'site root';
+    startStatusCheck(
+      state,
+      daFetch,
+      state.pages.map((p) => p.helixPath),
+      location,
+      state.pages.length,
+      state.folders.length,
+    );
+  };
+
   state.onNavigate = async (targetPath) => {
     cancelStatusCheck(state, false);
     state.folderPath = resolveContentFolderPath(targetPath);
@@ -827,10 +907,14 @@ async function main() {
     if (!fromFolderNav) {
       const pathInput = document.getElementById('bulk-pp-path');
       const depthSelect = document.getElementById('bulk-pp-depth');
+      const statusOptEl = document.getElementById('bulk-pp-fetch-status');
       const rawPath = pathInput instanceof HTMLInputElement ? pathInput.value : '';
       state.folderPath = resolveContentFolderPath(normalizeFolderPath(rawPath));
       if (depthSelect instanceof HTMLSelectElement) {
         state.pageScope = depthSelect.value === 'tree' ? 'tree' : 'folder';
+      }
+      if (statusOptEl instanceof HTMLInputElement) {
+        state.fetchStatus = statusOptEl.checked;
       }
     }
 
@@ -850,6 +934,7 @@ async function main() {
     state.contentLoading = true;
     state.error = null;
     state.statusCancelled = false;
+    state.statusFetched = false;
     state.platformStatus = {};
     state.statusCheckFailed = false;
     state.statusError = null;
@@ -902,25 +987,34 @@ async function main() {
       const location = displayFolderPath(state.folderPath) || 'site root';
       state.contentLoading = false;
 
-      if (isHardcodeIndexTest()) {
-        state.status = 'hardcodeIndex test mode — index only.';
-        state.statusType = 'info';
-      } else if (state.pageScope === 'tree') {
-        state.status = `${docCount} page(s) under ${location} · checking status…`;
-        state.statusType = 'success';
+      if (state.fetchStatus) {
+        if (isHardcodeIndexTest()) {
+          state.status = 'hardcodeIndex test mode — index only.';
+          state.statusType = 'info';
+        } else if (state.pageScope === 'tree') {
+          state.status = `${docCount} page(s) under ${location} · checking status…`;
+          state.statusType = 'success';
+        } else {
+          state.status = `${docCount} page(s) and ${state.folders.length} folder(s) in ${location} · checking status…`;
+          state.statusType = 'success';
+        }
+        startStatusCheck(
+          state,
+          daFetch,
+          state.pages.map((p) => p.helixPath),
+          location,
+          docCount,
+          state.folders.length,
+        );
       } else {
-        state.status = `${docCount} page(s) and ${state.folders.length} folder(s) in ${location} · checking status…`;
-        state.statusType = 'success';
+        if (state.pageFilter !== 'all') state.pageFilter = 'all';
+        finishContentLoadWithoutStatus(
+          state,
+          location,
+          docCount,
+          state.folders.length,
+        );
       }
-
-      startStatusCheck(
-        state,
-        daFetch,
-        state.pages.map((p) => p.helixPath),
-        location,
-        docCount,
-        state.folders.length,
-      );
     } catch (err) {
       state.folders = [];
       state.pages = [];
