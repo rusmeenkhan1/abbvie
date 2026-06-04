@@ -26,6 +26,7 @@ import {
 } from './lib/urls.js';
 import {
   countDeployedPages,
+  countStatusBreakdown,
   formatDeploymentSummary,
   formatStatusDate,
   getPageStatus,
@@ -119,6 +120,58 @@ function createPanel(title, extraClass = '') {
   const body = el('div', 'bulk-pp-panel-body');
   panel.append(head, body);
   return { panel, body };
+}
+
+/**
+ * @param {string} title
+ * @param {string | number} count
+ * @param {string} [countId]
+ * @param {'folders'|'pages'} [variant]
+ */
+function buildSectionHead(title, count, countId = '', variant = 'folders') {
+  const head = el('div', 'bulk-pp-section-head');
+  const titleWrap = el('div', 'bulk-pp-section-title-wrap');
+  const icon = el('span', `bulk-pp-section-icon bulk-pp-section-icon-${variant}`);
+  icon.setAttribute('aria-hidden', 'true');
+  titleWrap.append(icon, el('h3', 'bulk-pp-section-title', title));
+  const countEl = el('span', 'bulk-pp-section-count', String(count));
+  if (countId) countEl.id = countId;
+  head.append(titleWrap, countEl);
+  return head;
+}
+
+/**
+ * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
+ * @param {{ helixPath: string }[]} pages
+ */
+function buildDeploymentStatsBar(platformStatus, pages) {
+  const map = /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */ ({});
+  pages.forEach((p) => {
+    map[p.helixPath] = platformStatus[p.helixPath] || {};
+  });
+  const { live, preview, none } = countStatusBreakdown(map, pages);
+  const bar = el('div', 'bulk-pp-deployment-stats');
+  bar.id = 'bulk-pp-deployment-stats';
+  bar.setAttribute('aria-label', 'Deployment summary');
+  [
+    ['live', 'Published', live, 'bulk-pp-stat-live'],
+    ['preview', 'Preview only', preview, 'bulk-pp-stat-preview'],
+    ['none', 'Not deployed', none, 'bulk-pp-stat-none'],
+  ].forEach(([, label, value, mod]) => {
+    const card = el('div', `bulk-pp-stat-card ${mod}`);
+    card.append(
+      el('span', 'bulk-pp-stat-value', String(value)),
+      el('span', 'bulk-pp-stat-label', label),
+    );
+    bar.append(card);
+  });
+  const total = el('div', 'bulk-pp-stat-card bulk-pp-stat-total');
+  total.append(
+    el('span', 'bulk-pp-stat-value', String(pages.length)),
+    el('span', 'bulk-pp-stat-label', 'Pages in view'),
+  );
+  bar.append(total);
+  return bar;
 }
 
 function buildBreadcrumb(folderPath, onNavigate, locked = false) {
@@ -283,13 +336,20 @@ function collectDeployedHelixPaths(state, env) {
  * @param {ReturnType<typeof createAppState>} state
  * @param {'preview'|'live'} env
  */
+/**
+ * @param {string[]} urls
+ */
+function openUrlsInNewTabs(urls) {
+  urls.forEach((url) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+}
+
 function openDeployedUrls(state, env) {
   const paths = collectDeployedHelixPaths(state, env);
   if (paths.length === 0) return;
   const build = env === 'live' ? buildLiveUrl : buildPreviewUrl;
-  paths.forEach((helixPath) => {
-    window.open(build(state.org, state.site, state.ref, helixPath), '_blank', 'noopener,noreferrer');
-  });
+  openUrlsInNewTabs(paths.map((helixPath) => build(state.org, state.site, state.ref, helixPath)));
 }
 
 function buildStatusLegend() {
@@ -373,7 +433,21 @@ function patchStatusProgressUI(root, state) {
 
 function appendUrlSection(container, title, host, urls) {
   const section = el('div', 'bulk-pp-url-section');
-  section.append(el('h3', 'bulk-pp-url-section-title', title));
+  const head = el('div', 'bulk-pp-url-section-head');
+  head.append(el('h3', 'bulk-pp-url-section-title', title));
+  if (urls.length > 0) {
+    const count = urls.length;
+    const openAllBtn = el(
+      'button',
+      'bulk-pp-btn bulk-pp-btn-open-urls bulk-pp-btn-open-all-urls',
+      `Open all in new tabs (${count})`,
+    );
+    openAllBtn.type = 'button';
+    openAllBtn.title = `Open ${count} URL${count === 1 ? '' : 's'} in separate browser tabs`;
+    openAllBtn.addEventListener('click', () => openUrlsInNewTabs(urls));
+    head.append(openAllBtn);
+  }
+  section.append(head);
   section.append(el('p', 'bulk-pp-url-host', host));
   const listWrap = el('div', 'bulk-pp-list-wrap');
   const list = el('ul', 'bulk-pp-url-list');
@@ -427,9 +501,13 @@ function render(root, state) {
   const headerInner = el('div', 'bulk-pp-header-inner');
   const headerBrand = el('div', 'bulk-pp-header-brand');
   headerBrand.append(
-    el('span', 'bulk-pp-header-eyebrow', 'Document Authoring'),
+    el('span', 'bulk-pp-header-eyebrow', 'Adobe Experience Manager · Edge Delivery'),
     el('h1', null, 'Bulk Preview & Publish'),
-    el('p', 'bulk-pp-header-desc', 'Select pages, preview on AEM, and publish to production in a single workflow.'),
+    el(
+      'p',
+      'bulk-pp-header-desc',
+      'Browse your site structure, verify deployment status, and coordinate preview or live publishing across multiple pages in one workflow.',
+    ),
   );
   const headerMeta = el('div', 'bulk-pp-header-meta');
   headerMeta.append(
@@ -441,7 +519,7 @@ function render(root, state) {
   header.append(headerInner);
   root.append(header);
 
-  const { panel: browse, body: browseBody } = createPanel('Location & scope');
+  const { panel: browse, body: browseBody } = createPanel('Workspace');
   const row = el('div', 'bulk-pp-row');
   const pathField = el('div', 'bulk-pp-field');
   pathField.append(el('label', null, 'Jump to path'));
@@ -502,11 +580,11 @@ function render(root, state) {
 
   const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content');
   const contentHead = el('div', 'bulk-pp-panel-head');
-  contentHead.append(el('h2', null, 'Content & URLs'));
+  contentHead.append(el('h2', null, 'Site content'));
   contentPanel.append(contentHead);
   const tabBar = el('div', 'bulk-pp-tabs');
-  const pagesTabBtn = el('button', 'bulk-pp-tab', 'Content');
-  const urlsTabBtn = el('button', 'bulk-pp-tab', 'URLs');
+  const pagesTabBtn = el('button', 'bulk-pp-tab', 'Browse');
+  const urlsTabBtn = el('button', 'bulk-pp-tab', 'Published URLs');
   pagesTabBtn.type = 'button';
   urlsTabBtn.type = 'button';
   if (activeTab === 'pages') pagesTabBtn.classList.add('bulk-pp-tab-active');
@@ -528,23 +606,17 @@ function render(root, state) {
       'No folders or pages in this location.',
     ));
   } else {
+    const workspace = el('div', 'bulk-pp-workspace');
     const contentGrid = el('div', 'bulk-pp-content-grid');
     const inSubfolder = Boolean(normalizeFolderPath(safeFolder));
     const showFolderSection = state.folders.length > 0 || inSubfolder;
 
     if (showFolderSection) {
       const folderSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-folders');
-      const folderHead = el('div', 'bulk-pp-section-head');
       const folderCountLabel = folderSearchDraft && !folderSearchTooShort
         ? `${visibleFolders.length} of ${state.folders.length}`
         : String(state.folders.length);
-      const folderCountEl = el('span', 'bulk-pp-section-count', folderCountLabel);
-      folderCountEl.id = 'bulk-pp-folder-count';
-      folderHead.append(
-        el('h3', 'bulk-pp-section-title', 'Folders'),
-        folderCountEl,
-      );
-      folderSection.append(folderHead);
+      folderSection.append(buildSectionHead('Folders', folderCountLabel, 'bulk-pp-folder-count', 'folders'));
 
       if (inSubfolder) {
         folderSection.append(buildBreadcrumb(
@@ -556,7 +628,7 @@ function render(root, state) {
 
       const { wrap: folderSearchField, input: folderSearchInput } = buildSearchField(
         'bulk-pp-folder-search',
-        'Search folders',
+        'Find a folder',
         String(folderSearch || ''),
         statusChecking,
         searchHintText(folderSearch),
@@ -594,17 +666,10 @@ function render(root, state) {
     }
 
     const pagesSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-pages');
-    const pagesHead = el('div', 'bulk-pp-section-head');
     const pageCountLabel = searchDraft && !searchTooShort
       ? `${visiblePages.length} of ${state.pages.length}`
       : String(state.pages.length);
-    const pageCountEl = el('span', 'bulk-pp-section-count', pageCountLabel);
-    pageCountEl.id = 'bulk-pp-page-count';
-    pagesHead.append(
-      el('h3', 'bulk-pp-section-title', 'Pages'),
-      pageCountEl,
-    );
-    pagesSection.append(pagesHead);
+    pagesSection.append(buildSectionHead('Pages', pageCountLabel, 'bulk-pp-page-count', 'pages'));
 
     if (statusChecking) {
       pagesSection.append(buildStatusProgressBar(state, true));
@@ -615,13 +680,7 @@ function render(root, state) {
         statusError || 'Could not load deployment status from AEM.',
       ));
     } else if (state.pages.length > 0 && statusFetched) {
-      pagesSection.append(el(
-        'p',
-        'bulk-pp-status-note',
-        `Deployment status from AEM · ${formatDeploymentSummary(state.platformStatus, state.pages)}`,
-      ));
-      const note = pagesSection.querySelector('.bulk-pp-status-note:last-of-type');
-      if (note) note.id = 'bulk-pp-status-note';
+      pagesSection.append(buildDeploymentStatsBar(state.platformStatus, state.pages));
     } else if (state.pages.length > 0) {
       const statusRow = el('div', 'bulk-pp-status-row');
       statusRow.append(el(
@@ -675,7 +734,7 @@ function render(root, state) {
 
     const { wrap: searchField, input: searchInput } = buildSearchField(
       'bulk-pp-page-search',
-      'Search pages',
+      'Find a page',
       String(pageSearch || ''),
       statusChecking,
       searchHintText(pageSearch),
@@ -762,7 +821,8 @@ function render(root, state) {
     pageWrap.append(pageList);
     pagesSection.append(pageWrap);
     contentGrid.append(pagesSection);
-    pagesPane.append(contentGrid);
+    workspace.append(contentGrid);
+    pagesPane.append(workspace);
 
     filterSelect.addEventListener('change', () => {
       state.pageFilter = filterSelect.value;
@@ -794,10 +854,10 @@ function render(root, state) {
   root.append(contentPanel);
 
   if (!statusChecking) {
-    const { panel: runPanel, body: runBody } = createPanel('Run bulk actions', 'bulk-pp-actions-panel');
+    const { panel: runPanel, body: runBody } = createPanel('Actions', 'bulk-pp-actions-panel');
     const runRow = el('div', 'bulk-pp-run-actions');
-    const previewBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary', 'Preview selected');
-    const publishBtn = el('button', 'bulk-pp-btn bulk-pp-btn-danger', 'Publish to live');
+    const previewBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary', 'Preview selected pages');
+    const publishBtn = el('button', 'bulk-pp-btn bulk-pp-btn-danger', 'Publish to production');
     previewBtn.type = 'button';
     publishBtn.type = 'button';
     previewBtn.id = 'bulk-pp-preview-btn';
