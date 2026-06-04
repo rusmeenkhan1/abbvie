@@ -2,10 +2,7 @@ import {
   filterAndSortPages,
   filterPagesBySearch,
 } from './page-history.js';
-import {
-  isSiteShellPage,
-  resolveContentFolderPath,
-} from './paths.js';
+import { resolveContentFolderPath } from './paths.js';
 
 /** @typedef {{ kind: 'folder', name: string, folderPath: string }} FolderEntry */
 /** @typedef {{ kind: 'document', helixPath: string, sourcePath: string, name: string }} DocumentEntry */
@@ -123,13 +120,6 @@ export function cancelStatusCheck(state, setMessage = true) {
   }
 }
 
-/** @param {ReturnType<typeof createAppState>} state */
-export function pruneSiteShellFromSelection(state) {
-  state.pages.forEach((p) => {
-    if (isSiteShellPage(p)) state.selected.delete(p.helixPath);
-  });
-}
-
 /**
  * @param {ReturnType<typeof createAppState>} state
  */
@@ -193,15 +183,14 @@ export function getVisibleFolders(state) {
 }
 
 /**
- * Selected pages that exist in the current page list (excludes site shell).
+ * Selected pages that exist in the current page list.
  * @param {ReturnType<typeof createAppState>} state
  */
 export function getActiveSelectionCount(state) {
-  const pageByPath = new Map(state.pages.map((p) => [p.helixPath, p]));
+  const pagePaths = new Set(state.pages.map((p) => p.helixPath));
   let count = 0;
   state.selected.forEach((path) => {
-    const page = pageByPath.get(path);
-    if (page && !isSiteShellPage(page)) count += 1;
+    if (pagePaths.has(path)) count += 1;
   });
   return count;
 }
@@ -212,13 +201,11 @@ export function getActiveSelectionCount(state) {
  */
 export function selectAllVisible(state, checked) {
   const { visible } = getVisiblePages(state);
-  const selectable = visible.filter((p) => !isSiteShellPage(p));
   if (checked) {
-    selectable.forEach((p) => state.selected.add(p.helixPath));
+    visible.forEach((p) => state.selected.add(p.helixPath));
   } else {
-    selectable.forEach((p) => state.selected.delete(p.helixPath));
+    visible.forEach((p) => state.selected.delete(p.helixPath));
   }
-  pruneSiteShellFromSelection(state);
 }
 
 /**
@@ -237,8 +224,6 @@ export function formatSelectionPillText(state) {
   if (visibleCount === totalCount) {
     return `${activeCount} of ${totalCount} selected`;
   }
-  const visibleSelected = visible.filter((p) => (
-    !isSiteShellPage(p) && state.selected.has(p.helixPath)
-  )).length;
+  const visibleSelected = visible.filter((p) => state.selected.has(p.helixPath)).length;
   return `${activeCount} selected · ${visibleSelected} of ${visibleCount} shown`;
 }

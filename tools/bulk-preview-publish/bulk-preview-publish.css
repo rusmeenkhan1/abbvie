@@ -71,6 +71,28 @@
   box-sizing: border-box;
 }
 
+/* Block interaction while deployment status is loading */
+.bulk-pp-status-fetching {
+  cursor: wait;
+}
+
+.bulk-pp-status-fetching a,
+.bulk-pp-status-fetching button,
+.bulk-pp-status-fetching input,
+.bulk-pp-status-fetching select,
+.bulk-pp-status-fetching label,
+.bulk-pp-status-fetching .bulk-pp-folder-link,
+.bulk-pp-status-fetching .bulk-pp-breadcrumb-segment,
+.bulk-pp-status-fetching .bulk-pp-tab {
+  pointer-events: none;
+  cursor: wait !important;
+}
+
+.bulk-pp-status-fetching .bulk-pp-status-active .bulk-pp-btn-cancel-status {
+  pointer-events: auto;
+  cursor: pointer !important;
+}
+
 /* —— Header —— */
 .bulk-pp-header {
   margin-bottom: 24px;

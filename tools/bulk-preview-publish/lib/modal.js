@@ -82,3 +82,23 @@ export function confirmTreeScopeFetch() {
     variant: 'warning',
   });
 }
+
+/**
+ * @param {number} count
+ * @returns {Promise<boolean>}
+ */
+export function confirmOpenUrlsInNewTabs(count) {
+  const tabLabel = count === 1 ? '1 tab' : `${count} tabs`;
+  const scaleNote = count >= 20
+    ? ' Large lists often trigger popup blockers or slow the browser.'
+    : count >= 5
+      ? ' Some browsers may block or limit how many tabs open at once.'
+      : '';
+  return showConfirmModal({
+    title: 'Open URLs in new tabs?',
+    body: `This will try to open ${count} URL${count === 1 ? '' : 's'} (${tabLabel}).${scaleNote} Continue only if you intend to review that many pages.`,
+    confirmLabel: `Open ${tabLabel}`,
+    cancelLabel: 'Cancel',
+    variant: 'warning',
+  });
+}

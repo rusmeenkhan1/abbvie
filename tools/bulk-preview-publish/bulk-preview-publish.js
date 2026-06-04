@@ -13,7 +13,6 @@ import {
 import {
   displayFolderPath,
   formatPageListLabel,
-  isSiteShellPage,
   normalizeFolderPath,
   resolveContentFolderPath,
 } from './lib/paths.js';
@@ -33,7 +32,7 @@ import {
   PAGE_FILTERS,
   statusLabel,
 } from './lib/page-history.js';
-import { confirmTreeScopeFetch } from './lib/modal.js';
+import { confirmOpenUrlsInNewTabs, confirmTreeScopeFetch } from './lib/modal.js';
 import {
   bindSearchInput,
   buildSearchField,
@@ -50,7 +49,6 @@ import {
   getVisiblePages,
   getVisibleFolders,
   isStatusLoaded,
-  pruneSiteShellFromSelection,
   resetWorkspace,
   SEARCH_MIN_LEN,
   selectAllVisible,
@@ -256,9 +254,8 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
   cb.className = 'bulk-pp-page-cb';
   cb.value = page.helixPath;
   cb.dataset.path = page.helixPath;
-  const shell = isSiteShellPage(page);
-  cb.checked = !shell && state.selected.has(page.helixPath);
-  cb.disabled = interactionsLocked || shell;
+  cb.checked = state.selected.has(page.helixPath);
+  cb.disabled = interactionsLocked;
   cb.id = `page-${page.helixPath.replace(/\W/g, '_')}`;
   cb.addEventListener('change', (e) => {
     const input = /** @type {HTMLInputElement} */ (e.target);
@@ -337,23 +334,26 @@ function collectDeployedHelixPaths(state, env) {
 }
 
 /**
- * @param {ReturnType<typeof createAppState>} state
- * @param {'preview'|'live'} env
- */
-/**
  * @param {string[]} urls
  */
-function openUrlsInNewTabs(urls) {
+async function openUrlsInNewTabs(urls) {
+  if (urls.length === 0) return;
+  const ok = await confirmOpenUrlsInNewTabs(urls.length);
+  if (!ok) return;
   urls.forEach((url) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   });
 }
 
-function openDeployedUrls(state, env) {
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {'preview'|'live'} env
+ */
+async function openDeployedUrls(state, env) {
   const paths = collectDeployedHelixPaths(state, env);
   if (paths.length === 0) return;
   const build = env === 'live' ? buildLiveUrl : buildPreviewUrl;
-  openUrlsInNewTabs(paths.map((helixPath) => build(state.org, state.site, state.ref, helixPath)));
+  await openUrlsInNewTabs(paths.map((helixPath) => build(state.org, state.site, state.ref, helixPath)));
 }
 
 function buildStatusLegend() {
@@ -415,6 +415,7 @@ function buildStatusProgressBar(state, showCancel) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function patchStatusProgressUI(root, state) {
+  root.classList.toggle('bulk-pp-status-fetching', state.statusChecking);
   const fill = root.querySelector('#bulk-pp-progress-fill');
   const label = root.querySelector('#bulk-pp-progress-label');
   const note = root.querySelector('#bulk-pp-status-note');
@@ -448,7 +449,9 @@ function appendUrlSection(container, title, host, urls) {
     );
     openAllBtn.type = 'button';
     openAllBtn.title = `Open ${count} URL${count === 1 ? '' : 's'} in separate browser tabs`;
-    openAllBtn.addEventListener('click', () => openUrlsInNewTabs(urls));
+    openAllBtn.addEventListener('click', () => {
+      void openUrlsInNewTabs(urls);
+    });
     head.append(openAllBtn);
   }
   section.append(head);
@@ -500,6 +503,7 @@ function render(root, state) {
     && folderSearchDraft.length < SEARCH_MIN_LEN;
 
   root.replaceChildren();
+  root.classList.toggle('bulk-pp-status-fetching', statusChecking);
 
   const header = el('header', 'bulk-pp-header');
   const headerInner = el('div', 'bulk-pp-header-inner');
@@ -588,7 +592,7 @@ function render(root, state) {
   contentPanel.append(contentHead);
   const tabBar = el('div', 'bulk-pp-tabs');
   const pagesTabBtn = el('button', 'bulk-pp-tab', 'Browse');
-  const urlsTabBtn = el('button', 'bulk-pp-tab', 'Published URLs');
+  const urlsTabBtn = el('button', 'bulk-pp-tab', 'Urls');
   pagesTabBtn.type = 'button';
   urlsTabBtn.type = 'button';
   if (activeTab === 'pages') pagesTabBtn.classList.add('bulk-pp-tab-active');
@@ -774,7 +778,9 @@ function render(root, state) {
         );
         openPreviewBtn.type = 'button';
         openPreviewBtn.title = 'Open .aem.page URLs for previewed pages in new tabs';
-        openPreviewBtn.addEventListener('click', () => openDeployedUrls(state, 'preview'));
+        openPreviewBtn.addEventListener('click', () => {
+          void openDeployedUrls(state, 'preview');
+        });
         toolbarActions.append(openPreviewBtn);
       }
       if (liveCount > 0) {
@@ -785,7 +791,9 @@ function render(root, state) {
         );
         openLiveBtn.type = 'button';
         openLiveBtn.title = 'Open .aem.live URLs for published pages in new tabs';
-        openLiveBtn.addEventListener('click', () => openDeployedUrls(state, 'live'));
+        openLiveBtn.addEventListener('click', () => {
+          void openDeployedUrls(state, 'live');
+        });
         toolbarActions.append(openLiveBtn);
       }
     }
@@ -1140,8 +1148,6 @@ async function main() {
           if (prev.has(p.helixPath)) state.selected.add(p.helixPath);
         });
       }
-      pruneSiteShellFromSelection(state);
-
       const docCount = state.pages.length;
       const location = displayFolderPath(state.folderPath) || 'site root';
       state.contentLoading = false;
@@ -1208,11 +1214,8 @@ async function main() {
   };
 
   state.onRun = async (topic) => {
-    const pageByPath = new Map(state.pages.map((p) => [p.helixPath, p]));
-    const paths = [...state.selected].filter((path) => {
-      const page = pageByPath.get(path);
-      return page && !isSiteShellPage(page);
-    });
+    const pagePaths = new Set(state.pages.map((p) => p.helixPath));
+    const paths = [...state.selected].filter((path) => pagePaths.has(path));
     if (paths.length === 0) return;
 
     if (topic === 'live') {
