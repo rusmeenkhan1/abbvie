@@ -9,7 +9,7 @@ import {
   decodeHelixPath,
   helixToWebPath,
   toHelixPath,
-} from './paths.js';
+} from './paths.js?t=mpyxlouk';
 
 const ADMIN_STATUS_POST_SUFFIX = 'index';
 

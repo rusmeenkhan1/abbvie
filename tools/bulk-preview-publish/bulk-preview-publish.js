@@ -9,19 +9,19 @@ import {
   pollJob,
   resolveJobOutcome,
   startBulkJob,
-} from './lib/api.js';
+} from './lib/api.js?t=mpyxlouk';
 import {
   displayFolderPath,
   formatPageListLabel,
   isSiteShellPage,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from './lib/paths.js';
+} from './lib/paths.js?t=mpyxlouk';
 import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
-} from './lib/urls.js';
+} from './lib/urls.js?t=mpyxlouk';
 import {
   countDeployedPages,
   formatDeploymentSummary,
@@ -29,15 +29,15 @@ import {
   getPageStatus,
   PAGE_FILTERS,
   statusLabel,
-} from './lib/page-history.js';
-import { confirmTreeScopeFetch } from './lib/modal.js';
+} from './lib/page-history.js?t=mpyxlouk';
+import { confirmTreeScopeFetch } from './lib/modal.js?t=mpyxlouk';
 import {
   bindSearchInput,
   buildSearchField,
   patchFolderSearchResults,
   patchPageSearchResults,
   searchHintText,
-} from './lib/search-ui.js';
+} from './lib/search-ui.js?t=mpyxlouk';
 import {
   cancelStatusCheck,
   createAppState,
@@ -48,8 +48,8 @@ import {
   resetWorkspace,
   SEARCH_MIN_LEN,
   selectAllVisible,
-} from './lib/state.js';
-import { el } from './lib/dom.js';
+} from './lib/state.js?t=mpyxlouk';
+import { el } from './lib/dom.js?t=mpyxlouk';
 
 /** @type {Record<'untouched'|'previewed'|'published', string>} */
 const STATUS_COLOR = {

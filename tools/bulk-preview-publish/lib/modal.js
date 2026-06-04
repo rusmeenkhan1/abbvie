@@ -1,4 +1,6 @@
-import { el } from './dom.js';
+import { el } from './dom.js?t=mpyxlouk';
+
+/**
  * @param {{
  *   title: string,
  *   body: string,

@@ -2,7 +2,7 @@ import {
   formatPageListLabel,
   pageListRelativePath,
   sortPagesByListPath,
-} from './paths.js';
+} from './paths.js?t=mpyxlouk';
 
 /**
  * @typedef {{ previewedAt?: number, publishedAt?: number }} PageHistoryEntry

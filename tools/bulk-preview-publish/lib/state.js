@@ -1,11 +1,11 @@
 import {
   filterAndSortPages,
   filterPagesBySearch,
-} from './page-history.js';
+} from './page-history.js?t=mpyxlouk';
 import {
   isSiteShellPage,
   resolveContentFolderPath,
-} from './paths.js';
+} from './paths.js?t=mpyxlouk';
 
 /** @typedef {{ kind: 'folder', name: string, folderPath: string }} FolderEntry */
 /** @typedef {{ kind: 'document', helixPath: string, sourcePath: string, name: string }} DocumentEntry */
