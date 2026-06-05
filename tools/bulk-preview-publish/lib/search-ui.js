@@ -14,7 +14,10 @@ import { el } from './dom.js';
  */
 function syncOpenSelectedActionButtons(root, state) {
   const count = getActiveSelectionCount(state);
-  const disabled = count === 0 || state.statusChecking || state.loading || state.contentLoading;
+  const disabled = count === 0
+    || state.statusChecking
+    || state.loading
+    || state.contentLoading;
   const group = root.querySelector('#bulk-pp-open-selected-group');
   if (group instanceof HTMLElement) group.hidden = count === 0;
 
@@ -33,6 +36,25 @@ function syncOpenSelectedActionButtons(root, state) {
   if (liveBtn instanceof HTMLButtonElement) {
     liveBtn.disabled = disabled;
     liveBtn.title = `Open .aem.live URLs for ${countHint} in new tabs`;
+  }
+
+  const runDisabled = state.loading
+    || state.contentLoading
+    || state.statusChecking
+    || count === 0;
+  const bulkPreviewBtn = root.querySelector('#bulk-pp-preview-btn');
+  const bulkPublishBtn = root.querySelector('#bulk-pp-publish-btn');
+  if (bulkPreviewBtn instanceof HTMLButtonElement) {
+    bulkPreviewBtn.disabled = runDisabled;
+    bulkPreviewBtn.title = count === 0
+      ? 'Select pages to preview'
+      : `Bulk preview ${count} selected page${count === 1 ? '' : 's'}`;
+  }
+  if (bulkPublishBtn instanceof HTMLButtonElement) {
+    bulkPublishBtn.disabled = runDisabled;
+    bulkPublishBtn.title = count === 0
+      ? 'Select pages to publish'
+      : `Publish ${count} selected page${count === 1 ? '' : 's'} to live`;
   }
 }
 
@@ -106,14 +128,6 @@ export function syncSelectionUI(root, state) {
   if (selectNoneBtn instanceof HTMLButtonElement) {
     selectNoneBtn.disabled = listBusy || activeCount === 0;
   }
-
-  const actionsDisabled = state.loading
-    || state.contentLoading
-    || state.statusChecking
-    || activeCount === 0;
-  root.querySelectorAll('#bulk-pp-preview-btn, #bulk-pp-publish-btn').forEach((btn) => {
-    if (btn instanceof HTMLButtonElement) btn.disabled = actionsDisabled;
-  });
 
   syncOpenSelectedActionButtons(root, state);
 }

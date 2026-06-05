@@ -427,6 +427,7 @@ function appendOpenSelectedActionButtons(container, state) {
   if (count === 0) group.hidden = true;
 
   const countHint = count === 1 ? '1 page' : `${count} pages`;
+  const actionDisabled = count === 0 || state.statusChecking || state.loading || state.contentLoading;
 
   const daBtn = el(
     'button',
@@ -436,7 +437,7 @@ function appendOpenSelectedActionButtons(container, state) {
   daBtn.type = 'button';
   daBtn.id = 'bulk-pp-open-selected-da';
   daBtn.title = `Open Document Authoring for ${countHint} in new tabs`;
-  daBtn.disabled = count === 0 || state.statusChecking;
+  daBtn.disabled = actionDisabled;
   daBtn.addEventListener('click', () => {
     void openSelectedDa(state);
   });
@@ -449,7 +450,7 @@ function appendOpenSelectedActionButtons(container, state) {
   previewBtn.type = 'button';
   previewBtn.id = 'bulk-pp-open-selected-preview';
   previewBtn.title = `Open .aem.page URLs for ${countHint} in new tabs`;
-  previewBtn.disabled = count === 0 || state.statusChecking;
+  previewBtn.disabled = actionDisabled;
   previewBtn.addEventListener('click', () => {
     void openSelectedUrls(state, 'preview');
   });
@@ -462,12 +463,58 @@ function appendOpenSelectedActionButtons(container, state) {
   liveBtn.type = 'button';
   liveBtn.id = 'bulk-pp-open-selected-live';
   liveBtn.title = `Open .aem.live URLs for ${countHint} in new tabs`;
-  liveBtn.disabled = count === 0 || state.statusChecking;
+  liveBtn.disabled = actionDisabled;
   liveBtn.addEventListener('click', () => {
     void openSelectedUrls(state, 'live');
   });
 
   group.append(daBtn, previewBtn, liveBtn);
+  container.append(group);
+}
+
+/**
+ * Preview / publish for current selection (toolbar primary actions).
+ * @param {HTMLElement} container
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function appendRunSelectedButtons(container, state) {
+  const count = getActiveSelectionCount(state);
+  const runDisabled = state.loading
+    || state.contentLoading
+    || state.statusChecking
+    || isJobModalOpen()
+    || count === 0;
+
+  const group = el('div', 'bulk-pp-run-selected-group');
+  group.id = 'bulk-pp-run-selected-group';
+
+  const previewBtn = el(
+    'button',
+    'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-toolbar-run',
+    'Preview selected',
+  );
+  previewBtn.type = 'button';
+  previewBtn.id = 'bulk-pp-preview-btn';
+  previewBtn.title = count === 0
+    ? 'Select pages to preview'
+    : `Bulk preview ${count} selected page${count === 1 ? '' : 's'}`;
+  previewBtn.disabled = runDisabled;
+  previewBtn.addEventListener('click', () => state.onRun('preview'));
+
+  const publishBtn = el(
+    'button',
+    'bulk-pp-btn bulk-pp-btn-danger bulk-pp-btn-toolbar-run',
+    'Publish to production',
+  );
+  publishBtn.type = 'button';
+  publishBtn.id = 'bulk-pp-publish-btn';
+  publishBtn.title = count === 0
+    ? 'Select pages to publish'
+    : `Publish ${count} selected page${count === 1 ? '' : 's'} to live`;
+  publishBtn.disabled = runDisabled;
+  publishBtn.addEventListener('click', () => state.onRun('live'));
+
+  group.append(previewBtn, publishBtn);
   container.append(group);
 }
 
@@ -801,7 +848,8 @@ function render(root, state) {
       pagesSection.append(statusRow);
     }
 
-    const filterBar = el('div', 'bulk-pp-pages-filter-bar');
+    const controls = el('div', 'bulk-pp-pages-controls');
+    const filterRow = el('div', 'bulk-pp-pages-filter-row');
     const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
     filterField.append(el('label', null, 'Filter pages'));
     const filterSelect = document.createElement('select');
@@ -820,17 +868,18 @@ function render(root, state) {
       filterSelect.append(opt);
     });
     filterField.append(filterSelect);
-    const filterMain = el('div', 'bulk-pp-pages-filter-main');
-    filterMain.append(filterField, buildStatusLegend());
-    filterBar.append(filterMain);
-    filterBar.append(el(
-      'p',
-      'bulk-pp-pages-filter-note',
-      filtersLocked
-        ? 'Fetch Deployment status to unlock Filtering options'
-        : 'Applies to this folder only · resets when you navigate to another folder',
-    ));
-    pagesSection.append(filterBar);
+    filterRow.append(
+      filterField,
+      buildStatusLegend(),
+      el(
+        'p',
+        'bulk-pp-pages-filter-note',
+        filtersLocked
+          ? 'Fetch Deployment status to unlock filters'
+          : 'Folder scope only · resets on navigation',
+      ),
+    );
+    controls.append(filterRow);
 
     const { wrap: searchField, input: searchInput } = buildSearchField(
       'bulk-pp-page-search',
@@ -839,9 +888,10 @@ function render(root, state) {
       statusChecking,
       searchHintText(pageSearch),
     );
-    const searchRow = el('div', 'bulk-pp-search-row');
+    const searchRow = el('div', 'bulk-pp-pages-search-row');
     searchRow.append(searchField);
-    pagesSection.append(searchRow);
+    controls.append(searchRow);
+    pagesSection.append(controls);
 
     const toolbar = el('div', 'bulk-pp-toolbar');
     const toolbarActions = el('div', 'bulk-pp-toolbar-actions');
@@ -858,6 +908,7 @@ function render(root, state) {
     selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
     selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
     toolbarActions.append(selectAllBtn, selectNoneBtn);
+    appendRunSelectedButtons(toolbarActions, state);
     appendOpenSelectedActionButtons(toolbarActions, state);
 
     if (statusFetched && !statusChecking) {
@@ -958,29 +1009,6 @@ function render(root, state) {
   }
   contentPanel.append(urlsPane);
   root.append(contentPanel);
-
-  if (!statusChecking) {
-    const { panel: runPanel, body: runBody } = createPanel('Actions', 'bulk-pp-actions-panel');
-    const runRow = el('div', 'bulk-pp-run-actions');
-    const previewBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary', 'Preview selected pages');
-    const publishBtn = el('button', 'bulk-pp-btn bulk-pp-btn-danger', 'Publish to production');
-    previewBtn.type = 'button';
-    publishBtn.type = 'button';
-    previewBtn.id = 'bulk-pp-preview-btn';
-    publishBtn.id = 'bulk-pp-publish-btn';
-    const runDisabled = loading
-      || contentLoading
-      || statusChecking
-      || isJobModalOpen()
-      || getActiveSelectionCount(state) === 0;
-    previewBtn.disabled = runDisabled;
-    publishBtn.disabled = runDisabled;
-    runRow.append(previewBtn, publishBtn);
-    runBody.append(runRow);
-    root.append(runPanel);
-    previewBtn.addEventListener('click', () => state.onRun('preview'));
-    publishBtn.addEventListener('click', () => state.onRun('live'));
-  }
 
   if (status && !statusChecking) {
     const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType || 'info'}`);
