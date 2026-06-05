@@ -314,72 +314,65 @@ function actionRow(buttons) {
 }
 
 /**
- * @param {number} previewCount
- * @param {number} liveCount
+ * @param {{ live: number, previewOnly: number, none: number, total: number }} counts
  */
-function statusCompleteHint(previewCount, liveCount) {
-  if (previewCount === 0 && liveCount === 0) {
-    return 'No preview or live URLs were found for this page list. Close to continue browsing.';
-  }
-  const parts = [];
-  if (previewCount > 0) {
-    parts.push(`${previewCount} preview (.aem.page) URL${previewCount === 1 ? '' : 's'}`);
-  }
-  if (liveCount > 0) {
-    parts.push(`${liveCount} live (.aem.live) URL${liveCount === 1 ? '' : 's'}`);
-  }
-  return `Open ${parts.join(' or ')}, or close to continue browsing.`;
+function buildDeploymentBreakdownSummary(counts) {
+  const { live, previewOnly, none, total } = counts;
+  const wrap = el('div', 'bulk-pp-status-modal-breakdown');
+  wrap.append(el(
+    'p',
+    'bulk-pp-status-modal-breakdown-lead',
+    'Deployment status for pages in this view',
+  ));
+
+  const stats = el('div', 'bulk-pp-status-modal-stats');
+  /**
+   * @param {number} value
+   * @param {string} label
+   * @param {string} mod
+   */
+  const statItem = (value, label, mod) => {
+    const item = el('div', `bulk-pp-status-modal-stat ${mod}`);
+    item.append(
+      el('span', 'bulk-pp-status-modal-stat-value', String(value)),
+      el('span', 'bulk-pp-status-modal-stat-label', label),
+    );
+    return item;
+  };
+
+  stats.append(
+    statItem(live, 'Published (live)', 'bulk-pp-status-modal-stat-live'),
+    statItem(previewOnly, 'Preview only', 'bulk-pp-status-modal-stat-preview'),
+    statItem(none, 'Not deployed', 'bulk-pp-status-modal-stat-none'),
+    statItem(total, 'Total in view', 'bulk-pp-status-modal-stat-total'),
+  );
+  wrap.append(stats);
+  return wrap;
 }
 
 /**
  * @param {{
- *   summary: string,
- *   previewCount?: number,
- *   liveCount?: number,
- *   onOpenPreviewUrls: () => void | Promise<void>,
- *   onOpenLiveUrls: () => void | Promise<void>,
+ *   live: number,
+ *   previewOnly: number,
+ *   none: number,
+ *   total: number,
  *   onClose: () => void,
  * }} opts
  */
 export function showStatusFetchCompleteModal(opts) {
   if (!modalRef || modalRef.kind !== 'status') return;
-  const {
-    summary,
-    previewCount = 0,
-    liveCount = 0,
-    onOpenPreviewUrls,
-    onOpenLiveUrls,
-    onClose,
-  } = opts;
+  const { live, previewOnly, none, total, onClose } = opts;
   const { panel } = modalRef;
-  const previewLabel = previewCount > 0
-    ? `Open preview URLs (${previewCount})`
-    : 'Open preview URLs';
-  const liveLabel = liveCount > 0
-    ? `Open live URLs (${liveCount})`
-    : 'Open live URLs';
   replacePanel(panel, [
     el('p', 'bulk-pp-status-modal-success-icon', '✓'),
     el('h3', 'bulk-pp-status-modal-complete-title', 'Status check complete'),
-    el('p', 'bulk-pp-status-modal-summary', summary),
-    el('p', 'bulk-pp-status-modal-hint', statusCompleteHint(previewCount, liveCount)),
-    actionRow([
-      confirmActionBtn(
-        previewLabel,
-        onOpenPreviewUrls,
-        previewCount === 0,
-        'No preview (.aem.page) URLs to open',
-        'bulk-pp-status-modal-btn-preview',
-      ),
-      confirmActionBtn(
-        liveLabel,
-        onOpenLiveUrls,
-        liveCount === 0,
-        'No live (.aem.live) URLs to open',
-        'bulk-pp-status-modal-btn-live',
-      ),
-      closeActionBtn(onClose),
-    ]),
+    buildDeploymentBreakdownSummary({ live, previewOnly, none, total }),
+    el(
+      'p',
+      'bulk-pp-status-modal-hint',
+      'Use filters and the status key in the Pages panel to review results. Close to continue browsing.',
+    ),
+    actionRow([closeActionBtn(onClose)]),
   ]);
   setHeadTitle('Deployment status ready');
   hideHeaderCancel();

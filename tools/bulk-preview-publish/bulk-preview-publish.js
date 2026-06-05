@@ -23,7 +23,6 @@ import {
 } from './lib/urls.js';
 import {
   countStatusBreakdown,
-  formatDeploymentSummary,
   formatStatusDate,
   getPageStatus,
   PAGE_FILTERS,
@@ -389,14 +388,6 @@ async function openEnvUrls(state, env, paths) {
  * @param {ReturnType<typeof createAppState>} state
  * @param {'preview'|'live'} env
  */
-async function openDeployedUrls(state, env) {
-  await openEnvUrls(state, env, collectDeployedHelixPaths(state, env));
-}
-
-/**
- * @param {ReturnType<typeof createAppState>} state
- * @param {'preview'|'live'} env
- */
 async function openSelectedUrls(state, env) {
   await openEnvUrls(state, env, getSelectedHelixPaths(state));
 }
@@ -417,14 +408,14 @@ async function openSelectedDa(state) {
 }
 
 /**
- * @param {HTMLElement} container
+ * Open-in-browser actions for the current selection.
+ * @param {HTMLElement} group
  * @param {ReturnType<typeof createAppState>} state
  */
-function appendOpenSelectedActionButtons(container, state) {
+function appendOpenSelectedActionButtons(group, state) {
   const count = getActiveSelectionCount(state);
-  const group = el('div', 'bulk-pp-open-selected-group');
   group.id = 'bulk-pp-open-selected-group';
-  if (count === 0) group.hidden = true;
+  group.hidden = count === 0;
 
   const countHint = count === 1 ? '1 page' : `${count} pages`;
   const actionDisabled = count === 0 || state.statusChecking || state.loading || state.contentLoading;
@@ -432,11 +423,11 @@ function appendOpenSelectedActionButtons(container, state) {
   const daBtn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-selected-da',
-    'Open DA for all selected',
+    'Open in DA',
   );
   daBtn.type = 'button';
   daBtn.id = 'bulk-pp-open-selected-da';
-  daBtn.title = `Open Document Authoring for ${countHint} in new tabs`;
+  daBtn.title = `Open Document Authoring for ${countHint}`;
   daBtn.disabled = actionDisabled;
   daBtn.addEventListener('click', () => {
     void openSelectedDa(state);
@@ -445,11 +436,11 @@ function appendOpenSelectedActionButtons(container, state) {
   const previewBtn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls bulk-pp-btn-open-selected-preview',
-    'Open preview for all selected',
+    'Open preview',
   );
   previewBtn.type = 'button';
   previewBtn.id = 'bulk-pp-open-selected-preview';
-  previewBtn.title = `Open .aem.page URLs for ${countHint} in new tabs`;
+  previewBtn.title = `Open .aem.page URLs for ${countHint}`;
   previewBtn.disabled = actionDisabled;
   previewBtn.addEventListener('click', () => {
     void openSelectedUrls(state, 'preview');
@@ -458,26 +449,24 @@ function appendOpenSelectedActionButtons(container, state) {
   const liveBtn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls bulk-pp-btn-open-urls-live bulk-pp-btn-open-selected-live',
-    'Open live for all selected',
+    'Open live',
   );
   liveBtn.type = 'button';
   liveBtn.id = 'bulk-pp-open-selected-live';
-  liveBtn.title = `Open .aem.live URLs for ${countHint} in new tabs`;
+  liveBtn.title = `Open .aem.live URLs for ${countHint}`;
   liveBtn.disabled = actionDisabled;
   liveBtn.addEventListener('click', () => {
     void openSelectedUrls(state, 'live');
   });
 
   group.append(daBtn, previewBtn, liveBtn);
-  container.append(group);
 }
 
 /**
- * Preview / publish for current selection (toolbar primary actions).
- * @param {HTMLElement} container
+ * @param {HTMLElement} group
  * @param {ReturnType<typeof createAppState>} state
  */
-function appendRunSelectedButtons(container, state) {
+function appendRunSelectedButtons(group, state) {
   const count = getActiveSelectionCount(state);
   const runDisabled = state.loading
     || state.contentLoading
@@ -485,13 +474,10 @@ function appendRunSelectedButtons(container, state) {
     || isJobModalOpen()
     || count === 0;
 
-  const group = el('div', 'bulk-pp-run-selected-group');
-  group.id = 'bulk-pp-run-selected-group';
-
   const previewBtn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-toolbar-run',
-    'Preview selected',
+    'Preview',
   );
   previewBtn.type = 'button';
   previewBtn.id = 'bulk-pp-preview-btn';
@@ -504,18 +490,55 @@ function appendRunSelectedButtons(container, state) {
   const publishBtn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-danger bulk-pp-btn-toolbar-run',
-    'Publish to production',
+    'Publish live',
   );
   publishBtn.type = 'button';
   publishBtn.id = 'bulk-pp-publish-btn';
   publishBtn.title = count === 0
     ? 'Select pages to publish'
-    : `Publish ${count} selected page${count === 1 ? '' : 's'} to live`;
+    : `Publish ${count} selected page${count === 1 ? '' : 's'} to production`;
   publishBtn.disabled = runDisabled;
   publishBtn.addEventListener('click', () => state.onRun('live'));
 
   group.append(previewBtn, publishBtn);
-  container.append(group);
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {{ visiblePages: { helixPath: string }[], statusChecking: boolean }} opts
+ */
+function buildPageToolbar(state, { visiblePages, statusChecking }) {
+  const toolbar = el('div', 'bulk-pp-toolbar');
+  const main = el('div', 'bulk-pp-toolbar-main');
+
+  const selectionGroup = el('div', 'bulk-pp-toolbar-group');
+  const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-toolbar-compact', 'Select all');
+  const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-toolbar-compact', 'Clear');
+  selectAllBtn.type = 'button';
+  selectNoneBtn.type = 'button';
+  selectAllBtn.id = 'bulk-pp-select-all';
+  selectNoneBtn.id = 'bulk-pp-select-none';
+  selectAllBtn.disabled = visiblePages.length === 0 || statusChecking;
+  selectNoneBtn.disabled = visiblePages.length === 0
+    || statusChecking
+    || getActiveSelectionCount(state) === 0;
+  selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
+  selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
+  selectionGroup.append(selectAllBtn, selectNoneBtn);
+
+  const publishGroup = el('div', 'bulk-pp-toolbar-group bulk-pp-toolbar-group-publish');
+  appendRunSelectedButtons(publishGroup, state);
+
+  const openGroup = el('div', 'bulk-pp-toolbar-group bulk-pp-toolbar-group-open');
+  appendOpenSelectedActionButtons(openGroup, state);
+
+  main.append(selectionGroup, publishGroup, openGroup);
+  toolbar.append(
+    main,
+    el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state)),
+  );
+  toolbar.querySelector('.bulk-pp-selection-pill').id = 'bulk-pp-selection-pill';
+  return toolbar;
 }
 
 function buildStatusLegend() {
@@ -893,60 +916,7 @@ function render(root, state) {
     controls.append(searchRow);
     pagesSection.append(controls);
 
-    const toolbar = el('div', 'bulk-pp-toolbar');
-    const toolbarActions = el('div', 'bulk-pp-toolbar-actions');
-    const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost', 'Select all');
-    const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost', 'Select none');
-    selectAllBtn.type = 'button';
-    selectNoneBtn.type = 'button';
-    selectAllBtn.id = 'bulk-pp-select-all';
-    selectNoneBtn.id = 'bulk-pp-select-none';
-    selectAllBtn.disabled = visiblePages.length === 0 || statusChecking;
-    selectNoneBtn.disabled = visiblePages.length === 0
-      || statusChecking
-      || getActiveSelectionCount(state) === 0;
-    selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
-    selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
-    toolbarActions.append(selectAllBtn, selectNoneBtn);
-    appendRunSelectedButtons(toolbarActions, state);
-    appendOpenSelectedActionButtons(toolbarActions, state);
-
-    if (statusFetched && !statusChecking) {
-      const previewCount = collectDeployedHelixPaths(state, 'preview').length;
-      const liveCount = collectDeployedHelixPaths(state, 'live').length;
-      if (previewCount > 0) {
-        const openPreviewBtn = el(
-          'button',
-          'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls',
-          `Open ${previewCount} preview URL${previewCount === 1 ? '' : 's'}`,
-        );
-        openPreviewBtn.type = 'button';
-        openPreviewBtn.title = 'Open .aem.page URLs for previewed pages in new tabs';
-        openPreviewBtn.addEventListener('click', () => {
-          void openDeployedUrls(state, 'preview');
-        });
-        toolbarActions.append(openPreviewBtn);
-      }
-      if (liveCount > 0) {
-        const openLiveBtn = el(
-          'button',
-          'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls bulk-pp-btn-open-urls-live',
-          `Open ${liveCount} live URL${liveCount === 1 ? '' : 's'}`,
-        );
-        openLiveBtn.type = 'button';
-        openLiveBtn.title = 'Open .aem.live URLs for published pages in new tabs';
-        openLiveBtn.addEventListener('click', () => {
-          void openDeployedUrls(state, 'live');
-        });
-        toolbarActions.append(openLiveBtn);
-      }
-    }
-    toolbar.append(
-      toolbarActions,
-      el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state)),
-    );
-    toolbar.querySelector('.bulk-pp-selection-pill').id = 'bulk-pp-selection-pill';
-    pagesSection.append(toolbar);
+    pagesSection.append(buildPageToolbar(state, { visiblePages, statusChecking }));
 
     const pageWrap = el('div', 'bulk-pp-list-wrap');
     pageWrap.id = 'bulk-pp-page-list-wrap';
@@ -1010,12 +980,16 @@ function render(root, state) {
   contentPanel.append(urlsPane);
   root.append(contentPanel);
 
-  if (status && !statusChecking) {
-    const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType || 'info'}`);
-    statusEl.setAttribute('role', statusType === 'error' ? 'alert' : 'status');
+  if (status && !statusChecking && statusType === 'error') {
+    const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType}`);
+    statusEl.setAttribute('role', 'alert');
     statusEl.setAttribute('aria-live', 'polite');
     statusEl.append(el('strong', null, status));
     if (jobDetail) statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
+    root.append(statusEl);
+  } else if (jobDetail && new URLSearchParams(window.location.search).has('debug')) {
+    const statusEl = el('div', 'bulk-pp-status bulk-pp-status-info');
+    statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
     root.append(statusEl);
   }
 
@@ -1097,37 +1071,18 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusFetchStartedAt = null;
     state.statusProgressDone = pathsToCheck.length;
     state.statusProgressTotal = pathsToCheck.length;
-    const summary = formatDeploymentSummary(platformStatus, state.pages);
-    state.status = `Status check complete · ${summary}`;
+    const statusMap = /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */ ({});
+    state.pages.forEach((p) => {
+      statusMap[p.helixPath] = platformStatus[p.helixPath] || {};
+    });
+    const { live, preview, none } = countStatusBreakdown(statusMap, state.pages);
+    state.status = null;
     state.statusType = 'success';
-    const previewPaths = collectDeployedHelixPaths(state, 'preview');
-    const livePaths = collectDeployedHelixPaths(state, 'live');
-    const previewUrls = buildUrlsForPaths(
-      previewPaths,
-      state.org,
-      state.site,
-      state.ref,
-      'preview',
-    );
-    const liveUrls = buildUrlsForPaths(
-      livePaths,
-      state.org,
-      state.site,
-      state.ref,
-      'live',
-    );
     showStatusFetchCompleteModal({
-      summary,
-      previewCount: previewPaths.length,
-      liveCount: livePaths.length,
-      onOpenPreviewUrls: async () => {
-        if (previewUrls.length > 0) await openUrlsInNewTabs(previewUrls, state);
-        finishProgressModal(state, 'status');
-      },
-      onOpenLiveUrls: async () => {
-        if (liveUrls.length > 0) await openUrlsInNewTabs(liveUrls, state);
-        finishProgressModal(state, 'status');
-      },
+      live,
+      previewOnly: preview,
+      none,
+      total: state.pages.length,
       onClose: () => finishProgressModal(state, 'status'),
     });
   }).catch((statusErr) => {
