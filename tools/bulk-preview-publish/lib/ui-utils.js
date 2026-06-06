@@ -42,10 +42,36 @@ export async function runButtonAction(btn, successLabel, errorLabel, defaultLabe
 }
 
 /**
- * @param {number} opened
- * @param {number} attempted
+ * Open URLs in new tabs. In embedded DA contexts window.open often returns null
+ * even when tabs open — only treat explicit closed windows as blocked.
+ * @param {string[]} urls
+ * @returns {{ blocked: boolean, opened: number, attempted: number }}
  */
-export function detectPopupBlock(opened, attempted) {
-  if (attempted === 0) return false;
-  return opened === 0;
+export function openUrlsInNewTabsQuiet(urls) {
+  if (urls.length === 0) return { blocked: false, opened: 0, attempted: 0 };
+  let opened = 0;
+  let explicitlyBlocked = 0;
+  urls.forEach((url) => {
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if (win === null) {
+      // Embedded iframe: null does not reliably mean blocked — assume success.
+      opened += 1;
+      return;
+    }
+    try {
+      if (win.closed) explicitlyBlocked += 1;
+      else opened += 1;
+    } catch {
+      opened += 1;
+    }
+  });
+  const blocked = explicitlyBlocked > 0 && opened === 0;
+  return { blocked, opened, attempted: urls.length };
+}
+
+/**
+ * @param {{ blocked: boolean, opened: number, attempted: number }} result
+ */
+export function shouldWarnPopupBlock(result) {
+  return result.blocked && result.attempted > 0;
 }

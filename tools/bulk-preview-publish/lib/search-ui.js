@@ -12,6 +12,28 @@ import { el } from './dom.js';
  * @param {HTMLElement} root
  * @param {ReturnType<typeof import('./state.js').createAppState>} state
  */
+function syncPageRowDaLinks(root, state) {
+  const multi = getActiveSelectionCount(state) > 1;
+  const locked = state.statusChecking;
+  root.querySelectorAll('.bulk-pp-btn-open-da').forEach((el) => {
+    if (!(el instanceof HTMLAnchorElement)) return;
+    const href = el.dataset.href || '';
+    if (locked || multi) {
+      el.classList.add('bulk-pp-btn-open-da-disabled');
+      el.setAttribute('aria-disabled', 'true');
+      el.removeAttribute('href');
+      el.title = multi
+        ? 'Use “Open DA URL for selected” in the toolbar when multiple pages are selected'
+        : 'Unavailable while status is loading';
+    } else {
+      el.classList.remove('bulk-pp-btn-open-da-disabled');
+      el.removeAttribute('aria-disabled');
+      if (href) el.href = href;
+      el.title = 'Open this page in Document Authoring';
+    }
+  });
+}
+
 function syncOpenSelectedActionButtons(root, state) {
   const count = getActiveSelectionCount(state);
   const disabled = count === 0
@@ -27,15 +49,15 @@ function syncOpenSelectedActionButtons(root, state) {
   const liveBtn = root.querySelector('#bulk-pp-open-selected-live');
   if (daBtn instanceof HTMLButtonElement) {
     daBtn.disabled = disabled;
-    daBtn.title = `Open Document Authoring for ${countHint} in new tabs`;
+    daBtn.title = `Open Document Authoring for ${countHint}`;
   }
   if (previewBtn instanceof HTMLButtonElement) {
     previewBtn.disabled = disabled;
-    previewBtn.title = `Open .aem.page URLs for ${countHint} in new tabs`;
+    previewBtn.title = `Open .aem.page preview URL for ${countHint}`;
   }
   if (liveBtn instanceof HTMLButtonElement) {
     liveBtn.disabled = disabled;
-    liveBtn.title = `Open .aem.live URLs for ${countHint} in new tabs`;
+    liveBtn.title = `Open .aem.live publish URL for ${countHint}`;
   }
 
   const runDisabled = state.loading
@@ -54,8 +76,10 @@ function syncOpenSelectedActionButtons(root, state) {
     bulkPublishBtn.disabled = runDisabled;
     bulkPublishBtn.title = count === 0
       ? 'Select pages to publish'
-      : `Publish ${count} selected page${count === 1 ? '' : 's'} to live`;
+      : `Publish ${count} selected page${count === 1 ? '' : 's'} to production`;
   }
+
+  syncPageRowDaLinks(root, state);
 }
 
 /**

@@ -1194,7 +1194,11 @@
 
 .bulk-pp-status-modal-head .bulk-pp-status-modal-cancel {
   flex-shrink: 0;
-  min-width: 5.5rem;
+  min-width: 6.5rem;
+}
+
+.bulk-pp-status-modal-stopped-title {
+  color: var(--pp-error-text, #8b1a1a);
 }
 
 .bulk-pp-url-operation-note {
@@ -1320,6 +1324,23 @@
 .bulk-pp-modal-btn-cancel:hover {
   background: #f8f9fc;
   border-color: #c8d0e0;
+}
+
+.bulk-pp-modal-btn-stop {
+  background: #fff;
+  border-color: var(--pp-error-border, #f5c4c4);
+  color: var(--pp-error-text, #8b1a1a);
+  box-shadow: 0 1px 2px rgb(139 26 26 / 8%);
+}
+
+.bulk-pp-modal-btn-stop:hover:not(:disabled) {
+  background: var(--pp-error-bg, #fef2f2);
+  border-color: var(--pp-danger, #c9252d);
+  color: var(--pp-danger-hover, #a81f26);
+}
+
+.bulk-pp-modal-btn-stop:focus-visible {
+  outline-color: var(--pp-danger, #c9252d);
 }
 
 .bulk-pp-modal-btn-confirm {

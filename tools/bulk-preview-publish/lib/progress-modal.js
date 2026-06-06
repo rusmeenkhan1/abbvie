@@ -76,7 +76,7 @@ export const closeJobModal = closeProgressModal;
 /**
  * @param {HTMLElement | null} appRoot
  * @param {ProgressModalKind} kind
- * @param {{ title: string, intro: string, onCancel: () => void }} opts
+ * @param {{ title: string, intro: string, onCancel: () => void, cancelLabel?: string }} opts
  */
 function openProgressModal(appRoot, kind, opts) {
   closeProgressModal(appRoot);
@@ -95,9 +95,13 @@ function openProgressModal(appRoot, kind, opts) {
   titleEl.id = ids.title;
   head.append(titleEl);
 
-  const cancelBtn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-cancel bulk-pp-status-modal-cancel', 'Cancel');
+  const cancelLabel = opts.cancelLabel || 'Stop';
+  const cancelBtn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-stop bulk-pp-status-modal-cancel', cancelLabel);
   cancelBtn.type = 'button';
   cancelBtn.id = ids.cancel;
+  cancelBtn.title = kind === 'job'
+    ? 'Stop tracking this job (server work may continue)'
+    : 'Stop the status check (requests already sent may still complete)';
   cancelBtn.addEventListener('click', opts.onCancel);
   head.append(cancelBtn);
 
@@ -160,12 +164,14 @@ function setHeadTitle(text) {
  */
 export function openStatusFetchModal(appRoot, state, onCancel) {
   const etaText = formatStatusFetchEta(state.statusProgressTotal);
+  const base = 'Checking preview and publish status from AEM. Use Stop to end the check — requests already sent may still complete.';
   const intro = etaText
-    ? `Checking preview and publish status from AEM. Estimated time: ${etaText}.`
-    : 'Checking preview and publish status from AEM.';
+    ? `${base} Estimated time: ${etaText}.`
+    : base;
   openProgressModal(appRoot, 'status', {
     title: 'Fetching deployment status',
     intro,
+    cancelLabel: 'Stop check',
     onCancel,
   });
 }
@@ -186,9 +192,9 @@ function jobTitle(topic, pageCount) {
 function jobIntro(topic, pageCount) {
   const noun = pageCount === 1 ? 'page' : 'pages';
   if (topic === 'live') {
-    return `Publishing ${pageCount} ${noun} to the live site (.aem.live). You can cancel at any time; the job may continue on the server.`;
+    return `Publishing ${pageCount} ${noun} to the live site (.aem.live). Use Stop if you need to close this dialog — work already started on the server will continue.`;
   }
-  return `Creating preview deployments for ${pageCount} ${noun} (.aem.page). You can cancel at any time; the job may continue on the server.`;
+  return `Creating preview deployments for ${pageCount} ${noun} (.aem.page). Use Stop if you need to close this dialog — work already started on the server will continue.`;
 }
 
 /**
@@ -201,6 +207,7 @@ export function openJobModal(appRoot, topic, pageCount, onCancel) {
   openProgressModal(appRoot, 'job', {
     title: jobTitle(topic, pageCount),
     intro: jobIntro(topic, pageCount),
+    cancelLabel: 'Stop job',
     onCancel,
   });
 }
@@ -381,6 +388,21 @@ export function showStatusFetchCompleteModal(opts) {
 /**
  * @param {{ message: string, onClose: () => void }} opts
  */
+export function showStatusFetchCancelledModal(opts) {
+  if (!modalRef || modalRef.kind !== 'status') return;
+  const { message, onClose } = opts;
+  replacePanel(modalRef.panel, [
+    el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-stopped-title', 'Status check stopped'),
+    el('p', 'bulk-pp-status-modal-summary', message),
+    actionRow([closeActionBtn(onClose)]),
+  ]);
+  setHeadTitle('Check stopped');
+  hideHeaderCancel();
+}
+
+/**
+ * @param {{ message: string, onClose: () => void }} opts
+ */
 export function showStatusFetchErrorModal(opts) {
   if (!modalRef || modalRef.kind !== 'status') return;
   const { message, onClose } = opts;
@@ -449,10 +471,10 @@ export function showJobCancelledModal(opts) {
   if (!modalRef || modalRef.kind !== 'job') return;
   const { message, topic, onClose } = opts;
   replacePanel(modalRef.panel, [
-    el('h3', 'bulk-pp-status-modal-complete-title', 'Operation cancelled'),
+    el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-stopped-title', 'Job stopped on screen'),
     el('p', 'bulk-pp-status-modal-summary', message),
     actionRow([closeActionBtn(onClose)]),
   ]);
-  setHeadTitle(topic === 'live' ? 'Publish stopped' : 'Preview stopped');
+  setHeadTitle(topic === 'live' ? 'Publish tracking stopped' : 'Preview tracking stopped');
   hideHeaderCancel();
 }

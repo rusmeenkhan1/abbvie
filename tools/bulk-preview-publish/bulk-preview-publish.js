@@ -29,7 +29,7 @@ import {
   statusLabel,
 } from './lib/page-history.js';
 import { confirmOpenUrlsInNewTabs, confirmPublishToLive, confirmTreeScopeFetch } from './lib/modal.js';
-import { copyTextToClipboard, detectPopupBlock, runButtonAction } from './lib/ui-utils.js';
+import { copyTextToClipboard, openUrlsInNewTabsQuiet, runButtonAction, shouldWarnPopupBlock } from './lib/ui-utils.js';
 import {
   closeJobModal,
   closeStatusFetchModal,
@@ -42,6 +42,7 @@ import {
   showJobCompleteModal,
   showJobErrorModal,
   showStatusFetchCompleteModal,
+  showStatusFetchCancelledModal,
   showStatusFetchErrorModal,
   updateJobModal,
   updateStatusFetchModal,
@@ -301,12 +302,17 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
 
   const rowActions = el('div', 'bulk-pp-row-actions');
   const daUrl = buildDaEditUrl(siteCtx.org, siteCtx.site, page.helixPath, page.sourcePath, siteCtx.ref);
+  const multiSelected = getActiveSelectionCount(state) > 1;
+  const daDisabled = interactionsLocked || multiSelected;
   const daLink = document.createElement('a');
   daLink.className = 'bulk-pp-btn bulk-pp-btn-open-da';
-  if (interactionsLocked) {
+  daLink.dataset.href = daUrl;
+  if (daDisabled) {
     daLink.classList.add('bulk-pp-btn-open-da-disabled');
     daLink.setAttribute('aria-disabled', 'true');
-    daLink.title = 'Unavailable while status is loading';
+    daLink.title = multiSelected
+      ? 'Use “Open DA URL for selected” in the toolbar when multiple pages are selected'
+      : 'Unavailable while status is loading';
     daLink.textContent = 'DA';
     daLink.addEventListener('click', (e) => {
       e.preventDefault();
@@ -317,7 +323,7 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
     daLink.target = '_top';
     daLink.rel = 'noopener noreferrer';
     daLink.textContent = 'DA';
-    daLink.title = 'Open in Document Authoring';
+    daLink.title = 'Open this page in Document Authoring';
     daLink.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -357,17 +363,11 @@ async function openUrlsInNewTabs(urls, state = null) {
   if (urls.length === 0) return;
   const ok = await confirmOpenUrlsInNewTabs(urls.length);
   if (!ok) return;
-  let opened = 0;
-  urls.forEach((url) => {
-    const win = window.open(url, '_blank', 'noopener,noreferrer');
-    if (win) opened += 1;
-  });
-  if (detectPopupBlock(opened, urls.length)) {
-    if (state) {
-      state.status = 'Your browser blocked new tabs. Allow pop-ups for this site, or use Copy URLs.';
-      state.statusType = 'error';
-      if (state.root) render(/** @type {HTMLElement} */ (state.root), state);
-    }
+  const result = openUrlsInNewTabsQuiet(urls);
+  if (shouldWarnPopupBlock(result) && state) {
+    state.status = 'Your browser blocked new tabs. Allow pop-ups for this site, or use Copy URLs on the Urls tab.';
+    state.statusType = 'error';
+    if (state.root) render(/** @type {HTMLElement} */ (state.root), state);
   }
 }
 
@@ -423,7 +423,7 @@ function appendOpenSelectedActionButtons(group, state) {
   const daBtn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-selected-da',
-    'Open in DA',
+    'Open DA URL for selected',
   );
   daBtn.type = 'button';
   daBtn.id = 'bulk-pp-open-selected-da';
@@ -436,11 +436,11 @@ function appendOpenSelectedActionButtons(group, state) {
   const previewBtn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls bulk-pp-btn-open-selected-preview',
-    'Open preview',
+    'Open preview URL for selected',
   );
   previewBtn.type = 'button';
   previewBtn.id = 'bulk-pp-open-selected-preview';
-  previewBtn.title = `Open .aem.page URLs for ${countHint}`;
+  previewBtn.title = `Open .aem.page preview URL for ${countHint}`;
   previewBtn.disabled = actionDisabled;
   previewBtn.addEventListener('click', () => {
     void openSelectedUrls(state, 'preview');
@@ -449,11 +449,11 @@ function appendOpenSelectedActionButtons(group, state) {
   const liveBtn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls bulk-pp-btn-open-urls-live bulk-pp-btn-open-selected-live',
-    'Open live',
+    'Open publish URL for selected',
   );
   liveBtn.type = 'button';
   liveBtn.id = 'bulk-pp-open-selected-live';
-  liveBtn.title = `Open .aem.live URLs for ${countHint}`;
+  liveBtn.title = `Open .aem.live publish URL for ${countHint}`;
   liveBtn.disabled = actionDisabled;
   liveBtn.addEventListener('click', () => {
     void openSelectedUrls(state, 'live');
@@ -477,7 +477,7 @@ function appendRunSelectedButtons(group, state) {
   const previewBtn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-toolbar-run',
-    'Preview',
+    'Preview selected',
   );
   previewBtn.type = 'button';
   previewBtn.id = 'bulk-pp-preview-btn';
@@ -490,7 +490,7 @@ function appendRunSelectedButtons(group, state) {
   const publishBtn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-danger bulk-pp-btn-toolbar-run',
-    'Publish live',
+    'Publish selected',
   );
   publishBtn.type = 'button';
   publishBtn.id = 'bulk-pp-publish-btn';
@@ -559,6 +559,14 @@ function buildStatusLegend() {
 }
 
 /**
+ * Uncheck "Load preview & publish status on Fetch" after a status run finishes.
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function resetFetchStatusOption(state) {
+  state.fetchStatus = false;
+}
+
+/**
  * @param {ReturnType<typeof createAppState>} state
  * @param {'status'|'job'} kind
  */
@@ -571,6 +579,7 @@ function finishProgressModal(state, kind) {
     state.jobStartedAt = null;
   } else {
     closeStatusFetchModal(root);
+    resetFetchStatusOption(state);
   }
   if (root) render(root, state);
 }
@@ -1037,6 +1046,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
   if (pathsToCheck.length === 0) {
     state.statusChecking = false;
     state.statusFetched = false;
+    resetFetchStatusOption(state);
     state.status = folderCount === 0 && docCount === 0
       ? `No folders or pages in ${location}.`
       : `Loaded ${docCount} page(s) in ${location}.`;
@@ -1076,6 +1086,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       statusMap[p.helixPath] = platformStatus[p.helixPath] || {};
     });
     const { live, preview, none } = countStatusBreakdown(statusMap, state.pages);
+    resetFetchStatusOption(state);
     state.status = null;
     state.statusType = 'success';
     showStatusFetchCompleteModal({
@@ -1089,7 +1100,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     if (statusErr instanceof DOMException && statusErr.name === 'AbortError') {
       state.statusAbort = null;
       state.statusFetchStartedAt = null;
-      finishProgressModal(state, 'status');
+      resetFetchStatusOption(state);
       return;
     }
     state.statusChecking = false;
@@ -1097,6 +1108,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusAbort = null;
     state.statusFetchStartedAt = null;
     state.statusCheckFailed = true;
+    resetFetchStatusOption(state);
     state.statusError = messageFromApiError(statusErr, 'Status check failed');
     console.warn('[bulk-pp] platform status failed', statusErr);
     showStatusFetchErrorModal({
@@ -1156,17 +1168,30 @@ async function main() {
   };
 
   state.onCancelStatus = () => {
-    cancelStatusCheck(state, true);
-    finishProgressModal(state, 'status');
+    const checked = state.statusProgressDone;
+    const total = state.statusProgressTotal;
+    cancelStatusCheck(state, false);
+    resetFetchStatusOption(state);
+    if (app) syncSelectionUI(app, state);
+    const partialNote = checked > 0
+      ? `Status results for ${checked} of ${total} pages are kept in the list. `
+      : '';
+    showStatusFetchCancelledModal({
+      message: `${partialNote}Stopping the check does not undo requests already sent to AEM. You can run Fetch Deployment status again anytime.`,
+      onClose: () => finishProgressModal(state, 'status'),
+    });
   };
 
   state.onCancelJob = () => {
     cancelBulkJob(state, false);
+    if (app) syncSelectionUI(app, state);
+    const topic = /** @type {'preview'|'live'} */ (state.jobTopic || 'preview');
+    const action = topic === 'live' ? 'publish' : 'preview';
     showJobCancelledModal({
-      message: 'You stopped watching this job. Preview or publish may still complete on the server.',
-      topic: /** @type {'preview'|'live'} */ (state.jobTopic || 'preview'),
+      message: `You stopped tracking this bulk ${action} job. If it already started on the server, pages may still be ${topic === 'live' ? 'published' : 'previewed'}. Check status in the Pages panel or run Fetch Deployment status again.`,
+      topic,
       onClose: () => {
-        state.status = 'Bulk operation cancelled.';
+        state.status = null;
         state.statusType = 'info';
         finishProgressModal(state, 'job');
       },
@@ -1286,6 +1311,7 @@ async function main() {
         if (isHardcodeIndexTest()) {
           state.status = 'hardcodeIndex test mode — index only.';
           state.statusType = 'info';
+          resetFetchStatusOption(state);
         } else if (state.pageScope === 'tree') {
           state.status = `${docCount} page(s) under ${location} · checking status…`;
           state.statusType = 'success';
