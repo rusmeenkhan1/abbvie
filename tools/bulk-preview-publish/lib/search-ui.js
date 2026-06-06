@@ -79,6 +79,29 @@ function syncOpenSelectedActionButtons(root, state) {
       : `Publish ${count} selected page${count === 1 ? '' : 's'} to production`;
   }
 
+  const destructiveDisabled = runDisabled;
+  const unpreviewBtn = root.querySelector('#bulk-pp-unpreview-btn');
+  const unpublishBtn = root.querySelector('#bulk-pp-unpublish-btn');
+  const deleteBtn = root.querySelector('#bulk-pp-delete-btn');
+  if (unpreviewBtn instanceof HTMLButtonElement) {
+    unpreviewBtn.disabled = destructiveDisabled;
+    unpreviewBtn.title = count === 0
+      ? 'Select pages to remove from preview'
+      : `Remove preview for ${count} selected page${count === 1 ? '' : 's'}`;
+  }
+  if (unpublishBtn instanceof HTMLButtonElement) {
+    unpublishBtn.disabled = destructiveDisabled;
+    unpublishBtn.title = count === 0
+      ? 'Select pages to unpublish from live'
+      : `Unpublish ${count} selected page${count === 1 ? '' : 's'} from production`;
+  }
+  if (deleteBtn instanceof HTMLButtonElement) {
+    deleteBtn.disabled = destructiveDisabled;
+    deleteBtn.title = count === 0
+      ? 'Select pages to delete from Document Authoring'
+      : `Unpreview, unpublish, and delete ${count} selected page${count === 1 ? '' : 's'} from DA`;
+  }
+
   syncPageRowDaLinks(root, state);
 }
 

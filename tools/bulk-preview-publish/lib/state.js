@@ -64,7 +64,7 @@ export function createAppState(ctx) {
     jobStartedAt: null,
     jobProgressProcessed: 0,
     jobProgressTotal: 0,
-    /** @type {'preview'|'live'|null} */
+    /** @type {'preview'|'live'|'unpreview'|'unpublish'|'delete'|null} */
     jobTopic: null,
     /** @type {FolderEntry[]} */
     folders: [],

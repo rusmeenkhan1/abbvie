@@ -2,6 +2,7 @@ import { formatRuntimeStatusEta, formatStatusFetchEta } from './status-estimate.
 import { el } from './dom.js';
 
 /** @typedef {'status' | 'job'} ProgressModalKind */
+/** @typedef {'preview'|'live'|'unpreview'|'unpublish'|'delete'} JobTopic */
 
 /**
  * @param {ProgressModalKind} kind
@@ -177,16 +178,20 @@ export function openStatusFetchModal(appRoot, state, onCancel) {
 }
 
 /**
- * @param {'preview'|'live'} topic
+ * @param {JobTopic} topic
  * @param {number} pageCount
  */
 function jobTitle(topic, pageCount) {
   const noun = pageCount === 1 ? '1 page' : `${pageCount} pages`;
-  return topic === 'live' ? `Publishing ${noun} to production` : `Running bulk preview on ${noun}`;
+  if (topic === 'live') return `Publishing ${noun} to production`;
+  if (topic === 'unpreview') return `Removing preview for ${noun}`;
+  if (topic === 'unpublish') return `Unpublishing ${noun} from production`;
+  if (topic === 'delete') return `Deleting ${noun} from Document Authoring`;
+  return `Running bulk preview on ${noun}`;
 }
 
 /**
- * @param {'preview'|'live'} topic
+ * @param {JobTopic} topic
  * @param {number} pageCount
  */
 function jobIntro(topic, pageCount) {
@@ -194,12 +199,31 @@ function jobIntro(topic, pageCount) {
   if (topic === 'live') {
     return `Publishing ${pageCount} ${noun} to the live site (.aem.live). Use Stop if you need to close this dialog — work already started on the server will continue.`;
   }
+  if (topic === 'unpreview') {
+    return `Removing preview for ${pageCount} ${noun} from .aem.page. Use Stop to close this dialog — removals already started on the server will continue.`;
+  }
+  if (topic === 'unpublish') {
+    return `Removing ${pageCount} ${noun} from the live site (.aem.live). Use Stop to close this dialog — unpublish work already started will continue.`;
+  }
+  if (topic === 'delete') {
+    return `Permanently deleting ${pageCount} ${noun}: unpreview, unpublish, then remove source files from DA. Use Stop to close this dialog — steps already started will continue.`;
+  }
   return `Creating preview deployments for ${pageCount} ${noun} (.aem.page). Use Stop if you need to close this dialog — work already started on the server will continue.`;
 }
 
 /**
+ * @param {JobTopic} topic
+ */
+function jobStopLabel(topic) {
+  if (topic === 'delete') return 'Stop delete';
+  if (topic === 'unpreview') return 'Stop unpreview';
+  if (topic === 'unpublish') return 'Stop unpublish';
+  return 'Stop job';
+}
+
+/**
  * @param {HTMLElement | null} appRoot
- * @param {'preview'|'live'} topic
+ * @param {JobTopic} topic
  * @param {number} pageCount
  * @param {() => void} onCancel
  */
@@ -207,7 +231,7 @@ export function openJobModal(appRoot, topic, pageCount, onCancel) {
   openProgressModal(appRoot, 'job', {
     title: jobTitle(topic, pageCount),
     intro: jobIntro(topic, pageCount),
-    cancelLabel: 'Stop job',
+    cancelLabel: jobStopLabel(topic),
     onCancel,
   });
 }
@@ -246,6 +270,7 @@ export function updateStatusFetchModal(state) {
  *   total: number,
  *   failed: number,
  *   stateLabel?: string,
+ *   phaseLabel?: string,
  * }} opts
  */
 export function updateJobModal(opts) {
@@ -256,15 +281,17 @@ export function updateJobModal(opts) {
     total,
     failed,
     stateLabel = 'running',
+    phaseLabel = '',
   } = opts;
   const { ids } = modalRef;
   const pct = setProgressBar(ids, processed, total);
   const label = document.getElementById(ids.label);
   if (label) {
     const failNote = failed > 0 ? ` · ${failed} failed` : '';
+    const phasePrefix = phaseLabel ? `${phaseLabel} · ` : '';
     label.textContent = total > 0
-      ? `${processed} of ${total} pages processed (${pct}%)${failNote} · ${stateLabel}`
-      : `Job ${stateLabel}…`;
+      ? `${phasePrefix}${processed} of ${total} pages processed (${pct}%)${failNote} · ${stateLabel}`
+      : `${phasePrefix}Job ${stateLabel}…`;
   }
   const etaEl = document.getElementById(ids.eta);
   if (etaEl) {
@@ -416,9 +443,31 @@ export function showStatusFetchErrorModal(opts) {
 }
 
 /**
+ * @param {JobTopic} topic
+ */
+function jobCompleteTitle(topic) {
+  if (topic === 'live') return 'Publish complete';
+  if (topic === 'unpreview') return 'Preview removed';
+  if (topic === 'unpublish') return 'Unpublished from live';
+  if (topic === 'delete') return 'Delete complete';
+  return 'Preview complete';
+}
+
+/**
+ * @param {JobTopic} topic
+ */
+function jobHeadCompleteTitle(topic) {
+  if (topic === 'live') return 'Publish finished';
+  if (topic === 'unpreview') return 'Unpreview finished';
+  if (topic === 'unpublish') return 'Unpublish finished';
+  if (topic === 'delete') return 'Delete finished';
+  return 'Preview finished';
+}
+
+/**
  * @param {{
  *   summary: string,
- *   topic: 'preview'|'live',
+ *   topic: JobTopic,
  *   urlCount?: number,
  *   onViewUrls: () => void,
  *   onClose: () => void,
@@ -427,45 +476,72 @@ export function showStatusFetchErrorModal(opts) {
 export function showJobCompleteModal(opts) {
   if (!modalRef || modalRef.kind !== 'job') return;
   const { summary, topic, urlCount = 0, onViewUrls, onClose } = opts;
-  const completeTitle = topic === 'live' ? 'Publish complete' : 'Preview complete';
-  replacePanel(modalRef.panel, [
-    el('p', 'bulk-pp-status-modal-success-icon', '✓'),
-    el('h3', 'bulk-pp-status-modal-complete-title', completeTitle),
-    el('p', 'bulk-pp-status-modal-summary', summary),
-    el(
-      'p',
-      'bulk-pp-status-modal-hint',
-      urlCount > 0
-        ? 'View generated URLs on the Urls tab, or close to continue browsing.'
-        : 'Close to continue browsing.',
-    ),
-    actionRow([
+  const completeTitle = jobCompleteTitle(topic);
+  const destructive = topic === 'unpreview' || topic === 'unpublish' || topic === 'delete';
+  const actions = destructive
+    ? [closeActionBtn(onClose)]
+    : [
       confirmActionBtn('View URLs', onViewUrls, urlCount === 0, 'No URLs available for this operation'),
       closeActionBtn(onClose),
-    ]),
+    ];
+  replacePanel(modalRef.panel, [
+    el('p', 'bulk-pp-status-modal-success-icon', destructive ? '✓' : '✓'),
+    el('h3', 'bulk-pp-status-modal-complete-title', completeTitle),
+    el('p', 'bulk-pp-status-modal-summary', summary),
+    destructive
+      ? el('p', 'bulk-pp-status-modal-hint', 'Close to continue browsing.')
+      : el(
+        'p',
+        'bulk-pp-status-modal-hint',
+        urlCount > 0
+          ? 'View generated URLs on the Urls tab, or close to continue browsing.'
+          : 'Close to continue browsing.',
+      ),
+    actionRow(actions),
   ]);
-  setHeadTitle(topic === 'live' ? 'Publish finished' : 'Preview finished');
+  setHeadTitle(jobHeadCompleteTitle(topic));
   hideHeaderCancel();
 }
 
 /**
- * @param {{ message: string, topic: 'preview'|'live', onClose: () => void }} opts
+ * @param {JobTopic} topic
+ */
+function jobErrorTitle(topic) {
+  if (topic === 'live') return 'Publish failed';
+  if (topic === 'unpreview') return 'Unpreview failed';
+  if (topic === 'unpublish') return 'Unpublish failed';
+  if (topic === 'delete') return 'Delete failed';
+  return 'Preview failed';
+}
+
+/**
+ * @param {JobTopic} topic
+ */
+function jobHeadErrorTitle(topic) {
+  if (topic === 'live') return 'Could not publish';
+  if (topic === 'unpreview') return 'Could not remove preview';
+  if (topic === 'unpublish') return 'Could not unpublish';
+  if (topic === 'delete') return 'Could not delete';
+  return 'Could not preview';
+}
+
+/**
+ * @param {{ message: string, topic: JobTopic, onClose: () => void }} opts
  */
 export function showJobErrorModal(opts) {
   if (!modalRef || modalRef.kind !== 'job') return;
   const { message, topic, onClose } = opts;
-  const failTitle = topic === 'live' ? 'Publish failed' : 'Preview failed';
   replacePanel(modalRef.panel, [
-    el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-error-title', failTitle),
+    el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-error-title', jobErrorTitle(topic)),
     el('p', 'bulk-pp-status-modal-summary bulk-pp-status-modal-error', message),
     actionRow([closeActionBtn(onClose)]),
   ]);
-  setHeadTitle(topic === 'live' ? 'Could not publish' : 'Could not preview');
+  setHeadTitle(jobHeadErrorTitle(topic));
   hideHeaderCancel();
 }
 
 /**
- * @param {{ message: string, topic: 'preview'|'live', onClose: () => void }} opts
+ * @param {{ message: string, topic: JobTopic, onClose: () => void }} opts
  */
 export function showJobCancelledModal(opts) {
   if (!modalRef || modalRef.kind !== 'job') return;
@@ -475,6 +551,15 @@ export function showJobCancelledModal(opts) {
     el('p', 'bulk-pp-status-modal-summary', message),
     actionRow([closeActionBtn(onClose)]),
   ]);
-  setHeadTitle(topic === 'live' ? 'Publish tracking stopped' : 'Preview tracking stopped');
+  const headTitle = topic === 'delete'
+    ? 'Delete tracking stopped'
+    : topic === 'unpublish'
+      ? 'Unpublish tracking stopped'
+      : topic === 'unpreview'
+        ? 'Unpreview tracking stopped'
+        : topic === 'live'
+          ? 'Publish tracking stopped'
+          : 'Preview tracking stopped';
+  setHeadTitle(headTitle);
   hideHeaderCancel();
 }

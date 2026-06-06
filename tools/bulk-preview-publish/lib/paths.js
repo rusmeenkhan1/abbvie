@@ -290,6 +290,32 @@ export function toHelixPath(folderPath, fileName) {
  * @param {string} [sourcePath]
  * @returns {string}
  */
+/**
+ * Path segment for DA Source DELETE (files need extension; folder pages omit /index).
+ * @param {string} sourcePath
+ * @param {string} [helixPath]
+ * @returns {string}
+ */
+export function sourcePathToDaDeletePath(sourcePath, helixPath = '') {
+  const raw = normalizeFolderPath(String(sourcePath || '').replace(/\.html$/i, ''));
+  const helix = normalizeFolderPath(String(helixPath || '').replace(/^\//, ''));
+
+  if (raw.endsWith('/index') && raw !== 'index') {
+    return raw.slice(0, -'/index'.length);
+  }
+  if (helix.endsWith('/index') && helix !== 'index') {
+    const folder = helix.slice(0, -'/index'.length);
+    if (!raw || raw === helix || raw.endsWith('/index')) return folder;
+  }
+  if (raw === 'index' && (!helix || helix === 'index')) {
+    return 'index.html';
+  }
+
+  const original = normalizeFolderPath(sourcePath);
+  if (/\.[a-z0-9]+$/i.test(original)) return original;
+  return raw ? `${raw}.html` : 'index.html';
+}
+
 export function helixPathToDaDocumentPath(helixPath, sourcePath) {
   const web = helixToWebPath(helixPath);
   if (web && web !== '/') {

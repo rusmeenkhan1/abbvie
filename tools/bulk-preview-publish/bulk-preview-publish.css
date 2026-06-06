@@ -1442,6 +1442,100 @@
   border-color: var(--pp-danger-hover);
 }
 
+.bulk-pp-toolbar-group-destructive {
+  border-left: 1px solid var(--pp-border);
+  padding-left: 12px;
+}
+
+.bulk-pp-btn-destructive {
+  color: var(--pp-error-text, #8b1a1a);
+  border-color: var(--pp-error-border, #f5c4c4);
+}
+
+.bulk-pp-btn-destructive:hover:not(:disabled) {
+  background: var(--pp-error-bg, #fef2f2);
+  border-color: var(--pp-danger, #c9252d);
+  color: var(--pp-danger-hover, #a81f26);
+}
+
+.bulk-pp-btn-destructive-delete {
+  font-weight: 700;
+}
+
+.bulk-pp-modal-destructive {
+  border-top: 3px solid var(--pp-danger, #c9252d);
+}
+
+.bulk-pp-modal-icon-danger {
+  background: var(--pp-error-bg, #fef2f2);
+  color: var(--pp-danger, #c9252d);
+  border: 1px solid var(--pp-error-border, #f5c4c4);
+}
+
+.bulk-pp-modal-body-wrap .bulk-pp-modal-body {
+  margin-bottom: 16px;
+  padding-left: 54px;
+}
+
+.bulk-pp-modal-keyword-field {
+  margin: 0 0 12px 54px;
+}
+
+.bulk-pp-modal-keyword-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--pp-modal-navy);
+  font-family: var(--pp-modal-font);
+}
+
+.bulk-pp-modal-keyword-input {
+  width: 100%;
+  max-width: 280px;
+  padding: 10px 12px;
+  border: 1px solid var(--pp-error-border, #f5c4c4);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--pp-modal-navy);
+  background: #fff;
+}
+
+.bulk-pp-modal-keyword-input:focus {
+  outline: 2px solid rgb(201 37 45 / 25%);
+  border-color: var(--pp-danger, #c9252d);
+}
+
+.bulk-pp-modal-keyword-hint {
+  margin: 0 0 20px 54px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--pp-text-subtle, #6b7280);
+  font-family: var(--pp-modal-font);
+}
+
+.bulk-pp-modal-btn-danger {
+  background: var(--pp-danger, #c9252d);
+  border-color: var(--pp-danger, #c9252d);
+  color: #fff;
+  box-shadow: 0 1px 2px rgb(201 37 45 / 25%);
+}
+
+.bulk-pp-modal-btn-danger:hover:not(:disabled) {
+  background: var(--pp-danger-hover, #a81f26);
+  border-color: var(--pp-danger-hover, #a81f26);
+}
+
+.bulk-pp-modal-btn-danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bulk-pp-modal-btn-danger:focus-visible {
+  outline-color: var(--pp-danger, #c9252d);
+}
+
 /* —— Lists —— */
 .bulk-pp-list-wrap {
   max-height: 420px;

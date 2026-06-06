@@ -8,6 +8,7 @@ import {
   normalizeFolderPath,
   decodeHelixPath,
   helixToWebPath,
+  sourcePathToDaDeletePath,
   toHelixPath,
 } from './paths.js';
 
@@ -396,9 +397,10 @@ export async function collectPages(daFetch, org, repo, rootPath, maxDepth) {
  * @param {string} ref
  * @param {'preview'|'live'} topic
  * @param {string[]} paths
+ * @param {{ delete?: boolean }} [opts]
  * @returns {Promise<Record<string, unknown>>}
  */
-export async function startBulkJob(daFetch, org, site, ref, topic, paths) {
+export async function startBulkJob(daFetch, org, site, ref, topic, paths, opts = {}) {
   const unique = dedupePaths(paths);
   if (unique.length === 0) {
     throw new Error('No pages selected.');
@@ -408,7 +410,8 @@ export async function startBulkJob(daFetch, org, site, ref, topic, paths) {
   const url = `${adminApiBase}/${route}/${org}/${site}/${ref}/*`;
   const body = {
     paths: unique,
-    forceAsync: unique.length > 5,
+    forceAsync: unique.length > 5 || Boolean(opts.delete),
+    ...(opts.delete ? { delete: true } : {}),
   };
 
   const resp = await daFetch(url, {
@@ -427,6 +430,117 @@ export async function startBulkJob(daFetch, org, site, ref, topic, paths) {
   }
 
   return data || { status: resp.status };
+}
+
+/**
+ * @param {string} org
+ * @param {string} repo
+ * @param {string} deletePath
+ * @returns {string}
+ */
+function buildDaSourceDeleteUrl(org, repo, deletePath) {
+  const segments = String(deletePath || '')
+    .replace(/^\//, '')
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment));
+  return `${DA_ADMIN}/source/${org}/${repo}/${segments.join('/')}`;
+}
+
+/**
+ * Delete one document or folder from the DA content repository.
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} repo
+ * @param {string} sourcePath
+ * @param {string} [helixPath]
+ */
+export async function deleteDaSourceDocument(daFetch, org, repo, sourcePath, helixPath = '') {
+  const deletePath = sourcePathToDaDeletePath(sourcePath, helixPath);
+  const url = buildDaSourceDeleteUrl(org, repo, deletePath);
+  const resp = await daFetch(url, { method: 'DELETE' });
+  if (resp.status === 204 || resp.status === 404) return;
+  const data = await parseJson(resp);
+  const message = formatAdminApiError(data, resp.status)
+    || `Could not delete ${deletePath} (${resp.status})`;
+  const err = new Error(message);
+  err.status = resp.status;
+  err.data = data;
+  throw err;
+}
+
+/**
+ * @typedef {{ helixPath: string, sourcePath: string }} DaPageRef
+ */
+
+/**
+ * Delete DA source documents one at a time with progress callbacks.
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} repo
+ * @param {DaPageRef[]} pages
+ * @param {(opts: { processed: number, total: number, failed: number, currentPath?: string }) => void} [onProgress]
+ * @param {AbortSignal} [signal]
+ */
+export async function deleteDaDocumentsSequential(daFetch, org, repo, pages, onProgress, signal) {
+  let failed = 0;
+  /** @type {{ helixPath: string, message: string }[]} */
+  const errors = [];
+  /** @type {string[]} */
+  const deleted = [];
+
+  /* eslint-disable no-await-in-loop -- sequential deletes avoid rate limits */
+  for (let i = 0; i < pages.length; i += 1) {
+    if (signal?.aborted) throw new DOMException('Delete cancelled', 'AbortError');
+    const page = pages[i];
+    try {
+      await deleteDaSourceDocument(daFetch, org, repo, page.sourcePath, page.helixPath);
+      deleted.push(page.helixPath);
+    } catch (err) {
+      failed += 1;
+      errors.push({
+        helixPath: page.helixPath,
+        message: messageFromApiError(err, 'Delete failed'),
+      });
+    }
+    if (onProgress) {
+      onProgress({
+        processed: i + 1,
+        total: pages.length,
+        failed,
+        currentPath: page.helixPath,
+      });
+    }
+  }
+  /* eslint-enable no-await-in-loop */
+
+  return { deleted, failed, errors };
+}
+
+/**
+ * Start and poll a bulk remove job (unpreview or unpublish).
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {'preview'|'live'} topic
+ * @param {string[]} paths
+ * @param {(job: Record<string, unknown>) => void} [onProgress]
+ * @param {AbortSignal} [signal]
+ */
+export async function runBulkRemoveJob(daFetch, org, site, ref, topic, paths, onProgress, signal) {
+  const bulkResp = await startBulkJob(daFetch, org, site, ref, topic, paths, { delete: true });
+  if (signal?.aborted) throw new DOMException('Job cancelled', 'AbortError');
+
+  const jobUrl = getJobPollUrl(bulkResp, org, site, ref, topic);
+  if (!jobUrl) {
+    return {
+      state: 'succeeded',
+      progress: { processed: paths.length, total: paths.length, failed: 0 },
+    };
+  }
+
+  return pollJob(daFetch, jobUrl, onProgress, signal);
 }
 
 /**

@@ -1,5 +1,6 @@
 import {
   collectPages,
+  deleteDaDocumentsSequential,
   fetchPlatformStatusForPaths,
   isHardcodeIndexTest,
   wrapDaFetch,
@@ -8,6 +9,7 @@ import {
   listFolderEntries,
   pollJob,
   resolveJobOutcome,
+  runBulkRemoveJob,
   startBulkJob,
 } from './lib/api.js';
 import {
@@ -28,8 +30,18 @@ import {
   PAGE_FILTERS,
   statusLabel,
 } from './lib/page-history.js';
-import { confirmOpenUrlsInNewTabs, confirmPublishToLive, confirmTreeScopeFetch } from './lib/modal.js';
-import { copyTextToClipboard, openUrlsInNewTabsQuiet, runButtonAction, shouldWarnPopupBlock } from './lib/ui-utils.js';
+import {
+  confirmDestructiveAction,
+  confirmOpenUrlsInNewTabs,
+  confirmPublishToLive,
+  confirmTreeScopeFetch,
+} from './lib/modal.js';
+import {
+  copyTextToClipboard,
+  openUrlsInNewTabsQuiet,
+  runButtonAction,
+  shouldWarnPopupBlock,
+} from './lib/ui-utils.js';
 import {
   closeJobModal,
   closeStatusFetchModal,
@@ -71,6 +83,30 @@ import {
   selectAllVisible,
 } from './lib/state.js';
 import { el } from './lib/dom.js';
+
+/** @typedef {'preview'|'live'|'unpreview'|'unpublish'|'delete'} JobTopic */
+
+/**
+ * @param {JobTopic | null | undefined} topic
+ */
+function jobActionLabel(topic) {
+  if (topic === 'delete') return 'delete';
+  if (topic === 'unpublish') return 'unpublish';
+  if (topic === 'unpreview') return 'unpreview';
+  if (topic === 'live') return 'publish';
+  return 'preview';
+}
+
+/**
+ * @param {'unpreview'|'unpublish'|'delete'} action
+ * @param {number} count
+ */
+function destructiveStartMessage(action, count) {
+  const noun = count === 1 ? 'page' : 'pages';
+  if (action === 'delete') return `Starting delete for ${count} ${noun}…`;
+  if (action === 'unpublish') return `Starting unpublish for ${count} ${noun}…`;
+  return `Starting unpreview for ${count} ${noun}…`;
+}
 
 /** @type {Record<'untouched'|'previewed'|'published', string>} */
 const STATUS_COLOR = {
@@ -504,6 +540,149 @@ function appendRunSelectedButtons(group, state) {
 }
 
 /**
+ * @param {HTMLElement} group
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function appendDestructiveButtons(group, state) {
+  const count = getActiveSelectionCount(state);
+  const disabled = state.loading
+    || state.contentLoading
+    || state.statusChecking
+    || isJobModalOpen()
+    || count === 0;
+
+  const unpreviewBtn = el(
+    'button',
+    'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-destructive',
+    'Unpreview selected',
+  );
+  unpreviewBtn.type = 'button';
+  unpreviewBtn.id = 'bulk-pp-unpreview-btn';
+  unpreviewBtn.title = count === 0
+    ? 'Select pages to remove from preview'
+    : `Remove preview for ${count} selected page${count === 1 ? '' : 's'}`;
+  unpreviewBtn.disabled = disabled;
+  unpreviewBtn.addEventListener('click', () => state.onRunDestructive('unpreview'));
+
+  const unpublishBtn = el(
+    'button',
+    'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-destructive',
+    'Unpublish selected',
+  );
+  unpublishBtn.type = 'button';
+  unpublishBtn.id = 'bulk-pp-unpublish-btn';
+  unpublishBtn.title = count === 0
+    ? 'Select pages to unpublish from live'
+    : `Unpublish ${count} selected page${count === 1 ? '' : 's'} from production`;
+  unpublishBtn.disabled = disabled;
+  unpublishBtn.addEventListener('click', () => state.onRunDestructive('unpublish'));
+
+  const deleteBtn = el(
+    'button',
+    'bulk-pp-btn bulk-pp-btn-danger bulk-pp-btn-destructive bulk-pp-btn-destructive-delete',
+    'Delete selected from DA',
+  );
+  deleteBtn.type = 'button';
+  deleteBtn.id = 'bulk-pp-delete-btn';
+  deleteBtn.title = count === 0
+    ? 'Select pages to delete from Document Authoring'
+    : `Unpreview, unpublish, and delete ${count} selected page${count === 1 ? '' : 's'} from DA`;
+  deleteBtn.disabled = disabled;
+  deleteBtn.addEventListener('click', () => state.onRunDestructive('delete'));
+
+  group.append(unpreviewBtn, unpublishBtn, deleteBtn);
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {string[]} helixPaths
+ */
+function removePagesFromState(state, helixPaths) {
+  const remove = new Set(helixPaths);
+  state.pages = state.pages.filter((p) => !remove.has(p.helixPath));
+  helixPaths.forEach((path) => state.selected.delete(path));
+  const nextStatus = { ...state.platformStatus };
+  helixPaths.forEach((path) => {
+    delete nextStatus[path];
+  });
+  state.platformStatus = nextStatus;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {string[]} paths
+ * @param {string} [phaseLabel]
+ * @param {Record<string, unknown>} job
+ */
+function applyJobProgress(state, paths, phaseLabel, job) {
+  const progress = job.progress || job.job?.progress;
+  if (progress && typeof progress === 'object') {
+    const { total, processed, failed } = /** @type {{
+      total?: number,
+      processed?: number,
+      failed?: number,
+    }} */ (progress);
+    const proc = Number(processed ?? 0);
+    const tot = Number(total ?? paths.length);
+    state.jobProgressProcessed = proc;
+    state.jobProgressTotal = tot || paths.length;
+    updateJobModal({
+      jobStartedAt: state.jobStartedAt,
+      processed: proc,
+      total: tot || paths.length,
+      failed: Number(failed ?? 0),
+      stateLabel: String(job.state || job.job?.state || 'running'),
+      phaseLabel,
+    });
+  }
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {string[]} paths
+ * @param {string} phaseLabel
+ * @param {number} processed
+ * @param {number} failed
+ * @param {number} [total]
+ */
+function setSequentialProgress(state, paths, phaseLabel, processed, failed, total = paths.length) {
+  state.jobProgressProcessed = processed;
+  state.jobProgressTotal = total;
+  updateJobModal({
+    jobStartedAt: state.jobStartedAt,
+    processed,
+    total,
+    failed,
+    stateLabel: 'running',
+    phaseLabel,
+  });
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {Function} daFetch
+ * @param {'preview'|'live'} partition
+ * @param {string[]} paths
+ * @param {string} phaseLabel
+ */
+async function runRemovePartitionJob(state, daFetch, partition, paths, phaseLabel) {
+  const finalJob = await runBulkRemoveJob(
+    daFetch,
+    state.org,
+    state.site,
+    state.ref,
+    partition,
+    paths,
+    (job) => {
+      if (state.jobAbort?.signal.aborted) return;
+      applyJobProgress(state, paths, phaseLabel, job);
+    },
+    state.jobAbort?.signal,
+  );
+  return resolveJobOutcome(finalJob);
+}
+
+/**
  * @param {ReturnType<typeof createAppState>} state
  * @param {{ visiblePages: { helixPath: string }[], statusChecking: boolean }} opts
  */
@@ -529,10 +708,13 @@ function buildPageToolbar(state, { visiblePages, statusChecking }) {
   const publishGroup = el('div', 'bulk-pp-toolbar-group bulk-pp-toolbar-group-publish');
   appendRunSelectedButtons(publishGroup, state);
 
+  const destructiveGroup = el('div', 'bulk-pp-toolbar-group bulk-pp-toolbar-group-destructive');
+  appendDestructiveButtons(destructiveGroup, state);
+
   const openGroup = el('div', 'bulk-pp-toolbar-group bulk-pp-toolbar-group-open');
   appendOpenSelectedActionButtons(openGroup, state);
 
-  main.append(selectionGroup, publishGroup, openGroup);
+  main.append(selectionGroup, publishGroup, destructiveGroup, openGroup);
   toolbar.append(
     main,
     el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state)),
@@ -1185,10 +1367,10 @@ async function main() {
   state.onCancelJob = () => {
     cancelBulkJob(state, false);
     if (app) syncSelectionUI(app, state);
-    const topic = /** @type {'preview'|'live'} */ (state.jobTopic || 'preview');
-    const action = topic === 'live' ? 'publish' : 'preview';
+    const topic = /** @type {JobTopic} */ (state.jobTopic || 'preview');
+    const actionLabel = jobActionLabel(topic);
     showJobCancelledModal({
-      message: `You stopped tracking this bulk ${action} job. If it already started on the server, pages may still be ${topic === 'live' ? 'published' : 'previewed'}. Check status in the Pages panel or run Fetch Deployment status again.`,
+      message: `You stopped tracking this bulk ${actionLabel} operation. If it already started on the server, work may still be in progress. Check the Pages panel or run Fetch Deployment status again.`,
       topic,
       onClose: () => {
         state.status = null;
@@ -1527,6 +1709,163 @@ async function main() {
       if (err && typeof err === 'object' && 'data' in err && err.data) {
         state.jobDetail = JSON.stringify(err.data, null, 2);
       }
+      showJobErrorModal({
+        message: msg,
+        topic,
+        onClose: () => finishProgressModal(state, 'job'),
+      });
+    } finally {
+      state.loading = false;
+      state.jobAbort = null;
+      state.jobStartedAt = null;
+    }
+  };
+
+  state.onRunDestructive = async (action) => {
+    const pageByPath = new Map(state.pages.map((p) => [p.helixPath, p]));
+    const paths = getSelectedHelixPaths(state);
+    if (paths.length === 0) return;
+
+    const ok = await confirmDestructiveAction(action, paths.length);
+    if (!ok) return;
+
+    const appRoot = /** @type {HTMLElement} */ (app);
+    const topic = /** @type {'unpreview'|'unpublish'|'delete'} */ (action);
+    state.loading = true;
+    state.jobTopic = topic;
+    state.jobDetail = null;
+    state.jobAbort = new AbortController();
+    state.jobStartedAt = Date.now();
+    state.jobProgressProcessed = 0;
+    state.jobProgressTotal = paths.length;
+    state.statusType = 'info';
+    state.status = destructiveStartMessage(action, paths.length);
+    openJobModal(appRoot, topic, paths.length, () => state.onCancelJob());
+    render(app, state);
+
+    /** @type {string[]} */
+    const notes = [];
+    let statusType = 'success';
+
+    try {
+      if (action === 'unpreview' || action === 'delete') {
+        try {
+          const outcome = await runRemovePartitionJob(
+            state,
+            daFetch,
+            'preview',
+            paths,
+            action === 'delete' ? 'Step 1 of 3 · Unpreview' : 'Unpreview',
+          );
+          notes.push(`Preview removal ${outcome.message}`);
+          if (outcome.statusType === 'error') statusType = 'error';
+          else if (outcome.statusType === 'info' && statusType === 'success') statusType = 'info';
+        } catch (phaseErr) {
+          if (phaseErr instanceof DOMException && phaseErr.name === 'AbortError') return;
+          notes.push(`Preview removal failed: ${messageFromApiError(phaseErr)}`);
+          statusType = 'error';
+          console.warn('[bulk-pp] unpreview phase failed', phaseErr);
+        }
+      }
+
+      if (state.jobAbort?.signal.aborted) return;
+
+      if (action === 'unpublish' || action === 'delete') {
+        try {
+          const outcome = await runRemovePartitionJob(
+            state,
+            daFetch,
+            'live',
+            paths,
+            action === 'delete' ? 'Step 2 of 3 · Unpublish' : 'Unpublish',
+          );
+          notes.push(`Unpublish ${outcome.message}`);
+          if (outcome.statusType === 'error') statusType = 'error';
+          else if (outcome.statusType === 'info' && statusType === 'success') statusType = 'info';
+        } catch (phaseErr) {
+          if (phaseErr instanceof DOMException && phaseErr.name === 'AbortError') return;
+          notes.push(`Unpublish failed: ${messageFromApiError(phaseErr)}`);
+          statusType = 'error';
+          console.warn('[bulk-pp] unpublish phase failed', phaseErr);
+        }
+      }
+
+      if (state.jobAbort?.signal.aborted) return;
+
+      if (action === 'delete') {
+        const pages = paths
+          .map((path) => pageByPath.get(path))
+          .filter(Boolean);
+        const daResult = await deleteDaDocumentsSequential(
+          daFetch,
+          state.org,
+          state.site,
+          pages,
+          ({ processed, total, failed }) => {
+            if (state.jobAbort?.signal.aborted) return;
+            setSequentialProgress(state, paths, 'Step 3 of 3 · Delete from DA', processed, failed, total);
+          },
+          state.jobAbort?.signal,
+        );
+
+        if (daResult.deleted.length > 0) {
+          removePagesFromState(state, daResult.deleted);
+          notes.push(`Deleted ${daResult.deleted.length} document${daResult.deleted.length === 1 ? '' : 's'} from DA`);
+        }
+        if (daResult.failed > 0) {
+          statusType = daResult.deleted.length > 0 ? 'info' : 'error';
+          const sample = daResult.errors.slice(0, 3).map((e) => `${e.helixPath}: ${e.message}`).join('; ');
+          notes.push(`${daResult.failed} delete${daResult.failed === 1 ? '' : 's'} failed${sample ? ` (${sample})` : ''}`);
+        }
+      }
+
+      if (state.jobAbort?.signal.aborted) return;
+
+      try {
+        const refreshed = await fetchPlatformStatusForPaths(
+          daFetch,
+          state.org,
+          state.site,
+          state.ref,
+          paths,
+        );
+        state.platformStatus = { ...state.platformStatus, ...refreshed };
+      } catch (refreshErr) {
+        console.warn('[bulk-pp] status refresh after destructive job failed', refreshErr);
+      }
+
+      const summary = notes.filter(Boolean).join('. ') || 'Operation finished.';
+      state.status = summary;
+      state.statusType = statusType;
+
+      updateJobModal({
+        jobStartedAt: state.jobStartedAt,
+        processed: paths.length,
+        total: paths.length,
+        failed: 0,
+        stateLabel: 'complete',
+      });
+
+      if (statusType === 'error') {
+        showJobErrorModal({
+          message: summary,
+          topic,
+          onClose: () => finishProgressModal(state, 'job'),
+        });
+      } else {
+        showJobCompleteModal({
+          summary,
+          topic,
+          urlCount: 0,
+          onViewUrls: () => finishProgressModal(state, 'job'),
+          onClose: () => finishProgressModal(state, 'job'),
+        });
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      const msg = messageFromApiError(err);
+      state.status = msg;
+      state.statusType = 'error';
       showJobErrorModal({
         message: msg,
         topic,
