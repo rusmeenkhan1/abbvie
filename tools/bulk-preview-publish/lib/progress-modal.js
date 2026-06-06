@@ -4,6 +4,8 @@ import { el } from './dom.js';
 /** @typedef {'status' | 'job'} ProgressModalKind */
 /** @typedef {'preview'|'live'|'unpreview'|'unpublish'|'delete'} JobTopic */
 
+const DEPLOYMENT_NONE_LABEL = 'nor previewed neither published';
+
 /**
  * @param {ProgressModalKind} kind
  */
@@ -377,7 +379,7 @@ function buildDeploymentBreakdownSummary(counts) {
   stats.append(
     statItem(live, 'Published (live)', 'bulk-pp-status-modal-stat-live'),
     statItem(previewOnly, 'Preview only', 'bulk-pp-status-modal-stat-preview'),
-    statItem(none, 'Not deployed', 'bulk-pp-status-modal-stat-none'),
+    statItem(none, DEPLOYMENT_NONE_LABEL, 'bulk-pp-status-modal-stat-none'),
     statItem(total, 'Total in view', 'bulk-pp-status-modal-stat-total'),
   );
   wrap.append(stats);
@@ -397,6 +399,7 @@ export function showStatusFetchCompleteModal(opts) {
   if (!modalRef || modalRef.kind !== 'status') return;
   const { live, previewOnly, none, total, onClose } = opts;
   const { panel } = modalRef;
+  panel.classList.add('bulk-pp-status-modal-complete-body');
   replacePanel(panel, [
     el('p', 'bulk-pp-status-modal-success-icon', '✓'),
     el('h3', 'bulk-pp-status-modal-complete-title', 'Status check complete'),
