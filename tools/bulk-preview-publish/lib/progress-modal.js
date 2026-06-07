@@ -174,7 +174,7 @@ export function openStatusFetchModal(appRoot, state, onCancel) {
   openProgressModal(appRoot, 'status', {
     title: 'Fetching deployment status',
     intro,
-    cancelLabel: 'Stop check',
+    cancelLabel: 'Cancel Fetching',
     onCancel,
   });
 }
@@ -217,10 +217,10 @@ function jobIntro(topic, pageCount) {
  * @param {JobTopic} topic
  */
 function jobStopLabel(topic) {
-  if (topic === 'delete') return 'Stop delete';
-  if (topic === 'unpreview') return 'Stop unpreview';
-  if (topic === 'unpublish') return 'Stop unpublish';
-  return 'Stop job';
+  if (topic === 'delete') return 'Cancel delete';
+  if (topic === 'unpreview') return 'Cancel unpreview';
+  if (topic === 'unpublish') return 'Cancel unpublish';
+  return 'Cancel job';
 }
 
 /**
