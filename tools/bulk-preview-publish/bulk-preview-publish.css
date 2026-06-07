@@ -1494,6 +1494,10 @@
   font-weight: 700;
 }
 
+.bulk-pp-btn-danger.bulk-pp-btn-destructive-delete:hover:not(:disabled) {
+  color: #fff;
+}
+
 .bulk-pp-modal-destructive {
   border-top: 3px solid var(--pp-danger, #c9252d);
 }

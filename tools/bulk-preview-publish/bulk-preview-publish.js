@@ -579,7 +579,7 @@ function appendDestructiveButtons(group, state) {
 
   const deleteBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-danger bulk-pp-btn-destructive bulk-pp-btn-destructive-delete',
+    'bulk-pp-btn bulk-pp-btn-danger bulk-pp-btn-toolbar-run bulk-pp-btn-destructive-delete',
     'Delete selected from DA',
   );
   deleteBtn.type = 'button';
