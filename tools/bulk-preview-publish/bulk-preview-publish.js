@@ -118,6 +118,16 @@ const STATUS_COLOR = {
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 
+const APP_TITLE = 'Content Deployment Hub';
+const APP_DESCRIPTION = 'Enterprise workspace for AEM Edge Delivery. Browse site folders, load preview and live deployment status, and run bulk preview, publish, unpreview, unpublish, or delete on selected pages—then open Document Authoring or environment URLs in one place.';
+const APP_FEATURES = [
+  'Deployment status',
+  'Bulk preview & publish',
+  'Unpreview & unpublish',
+  'Delete from DA',
+  'Open DA & URLs',
+];
+
 async function initSdk() {
   const timeout = new Promise((_, reject) => {
     setTimeout(() => reject(new Error('DA SDK not available')), SDK_TIMEOUT_MS);
@@ -458,7 +468,7 @@ function appendOpenSelectedActionButtons(group, state) {
 
   const daBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-selected-da',
+    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-outline-neutral',
     'Open DA URL for selected',
   );
   daBtn.type = 'button';
@@ -471,7 +481,7 @@ function appendOpenSelectedActionButtons(group, state) {
 
   const previewBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls bulk-pp-btn-open-selected-preview',
+    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-outline-preview',
     'Open preview URL for selected',
   );
   previewBtn.type = 'button';
@@ -484,7 +494,7 @@ function appendOpenSelectedActionButtons(group, state) {
 
   const liveBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-open-urls bulk-pp-btn-open-urls-live bulk-pp-btn-open-selected-live',
+    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-outline-publish',
     'Open publish URL for selected',
   );
   liveBtn.type = 'button';
@@ -512,7 +522,7 @@ function appendRunSelectedButtons(group, state) {
 
   const previewBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-toolbar-run',
+    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-preview',
     'Preview selected',
   );
   previewBtn.type = 'button';
@@ -525,7 +535,7 @@ function appendRunSelectedButtons(group, state) {
 
   const publishBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-danger bulk-pp-btn-toolbar-run',
+    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-publish',
     'Publish selected',
   );
   publishBtn.type = 'button';
@@ -553,7 +563,7 @@ function appendDestructiveButtons(group, state) {
 
   const unpreviewBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-destructive',
+    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-outline-danger',
     'Unpreview selected',
   );
   unpreviewBtn.type = 'button';
@@ -566,7 +576,7 @@ function appendDestructiveButtons(group, state) {
 
   const unpublishBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-destructive',
+    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-outline-danger',
     'Unpublish selected',
   );
   unpublishBtn.type = 'button';
@@ -579,7 +589,7 @@ function appendDestructiveButtons(group, state) {
 
   const deleteBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-danger bulk-pp-btn-toolbar-run bulk-pp-btn-destructive-delete',
+    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-delete',
     'Delete selected from DA',
   );
   deleteBtn.type = 'button';
@@ -691,8 +701,9 @@ function buildPageToolbar(state, { visiblePages, statusChecking }) {
   const main = el('div', 'bulk-pp-toolbar-main');
 
   const selectionGroup = el('div', 'bulk-pp-toolbar-group');
-  const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-toolbar-compact', 'Select all');
-  const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-toolbar-compact', 'Clear');
+  selectionGroup.setAttribute('aria-label', 'Selection');
+  const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-secondary', 'Select all');
+  const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-secondary', 'Clear');
   selectAllBtn.type = 'button';
   selectNoneBtn.type = 'button';
   selectAllBtn.id = 'bulk-pp-select-all';
@@ -706,12 +717,15 @@ function buildPageToolbar(state, { visiblePages, statusChecking }) {
   selectionGroup.append(selectAllBtn, selectNoneBtn);
 
   const publishGroup = el('div', 'bulk-pp-toolbar-group bulk-pp-toolbar-group-publish');
+  publishGroup.setAttribute('aria-label', 'Deploy selected');
   appendRunSelectedButtons(publishGroup, state);
 
   const destructiveGroup = el('div', 'bulk-pp-toolbar-group bulk-pp-toolbar-group-destructive');
+  destructiveGroup.setAttribute('aria-label', 'Remove selected');
   appendDestructiveButtons(destructiveGroup, state);
 
   const openGroup = el('div', 'bulk-pp-toolbar-group bulk-pp-toolbar-group-open');
+  openGroup.setAttribute('aria-label', 'Open selected');
   appendOpenSelectedActionButtons(openGroup, state);
 
   main.append(selectionGroup, publishGroup, destructiveGroup, openGroup);
@@ -862,13 +876,15 @@ function render(root, state) {
   const headerBrand = el('div', 'bulk-pp-header-brand');
   headerBrand.append(
     el('span', 'bulk-pp-header-eyebrow', 'Adobe Experience Manager · Edge Delivery'),
-    el('h1', null, 'Bulk Preview & Publish'),
-    el(
-      'p',
-      'bulk-pp-header-desc',
-      'Browse your site structure, verify deployment status, and coordinate preview or live publishing across multiple pages in one workflow.',
-    ),
+    el('h1', null, APP_TITLE),
+    el('p', 'bulk-pp-header-desc', APP_DESCRIPTION),
   );
+  const featureList = el('ul', 'bulk-pp-header-features');
+  featureList.setAttribute('aria-label', 'Capabilities');
+  APP_FEATURES.forEach((label) => {
+    featureList.append(el('li', 'bulk-pp-header-feature', label));
+  });
+  headerBrand.append(featureList);
   const headerMeta = el('div', 'bulk-pp-header-meta');
   headerMeta.append(
     el('span', 'bulk-pp-badge', org),
@@ -1879,7 +1895,7 @@ async function main() {
   };
 
   if (!daFetch) {
-    state.error = 'Open Bulk Preview & Publish from Document Authoring (https://da.live → Apps).';
+    state.error = `Open ${APP_TITLE} from Document Authoring (https://da.live → Apps).`;
     state.statusType = 'error';
     render(app, state);
     return;
@@ -1906,7 +1922,7 @@ function showBootError(err) {
   app.replaceChildren();
   const panel = el('div', 'bulk-pp-boot-error');
   panel.append(
-    el('h1', null, 'Bulk Preview & Publish failed to start'),
+    el('h1', null, `${APP_TITLE} failed to start`),
     el('p', null, message),
     el('p', 'bulk-pp-boot-error-hint', 'Hard refresh (Cmd+Shift+R). If this persists, check the browser console for the failing module.'),
   );

@@ -1,4 +1,4 @@
-/* Bulk Preview & Publish — executive workspace UI (AbbVie-aligned) */
+/* Content Deployment Hub — executive workspace UI (AbbVie-aligned) */
 
 .bulk-pp-body {
   margin: 0;
@@ -362,12 +362,35 @@
 }
 
 .bulk-pp-header-desc {
-  margin: 0;
-  font-size: 1rem;
+  margin: 0 0 16px;
+  font-size: 0.975rem;
   font-weight: 400;
-  line-height: 1.6;
-  color: rgb(255 255 255 / 88%);
-  max-width: 40em;
+  line-height: 1.65;
+  color: rgb(255 255 255 / 90%);
+  max-width: 44em;
+}
+
+.bulk-pp-header-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bulk-pp-header-feature {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgb(255 255 255 / 92%);
+  background: rgb(255 255 255 / 10%);
+  border: 1px solid rgb(255 255 255 / 18%);
+  backdrop-filter: blur(4px);
 }
 
 .bulk-pp-header-meta {
@@ -637,9 +660,10 @@
   justify-content: space-between;
   gap: 10px 14px;
   margin-bottom: 0;
-  padding: 10px 16px;
-  background: var(--pp-surface-subtle);
+  padding: 12px 16px;
+  background: linear-gradient(180deg, #fff 0%, var(--pp-surface-subtle) 100%);
   border: none;
+  border-bottom: 1px solid var(--pp-border);
   border-radius: 0;
 }
 
@@ -647,7 +671,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
+  gap: 8px 12px;
   flex: 1 1 280px;
   min-width: 0;
 }
@@ -660,12 +684,156 @@
 }
 
 .bulk-pp-toolbar-group + .bulk-pp-toolbar-group {
-  padding-left: 14px;
+  padding-left: 12px;
   border-left: 1px solid var(--pp-border);
 }
 
 .bulk-pp-toolbar-group-open[hidden] {
   display: none !important;
+}
+
+/* Unified toolbar button sizing */
+.bulk-pp-btn-toolbar {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 7px 13px;
+  min-height: 34px;
+  white-space: nowrap;
+  line-height: 1.25;
+  border-radius: var(--pp-radius-sm);
+}
+
+.bulk-pp-btn-secondary {
+  background: #fff;
+  border-color: var(--pp-border-strong);
+  color: var(--pp-navy);
+}
+
+.bulk-pp-btn-secondary:hover:not(:disabled) {
+  background: var(--pp-surface-muted);
+  border-color: var(--pp-lavender);
+  color: var(--pp-navy);
+}
+
+/* Preview — amber (matches status dot) */
+.bulk-pp-btn-action-preview {
+  background: linear-gradient(180deg, #fde68a 0%, #fbbf24 100%);
+  border-color: #d97706;
+  color: #78350f;
+  box-shadow: 0 1px 2px rgb(180 83 9 / 18%);
+}
+
+.bulk-pp-btn-action-preview:hover:not(:disabled) {
+  background: linear-gradient(180deg, #fcd34d 0%, #f59e0b 100%);
+  border-color: #b45309;
+  color: #451a03;
+  box-shadow: 0 2px 6px rgb(180 83 9 / 22%);
+}
+
+.bulk-pp-btn-action-preview:focus-visible {
+  outline-color: #b45309;
+}
+
+/* Publish — green (live / production) */
+.bulk-pp-btn-action-publish {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+  border-color: #047857;
+  color: #fff;
+  box-shadow: 0 1px 3px rgb(5 150 105 / 26%);
+}
+
+.bulk-pp-btn-action-publish:hover:not(:disabled) {
+  background: linear-gradient(180deg, #2dd4a0 0%, #047857 100%);
+  border-color: #065f46;
+  color: #fff;
+  box-shadow: 0 2px 6px rgb(5 150 105 / 30%);
+}
+
+.bulk-pp-btn-action-publish:focus-visible {
+  outline-color: #059669;
+}
+
+/* Delete — solid red (primary destructive) */
+.bulk-pp-btn-action-delete {
+  background: linear-gradient(180deg, #e05258 0%, var(--pp-danger) 100%);
+  border-color: #a81f26;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgb(201 37 45 / 26%);
+}
+
+.bulk-pp-btn-action-delete:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--pp-danger) 0%, var(--pp-danger-hover) 100%);
+  border-color: var(--pp-danger-hover);
+  color: #fff;
+}
+
+.bulk-pp-btn-action-delete:focus-visible {
+  outline-color: var(--pp-danger);
+}
+
+/* Outline danger — unpreview / unpublish */
+.bulk-pp-btn-action-outline-danger {
+  background: #fff;
+  border-color: var(--pp-error-border);
+  color: var(--pp-error-text);
+}
+
+.bulk-pp-btn-action-outline-danger:hover:not(:disabled) {
+  background: var(--pp-error-bg);
+  border-color: var(--pp-danger);
+  color: var(--pp-danger-hover);
+}
+
+.bulk-pp-btn-action-outline-danger:focus-visible {
+  outline-color: var(--pp-danger);
+}
+
+/* Outline neutral — open DA */
+.bulk-pp-btn-action-outline-neutral {
+  background: #fff;
+  border-color: var(--pp-border-strong);
+  color: var(--pp-navy);
+}
+
+.bulk-pp-btn-action-outline-neutral:hover:not(:disabled) {
+  background: var(--pp-blue-soft);
+  border-color: var(--pp-blue);
+  color: var(--pp-navy);
+}
+
+/* Outline preview — open .aem.page URLs */
+.bulk-pp-btn-action-outline-preview {
+  background: var(--pp-warning-bg);
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.bulk-pp-btn-action-outline-preview:hover:not(:disabled) {
+  background: #fef3c7;
+  border-color: #fbbf24;
+  color: #78350f;
+}
+
+.bulk-pp-btn-action-outline-preview:focus-visible {
+  outline-color: #b45309;
+}
+
+/* Outline publish — open .aem.live URLs */
+.bulk-pp-btn-action-outline-publish {
+  background: var(--pp-success-bg);
+  border-color: var(--pp-success-border);
+  color: var(--pp-success-text);
+}
+
+.bulk-pp-btn-action-outline-publish:hover:not(:disabled) {
+  background: #d4eddc;
+  border-color: #86c99a;
+  color: #14532d;
+}
+
+.bulk-pp-btn-action-outline-publish:focus-visible {
+  outline-color: var(--pp-success-text);
 }
 
 .bulk-pp-btn-toolbar-compact {
@@ -681,7 +849,8 @@
 
 .bulk-pp-toolbar-group-open .bulk-pp-btn {
   font-size: 0.8125rem;
-  padding: 6px 12px;
+  padding: 7px 13px;
+  min-height: 34px;
 }
 
 .bulk-pp-btn-open-selected-da {
@@ -1475,27 +1644,8 @@
 }
 
 .bulk-pp-toolbar-group-destructive {
-  border-left: 1px solid var(--pp-border);
   padding-left: 12px;
-}
-
-.bulk-pp-btn-destructive {
-  color: var(--pp-error-text, #8b1a1a);
-  border-color: var(--pp-error-border, #f5c4c4);
-}
-
-.bulk-pp-btn-destructive:hover:not(:disabled) {
-  background: var(--pp-error-bg, #fef2f2);
-  border-color: var(--pp-danger, #c9252d);
-  color: var(--pp-danger-hover, #a81f26);
-}
-
-.bulk-pp-btn-destructive-delete {
-  font-weight: 700;
-}
-
-.bulk-pp-btn-danger.bulk-pp-btn-destructive-delete:hover:not(:disabled) {
-  color: #fff;
+  border-left: 1px solid var(--pp-border);
 }
 
 .bulk-pp-modal-destructive {
