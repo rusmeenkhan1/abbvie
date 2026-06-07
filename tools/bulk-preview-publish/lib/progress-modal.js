@@ -4,7 +4,7 @@ import { el } from './dom.js';
 /** @typedef {'status' | 'job'} ProgressModalKind */
 /** @typedef {'preview'|'live'|'unpreview'|'unpublish'|'delete'} JobTopic */
 
-const DEPLOYMENT_NONE_LABEL = 'nor previewed neither published';
+const DEPLOYMENT_NONE_LABEL = 'neither previewed nor published';
 
 /**
  * @param {ProgressModalKind} kind

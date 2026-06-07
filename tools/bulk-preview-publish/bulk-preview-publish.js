@@ -210,7 +210,7 @@ function buildDeploymentStatsBar(platformStatus, pages) {
   [
     ['live', 'Published', live, 'bulk-pp-stat-live'],
     ['preview', 'Preview only', preview, 'bulk-pp-stat-preview'],
-    ['none', 'nor previewed neither published', none, 'bulk-pp-stat-none'],
+    ['none', 'neither previewed nor published', none, 'bulk-pp-stat-none'],
   ].forEach(([, label, value, mod]) => {
     const card = el('div', `bulk-pp-stat-card ${mod}`);
     card.append(
