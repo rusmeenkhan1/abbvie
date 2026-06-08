@@ -79,6 +79,26 @@ export function showConfirmModal(opts) {
 }
 
 /**
+ * @param {number} pageCount
+ * @param {'folder'|'tree'} scope
+ * @param {string} [etaHint]
+ * @returns {Promise<boolean>}
+ */
+export function confirmCheckDeploymentStatus(pageCount, scope, etaHint = '') {
+  const scopeLabel = scope === 'tree' ? 'all subdirectories' : 'this directory';
+  let body = `This will check preview and publish status for ${pageCount} page${pageCount === 1 ? '' : 's'} in ${scopeLabel}. Each page requires a request to AEM.`;
+  if (etaHint) body += ` Estimated time: ${etaHint}.`;
+  body += ' You can cancel the check at any time.';
+  return showConfirmModal({
+    title: 'Check deployment status?',
+    body,
+    confirmLabel: 'Check status',
+    cancelLabel: 'Cancel',
+    variant: 'warning',
+  });
+}
+
+/**
  * @returns {Promise<boolean>}
  */
 export function confirmTreeScopeFetch() {

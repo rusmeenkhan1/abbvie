@@ -24,7 +24,7 @@ function syncPageRowDaLinks(root, state) {
       el.setAttribute('aria-disabled', 'true');
       el.removeAttribute('href');
       el.title = multi
-        ? 'Use Operation → Open in Document Authoring when multiple pages are selected'
+        ? 'Use More → Open in Document Authoring when multiple pages are selected'
         : 'Unavailable while status is loading';
     } else {
       el.classList.remove('bulk-pp-btn-open-da-disabled');
@@ -35,7 +35,7 @@ function syncPageRowDaLinks(root, state) {
   });
 }
 
-function syncOperationBar(root, state) {
+function syncSelectionActionBar(root, state) {
   const count = getActiveSelectionCount(state);
   const blocked = count === 0
     || state.statusChecking
@@ -43,17 +43,21 @@ function syncOperationBar(root, state) {
     || state.contentLoading
     || isJobModalOpen();
 
-  const runBtn = root.querySelector('#bulk-pp-run-operation');
-  const opSelect = root.querySelector('#bulk-pp-operation');
-  if (runBtn instanceof HTMLButtonElement) {
-    runBtn.disabled = blocked || (opSelect instanceof HTMLSelectElement && opSelect.disabled);
-    runBtn.title = count === 0
-      ? 'Select at least one page to run an operation'
-      : 'Run the selected operation on checked pages';
+  const bar = root.querySelector('#bulk-pp-selection-bar');
+  if (bar instanceof HTMLElement) {
+    bar.hidden = count === 0;
+    root.classList.toggle('bulk-pp-has-selection-bar', count > 0);
   }
-  if (opSelect instanceof HTMLSelectElement && state.selectedOperation) {
-    opSelect.value = state.selectedOperation;
-  }
+
+  const countEl = root.querySelector('#bulk-pp-selection-count');
+  if (countEl) countEl.textContent = count === 1 ? '1 page selected' : `${count} pages selected`;
+
+  const clearBtn = root.querySelector('#bulk-pp-selection-clear');
+  if (clearBtn instanceof HTMLButtonElement) clearBtn.disabled = blocked;
+
+  root.querySelectorAll('.bulk-pp-selection-strip-btn, .bulk-pp-selection-more-item').forEach((el) => {
+    if (el instanceof HTMLButtonElement) el.disabled = blocked;
+  });
 
   syncPageRowDaLinks(root, state);
 }
@@ -129,7 +133,7 @@ export function syncSelectionUI(root, state) {
     selectNoneBtn.disabled = listBusy || activeCount === 0;
   }
 
-  syncOperationBar(root, state);
+  syncSelectionActionBar(root, state);
 }
 
 /**

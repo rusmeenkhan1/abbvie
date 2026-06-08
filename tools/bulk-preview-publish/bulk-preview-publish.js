@@ -1,4 +1,5 @@
 import {
+  collectPages,
   deleteDaDocumentsSequential,
   fetchPlatformStatusForPaths,
   wrapDaFetch,
@@ -31,6 +32,7 @@ import {
 } from './lib/page-history.js';
 import {
   confirmBulkRun,
+  confirmCheckDeploymentStatus,
   confirmDestructiveAction,
   confirmOpenUrlsInNewTabs,
 } from './lib/modal.js';
@@ -120,19 +122,19 @@ const WORKFLOW_STEPS = [
   { n: 1, label: 'Open a folder', detail: 'Browse the tree — pages in that folder load automatically' },
   { n: 2, label: 'Check status', detail: 'Optional: preview & live deployment state' },
   { n: 3, label: 'Select pages', detail: 'Check pages you want to act on' },
-  { n: 4, label: 'Run operation', detail: 'Choose an operation and click Run' },
+  { n: 4, label: 'Run operation', detail: 'Use the action bar on selected pages' },
 ];
 
 /** @typedef {import('./lib/state.js').PageOperationId} PageOperationId */
 
-const PAGE_OPERATIONS = [
-  {
-    group: 'Deploy',
-    items: [
-      { id: 'preview', label: 'Preview on .aem.page' },
-      { id: 'live', label: 'Publish to .aem.live' },
-    ],
-  },
+/** @type {{ id: PageOperationId, label: string }[]} */
+const PRIMARY_SELECTION_OPS = [
+  { id: 'preview', label: 'Preview' },
+  { id: 'live', label: 'Publish' },
+];
+
+/** @type {{ group: string, items: { id: PageOperationId, label: string }[] }[]} */
+const MORE_SELECTION_OPS = [
   {
     group: 'Remove',
     items: [
@@ -422,7 +424,7 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
     daLink.classList.add('bulk-pp-btn-open-da-disabled');
     daLink.setAttribute('aria-disabled', 'true');
     daLink.title = multiSelected
-      ? 'Use Operation → Open in Document Authoring when multiple pages are selected'
+      ? 'Use More → Open in Document Authoring when multiple pages are selected'
       : 'Unavailable while status is loading';
     daLink.textContent = 'DA';
     daLink.addEventListener('click', (e) => {
@@ -616,35 +618,141 @@ async function runPageOperation(state, operationId) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
+ * @returns {boolean}
  */
-function buildOperationSelect(state) {
-  const field = el('div', 'bulk-pp-operation-field');
-  const label = el('label', 'bulk-pp-operation-label', 'Operation');
-  const select = document.createElement('select');
-  select.id = 'bulk-pp-operation';
-  select.className = 'bulk-pp-operation-select';
-  select.disabled = state.pages.length === 0 || state.statusChecking;
-  label.htmlFor = select.id;
+function isSelectionActionsBlocked(state) {
+  return state.loading
+    || state.contentLoading
+    || state.statusChecking
+    || isJobModalOpen();
+}
 
-  PAGE_OPERATIONS.forEach(({ group, items }) => {
-    const optgroup = document.createElement('optgroup');
-    optgroup.label = group;
-    items.forEach(({ id, label: text }) => {
-      const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = text;
-      if (id === state.selectedOperation) opt.selected = true;
-      optgroup.append(opt);
+/**
+ * @param {HTMLButtonElement} btn
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {PageOperationId} operationId
+ */
+function bindSelectionOpButton(btn, state, operationId) {
+  btn.type = 'button';
+  btn.dataset.operation = operationId;
+  btn.classList.add('bulk-pp-selection-strip-btn');
+  if (operationId === 'delete') btn.classList.add('bulk-pp-selection-strip-btn-danger');
+  btn.addEventListener('click', () => {
+    void runPageOperation(state, operationId);
+  });
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function buildSelectionActionBar(state) {
+  const count = getActiveSelectionCount(state);
+  const blocked = isSelectionActionsBlocked(state);
+  const bar = el('div', 'bulk-pp-selection-strip');
+  bar.id = 'bulk-pp-selection-bar';
+  bar.setAttribute('role', 'toolbar');
+  bar.setAttribute('aria-label', 'Actions for selected pages');
+  if (count === 0) bar.hidden = true;
+
+  const left = el('div', 'bulk-pp-selection-strip-left');
+  const clearBtn = el('button', 'bulk-pp-selection-clear', '×');
+  clearBtn.type = 'button';
+  clearBtn.id = 'bulk-pp-selection-clear';
+  clearBtn.setAttribute('aria-label', 'Clear selection');
+  clearBtn.title = 'Clear selection';
+  clearBtn.disabled = blocked;
+  clearBtn.addEventListener('click', () => state.onSelectAll(false));
+
+  const countEl = el('span', 'bulk-pp-selection-count', '');
+  countEl.id = 'bulk-pp-selection-count';
+  countEl.textContent = formatSelectionBarText(count);
+  left.append(clearBtn, countEl);
+
+  const actions = el('div', 'bulk-pp-selection-strip-actions');
+  PRIMARY_SELECTION_OPS.forEach(({ id, label }) => {
+    const btn = el('button', null, label);
+    bindSelectionOpButton(btn, state, id);
+    btn.disabled = blocked;
+    actions.append(btn);
+  });
+
+  const moreWrap = el('div', 'bulk-pp-selection-more-wrap');
+  const moreBtn = el('button', 'bulk-pp-selection-strip-btn bulk-pp-selection-more-trigger', 'More');
+  moreBtn.type = 'button';
+  moreBtn.id = 'bulk-pp-selection-more';
+  moreBtn.setAttribute('aria-haspopup', 'true');
+  moreBtn.setAttribute('aria-expanded', 'false');
+  moreBtn.disabled = blocked;
+
+  const menu = el('div', 'bulk-pp-selection-more-menu');
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', 'More page operations');
+  MORE_SELECTION_OPS.forEach(({ group, items }) => {
+    const groupEl = el('div', 'bulk-pp-selection-more-group');
+    groupEl.append(el('span', 'bulk-pp-selection-more-group-label', group));
+    items.forEach(({ id, label }) => {
+      const item = el('button', 'bulk-pp-selection-more-item', label);
+      item.type = 'button';
+      item.setAttribute('role', 'menuitem');
+      if (id === 'delete') item.classList.add('bulk-pp-selection-more-item-danger');
+      item.disabled = blocked;
+      item.addEventListener('click', () => {
+        void runPageOperation(state, id);
+        moreBtn.setAttribute('aria-expanded', 'false');
+        menu.classList.remove('bulk-pp-selection-more-menu-open');
+      });
+      groupEl.append(item);
     });
-    select.append(optgroup);
+    menu.append(groupEl);
   });
 
+  moreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = menu.classList.toggle('bulk-pp-selection-more-menu-open');
+    moreBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  moreWrap.append(moreBtn, menu);
+  actions.append(moreWrap);
+  bar.append(left, actions);
+  return bar;
+}
+
+/**
+ * @param {number} count
+ */
+function formatSelectionBarText(count) {
+  return count === 1 ? '1 page selected' : `${count} pages selected`;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {boolean} contentLoading
+ * @param {boolean} statusChecking
+ */
+function buildPageScopeRow(state, contentLoading, statusChecking) {
+  const row = el('div', 'bulk-pp-scope-row');
+  const field = el('div', 'bulk-pp-field bulk-pp-field-narrow bulk-pp-field-scope');
+  field.append(
+    el('label', null, 'Page scope'),
+    el('span', 'bulk-pp-field-hint', 'This directory, or include all subdirectories'),
+  );
+  const select = document.createElement('select');
+  select.id = 'bulk-pp-page-scope';
+  select.disabled = contentLoading || statusChecking;
+  [['folder', 'This directory'], ['tree', 'All subdirectories']].forEach(([value, label]) => {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    if (value === state.pageScope) opt.selected = true;
+    select.append(opt);
+  });
   select.addEventListener('change', () => {
-    state.selectedOperation = /** @type {PageOperationId} */ (select.value);
+    void state.onScopeChange(select.value === 'tree' ? 'tree' : 'folder');
   });
-
-  field.append(label, select);
-  return { field, select };
+  field.append(select);
+  row.append(field);
+  return row;
 }
 
 /**
@@ -677,23 +785,7 @@ function buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking 
   selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
   selectionRow.append(selectAllBtn, selectNoneBtn);
   left.append(selectionRow);
-
-  const right = el('div', 'bulk-pp-operation-bar');
-  right.setAttribute('aria-label', 'Page operations');
-  const { field, select } = buildOperationSelect(state);
-  const runBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-run-operation', 'Run');
-  runBtn.type = 'button';
-  runBtn.id = 'bulk-pp-run-operation';
-  runBtn.disabled = isOperationBlocked(state) || select.disabled;
-  runBtn.title = getActiveSelectionCount(state) === 0
-    ? 'Select at least one page to run an operation'
-    : 'Run the selected operation on checked pages';
-  runBtn.addEventListener('click', () => {
-    void runPageOperation(state, /** @type {PageOperationId} */ (select.value));
-  });
-
-  right.append(field, runBtn);
-  header.append(left, right);
+  header.append(left);
   return header;
 }
 
@@ -840,7 +932,7 @@ function render(root, state) {
 
   const {
     org, site, ref, folderPath, loading, error, status, statusType, jobDetail,
-    pageFilter, statusCheckFailed, statusError,
+    pageFilter, pageScope, statusCheckFailed, statusError,
     statusChecking, pageSearch, folderSearch, contentLoading,
     statusFetched,
   } = state;
@@ -856,6 +948,8 @@ function render(root, state) {
 
   root.replaceChildren();
   root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
+  const selectionCount = getActiveSelectionCount(state);
+  root.classList.toggle('bulk-pp-has-selection-bar', selectionCount > 0);
 
   const workflowStep = getWorkflowStep(state);
 
@@ -956,6 +1050,7 @@ function render(root, state) {
       ? `${visiblePages.length} of ${state.pages.length}`
       : String(state.pages.length);
     pagesSection.append(buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking }));
+    pagesSection.append(buildPageScopeRow(state, contentLoading, statusChecking));
 
     if (statusCheckFailed && !isStatusFetchModalOpen()) {
       pagesSection.append(el(
@@ -1016,7 +1111,9 @@ function render(root, state) {
         'bulk-pp-pages-filter-note',
         filtersLocked
           ? 'Check deployment status to unlock filters'
-          : 'Filters apply to the current folder scope only',
+          : pageScope === 'tree'
+            ? 'Filters apply to all pages under this directory'
+            : 'Filters apply to pages in this directory only',
       ),
     );
     controls.append(filterRow);
@@ -1076,6 +1173,7 @@ function render(root, state) {
   }
   contentPanel.append(contentBody);
   root.append(contentPanel);
+  root.append(buildSelectionActionBar(state));
 
   if (status && !statusChecking && statusType === 'error') {
     const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType}`);
@@ -1210,6 +1308,9 @@ function finishContentLoadWithoutStatus(state, location, docCount, folderCount) 
   state.platformStatus = {};
   if (folderCount === 0 && docCount === 0) {
     state.status = `No folders or pages in ${location}.`;
+  } else if (state.pageScope === 'tree') {
+    state.status = `Loaded ${docCount} page(s) under ${location} (all subdirectories). `
+      + 'Use Check deployment status for preview/publish dots.';
   } else {
     state.status = `Loaded ${docCount} page(s) and ${folderCount} folder(s) in ${location}. `
       + 'Use Check deployment status for preview/publish dots.';
@@ -1268,8 +1369,15 @@ async function main() {
     });
   };
 
-  state.onCheckStatus = () => {
+  state.onCheckStatus = async () => {
     if (state.statusChecking || state.contentLoading || state.pages.length === 0) return;
+    const etaHint = formatStatusFetchEta(state.pages.length);
+    const ok = await confirmCheckDeploymentStatus(
+      state.pages.length,
+      state.pageScope,
+      etaHint,
+    );
+    if (!ok) return;
     const location = displayFolderPath(state.folderPath) || 'site root';
     startStatusCheck(
       state,
@@ -1279,6 +1387,15 @@ async function main() {
       state.pages.length,
       state.folders.length,
     );
+  };
+
+  state.onScopeChange = async (scope) => {
+    if (state.statusChecking || state.contentLoading) return;
+    const next = scope === 'tree' ? 'tree' : 'folder';
+    if (state.pageScope === next) return;
+    state.pageScope = next;
+    cancelStatusCheck(state, false);
+    await state.onFetch(false);
   };
 
   state.onNavigate = async (targetPath) => {
@@ -1293,8 +1410,6 @@ async function main() {
 
   state.onFetch = async (fromFolderNav = false) => {
     if (state.statusChecking) return;
-
-    state.pageScope = 'folder';
 
     if (!fromFolderNav) {
       state.pageFilter = 'all';
@@ -1318,11 +1433,6 @@ async function main() {
     state.platformStatus = {};
     state.statusCheckFailed = false;
     state.statusError = null;
-    if (!fromFolderNav) {
-      state.pageSearch = '';
-      state.folderSearch = '';
-      state.selected.clear();
-    }
     state.status = 'Fetching content…';
     state.statusType = 'info';
     render(app, state);
@@ -1335,7 +1445,24 @@ async function main() {
         state.folderPath,
       );
       state.folders = browseEntries.filter((e) => e.kind === 'folder');
-      state.pages = browseEntries.filter((e) => e.kind === 'document');
+
+      if (state.pageScope === 'tree') {
+        const nestedPages = await collectPages(
+          daFetch,
+          state.org,
+          state.site,
+          state.folderPath,
+          -1,
+        );
+        state.pages = nestedPages.map((page) => ({
+          kind: 'document',
+          name: page.name,
+          sourcePath: page.sourcePath,
+          helixPath: page.helixPath,
+        }));
+      } else {
+        state.pages = browseEntries.filter((e) => e.kind === 'document');
+      }
 
       if (fromFolderNav) {
         const prev = new Set(state.selected);

@@ -59,8 +59,6 @@ export function createAppState(ctx) {
     pages: [],
     /** @type {Set<string>} */
     selected: new Set(),
-    /** @type {PageOperationId} */
-    selectedOperation: 'preview',
   };
 }
 
@@ -97,7 +95,6 @@ export function resetWorkspace(state) {
   state.folders = [];
   state.pages = [];
   state.selected.clear();
-  state.selectedOperation = 'preview';
   cancelStatusCheck(state, false);
   cancelBulkJob(state, false);
 }
