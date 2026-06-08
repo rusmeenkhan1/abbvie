@@ -69,6 +69,7 @@ import {
 import {
   cancelBulkJob,
   cancelStatusCheck,
+  clearPageWorkspaceAfterOperation,
   createAppState,
   formatSelectionPillText,
   getActiveSelectionCount,
@@ -476,6 +477,10 @@ async function openUrlsInNewTabs(urls, state = null) {
   if (urls.length === 0) return;
   const ok = await confirmOpenUrlsInNewTabs(urls.length);
   if (!ok) return;
+  if (state) {
+    clearPageWorkspaceAfterOperation(state);
+    if (state.root) render(/** @type {HTMLElement} */ (state.root), state);
+  }
   const result = openUrlsInNewTabsQuiet(urls);
   if (shouldWarnPopupBlock(result) && state) {
     state.status = 'Your browser blocked new tabs. Allow pop-ups for this site, or copy URLs from the operation completion dialog.';
@@ -648,11 +653,13 @@ function bindSelectionOpButton(btn, state, operationId) {
 function buildSelectionActionBar(state) {
   const count = getActiveSelectionCount(state);
   const blocked = isSelectionActionsBlocked(state);
+  const anchor = el('div', 'bulk-pp-selection-strip-anchor');
+  anchor.id = 'bulk-pp-selection-bar';
+  if (count === 0) anchor.hidden = true;
+
   const bar = el('div', 'bulk-pp-selection-strip');
-  bar.id = 'bulk-pp-selection-bar';
   bar.setAttribute('role', 'toolbar');
   bar.setAttribute('aria-label', 'Actions for selected pages');
-  if (count === 0) bar.hidden = true;
 
   const left = el('div', 'bulk-pp-selection-strip-left');
   const clearBtn = el('button', 'bulk-pp-selection-clear', '×');
@@ -687,6 +694,7 @@ function buildSelectionActionBar(state) {
   const menu = el('div', 'bulk-pp-selection-more-menu');
   menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', 'More page operations');
+  const menuPanel = el('div', 'bulk-pp-selection-more-menu-panel');
   MORE_SELECTION_OPS.forEach(({ group, items }) => {
     const groupEl = el('div', 'bulk-pp-selection-more-group');
     groupEl.append(el('span', 'bulk-pp-selection-more-group-label', group));
@@ -703,19 +711,52 @@ function buildSelectionActionBar(state) {
       });
       groupEl.append(item);
     });
-    menu.append(groupEl);
+    menuPanel.append(groupEl);
+  });
+  menu.append(menuPanel);
+
+  let moreHoverCloseTimer = null;
+  const openMoreMenu = () => {
+    if (moreHoverCloseTimer) {
+      clearTimeout(moreHoverCloseTimer);
+      moreHoverCloseTimer = null;
+    }
+    menu.classList.add('bulk-pp-selection-more-menu-open');
+    moreBtn.setAttribute('aria-expanded', 'true');
+  };
+  const scheduleCloseMoreMenu = () => {
+    if (moreHoverCloseTimer) clearTimeout(moreHoverCloseTimer);
+    moreHoverCloseTimer = setTimeout(() => {
+      menu.classList.remove('bulk-pp-selection-more-menu-open');
+      moreBtn.setAttribute('aria-expanded', 'false');
+      moreHoverCloseTimer = null;
+    }, 220);
+  };
+
+  moreWrap.addEventListener('mouseenter', openMoreMenu);
+  moreWrap.addEventListener('mouseleave', scheduleCloseMoreMenu);
+  moreWrap.addEventListener('focusin', openMoreMenu);
+  moreWrap.addEventListener('focusout', (e) => {
+    if (!moreWrap.contains(/** @type {Node} */ (e.relatedTarget))) {
+      scheduleCloseMoreMenu();
+    }
   });
 
   moreBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    const open = menu.classList.toggle('bulk-pp-selection-more-menu-open');
-    moreBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (menu.classList.contains('bulk-pp-selection-more-menu-open')) {
+      menu.classList.remove('bulk-pp-selection-more-menu-open');
+      moreBtn.setAttribute('aria-expanded', 'false');
+    } else {
+      openMoreMenu();
+    }
   });
 
   moreWrap.append(moreBtn, menu);
   actions.append(moreWrap);
   bar.append(left, actions);
-  return bar;
+  anchor.append(bar);
+  return anchor;
 }
 
 /**
@@ -1524,6 +1565,8 @@ async function main() {
     const confirmed = await confirmBulkRun(topic, paths.length);
     if (!confirmed) return;
 
+    clearPageWorkspaceAfterOperation(state);
+
     const appRoot = /** @type {HTMLElement} */ (app);
     state.loading = true;
     state.jobTopic = topic;
@@ -1658,6 +1701,8 @@ async function main() {
 
     const ok = await confirmDestructiveAction(action, paths.length);
     if (!ok) return;
+
+    clearPageWorkspaceAfterOperation(state);
 
     const appRoot = /** @type {HTMLElement} */ (app);
     const topic = /** @type {'unpreview'|'unpublish'|'delete'} */ (action);

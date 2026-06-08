@@ -140,6 +140,17 @@ export function cancelStatusCheck(state, setMessage = true) {
 }
 
 /**
+ * Clears selection, filters, and search after a page operation starts.
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function clearPageWorkspaceAfterOperation(state) {
+  state.selected.clear();
+  state.pageFilter = 'all';
+  state.pageSearch = '';
+  state.folderSearch = '';
+}
+
+/**
  * @param {ReturnType<typeof createAppState>} state
  */
 export function buildStatusMap(state) {
