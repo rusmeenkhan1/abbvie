@@ -431,16 +431,20 @@ export function showStatusFetchCancelledModal(opts) {
 }
 
 /**
- * @param {{ message: string, onClose: () => void }} opts
+ * @param {{ message: string, onClose: () => void, hint?: string }} opts
  */
 export function showStatusFetchErrorModal(opts) {
   if (!modalRef || modalRef.kind !== 'status') return;
-  const { message, onClose } = opts;
-  replacePanel(modalRef.panel, [
+  const { message, onClose, hint = '' } = opts;
+  const body = [
     el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-error-title', 'Status check failed'),
     el('p', 'bulk-pp-status-modal-summary bulk-pp-status-modal-error', message),
-    actionRow([closeActionBtn(onClose)]),
-  ]);
+  ];
+  if (hint) {
+    body.push(el('p', 'bulk-pp-status-modal-hint bulk-pp-status-modal-error-hint', hint));
+  }
+  body.push(actionRow([closeActionBtn(onClose)]));
+  replacePanel(modalRef.panel, body);
   setHeadTitle('Could not load status');
   hideHeaderCancel();
 }
@@ -529,16 +533,20 @@ function jobHeadErrorTitle(topic) {
 }
 
 /**
- * @param {{ message: string, topic: JobTopic, onClose: () => void }} opts
+ * @param {{ message: string, topic: JobTopic, onClose: () => void, hint?: string }} opts
  */
 export function showJobErrorModal(opts) {
   if (!modalRef || modalRef.kind !== 'job') return;
-  const { message, topic, onClose } = opts;
-  replacePanel(modalRef.panel, [
+  const { message, topic, onClose, hint = '' } = opts;
+  const body = [
     el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-error-title', jobErrorTitle(topic)),
     el('p', 'bulk-pp-status-modal-summary bulk-pp-status-modal-error', message),
-    actionRow([closeActionBtn(onClose)]),
-  ]);
+  ];
+  if (hint) {
+    body.push(el('p', 'bulk-pp-status-modal-hint bulk-pp-status-modal-error-hint', hint));
+  }
+  body.push(actionRow([closeActionBtn(onClose)]));
+  replacePanel(modalRef.panel, body);
   setHeadTitle(jobHeadErrorTitle(topic));
   hideHeaderCancel();
 }

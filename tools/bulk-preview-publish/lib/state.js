@@ -6,6 +6,7 @@ import { resolveContentFolderPath } from './paths.js';
 
 /** @typedef {{ kind: 'folder', name: string, folderPath: string }} FolderEntry */
 /** @typedef {{ kind: 'document', helixPath: string, sourcePath: string, name: string }} DocumentEntry */
+/** @typedef {'preview'|'live'|'unpreview'|'unpublish'|'delete'|'open-da'|'open-preview'|'open-live'} PageOperationId */
 
 export const SEARCH_MIN_LEN = 3;
 
@@ -72,6 +73,8 @@ export function createAppState(ctx) {
     pages: [],
     /** @type {Set<string>} */
     selected: new Set(),
+    /** @type {PageOperationId} */
+    selectedOperation: 'preview',
   };
 }
 
@@ -110,6 +113,7 @@ export function resetWorkspace(state) {
   state.folders = [];
   state.pages = [];
   state.selected.clear();
+  state.selectedOperation = 'preview';
   cancelStatusCheck(state, false);
   cancelBulkJob(state, false);
 }

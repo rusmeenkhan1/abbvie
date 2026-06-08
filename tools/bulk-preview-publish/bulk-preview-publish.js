@@ -5,6 +5,7 @@ import {
   isHardcodeIndexTest,
   wrapDaFetch,
   messageFromApiError,
+  permissionErrorHint,
   getJobPollUrl,
   listFolderEntries,
   pollJob,
@@ -124,7 +125,35 @@ const WORKFLOW_STEPS = [
   { n: 1, label: 'Load pages', detail: 'Pick a folder and load the page list' },
   { n: 2, label: 'Check status', detail: 'See which pages are previewed or live' },
   { n: 3, label: 'Select pages', detail: 'Check the pages you want to act on' },
-  { n: 4, label: 'Run action', detail: 'Preview, publish, remove, or open URLs' },
+  { n: 4, label: 'Run operation', detail: 'Pick an operation and click Run' },
+];
+
+/** @typedef {import('./lib/state.js').PageOperationId} PageOperationId */
+
+const PAGE_OPERATIONS = [
+  {
+    group: 'Deploy',
+    items: [
+      { id: 'preview', label: 'Preview on .aem.page' },
+      { id: 'live', label: 'Publish to .aem.live' },
+    ],
+  },
+  {
+    group: 'Remove',
+    items: [
+      { id: 'unpreview', label: 'Remove preview' },
+      { id: 'unpublish', label: 'Remove from live' },
+      { id: 'delete', label: 'Delete from DA' },
+    ],
+  },
+  {
+    group: 'Open',
+    items: [
+      { id: 'open-da', label: 'Open in Document Authoring' },
+      { id: 'open-preview', label: 'Open preview site' },
+      { id: 'open-live', label: 'Open live site' },
+    ],
+  },
 ];
 
 async function initSdk() {
@@ -239,22 +268,6 @@ function buildWorkflowStrip(activeStep) {
     strip.append(item);
   });
   return strip;
-}
-
-/**
- * @param {string} title
- * @param {string} desc
- * @param {string} variant
- */
-function buildActionCard(title, desc, variant) {
-  const card = el('article', `bulk-pp-action-card bulk-pp-action-card-${variant}`);
-  card.append(
-    el('h4', 'bulk-pp-action-card-title', title),
-    el('p', 'bulk-pp-action-card-desc', desc),
-  );
-  const actions = el('div', 'bulk-pp-action-card-actions');
-  card.append(actions);
-  return { card, actions };
 }
 
 /**
@@ -428,7 +441,7 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
     daLink.classList.add('bulk-pp-btn-open-da-disabled');
     daLink.setAttribute('aria-disabled', 'true');
     daLink.title = multiSelected
-      ? 'Use “Open in DA” in the action panel when multiple pages are selected'
+      ? 'Use Operation → Open in Document Authoring when multiple pages are selected'
       : 'Unavailable while status is loading';
     daLink.textContent = 'DA';
     daLink.addEventListener('click', (e) => {
@@ -525,152 +538,182 @@ async function openSelectedDa(state) {
 }
 
 /**
- * Open-in-browser actions for the current selection.
- * @param {HTMLElement} group
  * @param {ReturnType<typeof createAppState>} state
+ * @returns {boolean}
  */
-function appendOpenSelectedActionButtons(group, state) {
-  const count = getActiveSelectionCount(state);
-  group.id = 'bulk-pp-open-selected-group';
-
-  const countHint = count === 1 ? '1 page' : `${count} pages`;
-  const actionDisabled = count === 0 || state.statusChecking || state.loading || state.contentLoading;
-
-  const daBtn = el(
-    'button',
-    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-outline-neutral',
-    'Open in DA',
-  );
-  daBtn.type = 'button';
-  daBtn.id = 'bulk-pp-open-selected-da';
-  daBtn.title = `Open Document Authoring for ${countHint}`;
-  daBtn.disabled = actionDisabled;
-  daBtn.addEventListener('click', () => {
-    void openSelectedDa(state);
-  });
-
-  const previewBtn = el(
-    'button',
-    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-outline-preview',
-    'Open preview site',
-  );
-  previewBtn.type = 'button';
-  previewBtn.id = 'bulk-pp-open-selected-preview';
-  previewBtn.title = `Open .aem.page preview URL for ${countHint}`;
-  previewBtn.disabled = actionDisabled;
-  previewBtn.addEventListener('click', () => {
-    void openSelectedUrls(state, 'preview');
-  });
-
-  const liveBtn = el(
-    'button',
-    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-outline-publish',
-    'Open live site',
-  );
-  liveBtn.type = 'button';
-  liveBtn.id = 'bulk-pp-open-selected-live';
-  liveBtn.title = `Open .aem.live publish URL for ${countHint}`;
-  liveBtn.disabled = actionDisabled;
-  liveBtn.addEventListener('click', () => {
-    void openSelectedUrls(state, 'live');
-  });
-
-  group.append(daBtn, previewBtn, liveBtn);
-}
-
-/**
- * @param {HTMLElement} group
- * @param {ReturnType<typeof createAppState>} state
- */
-function appendRunSelectedButtons(group, state) {
-  const count = getActiveSelectionCount(state);
-  const runDisabled = state.loading
+function isOperationBlocked(state) {
+  return state.loading
     || state.contentLoading
     || state.statusChecking
     || isJobModalOpen()
-    || count === 0;
-
-  const previewBtn = el(
-    'button',
-    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-preview',
-    'Preview on .aem.page',
-  );
-  previewBtn.type = 'button';
-  previewBtn.id = 'bulk-pp-preview-btn';
-  previewBtn.title = count === 0
-    ? 'Select pages to preview'
-    : `Bulk preview ${count} selected page${count === 1 ? '' : 's'}`;
-  previewBtn.disabled = runDisabled;
-  previewBtn.addEventListener('click', () => state.onRun('preview'));
-
-  const publishBtn = el(
-    'button',
-    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-publish',
-    'Publish to .aem.live',
-  );
-  publishBtn.type = 'button';
-  publishBtn.id = 'bulk-pp-publish-btn';
-  publishBtn.title = count === 0
-    ? 'Select pages to publish'
-    : `Publish ${count} selected page${count === 1 ? '' : 's'} to production`;
-  publishBtn.disabled = runDisabled;
-  publishBtn.addEventListener('click', () => state.onRun('live'));
-
-  group.append(previewBtn, publishBtn);
+    || getActiveSelectionCount(state) === 0;
 }
 
 /**
- * @param {HTMLElement} group
+ * @param {PageOperationId} operationId
+ * @returns {import('./lib/api.js').AdminOperation | ''}
+ */
+function operationApiKey(operationId) {
+  if (operationId === 'live') return 'live';
+  if (operationId === 'preview') return 'preview';
+  if (operationId === 'unpreview') return 'unpreview';
+  if (operationId === 'unpublish') return 'unpublish';
+  if (operationId === 'delete') return 'delete';
+  return '';
+}
+
+/**
+ * @param {unknown} err
+ * @param {string} message
+ * @returns {string}
+ */
+function errorHintFrom(err, message) {
+  const status = err && typeof err === 'object' && 'status' in err
+    ? Number(/** @type {{ status?: number }} */ (err).status)
+    : 0;
+  return permissionErrorHint(status, message);
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {JobTopic} topic
+ * @param {unknown} err
+ * @param {import('./lib/api.js').AdminOperation | ''} [operation]
+ */
+function presentJobError(state, topic, err, operation = '') {
+  const msg = messageFromApiError(err, 'Operation failed.', operation);
+  state.status = msg;
+  state.statusType = 'error';
+  if (err && typeof err === 'object' && 'data' in err && err.data) {
+    state.jobDetail = JSON.stringify(err.data, null, 2);
+  }
+  showJobErrorModal({
+    message: msg,
+    topic,
+    hint: errorHintFrom(err, msg),
+    onClose: () => finishProgressModal(state, 'job'),
+  });
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {PageOperationId} operationId
+ */
+async function runPageOperation(state, operationId) {
+  if (isOperationBlocked(state)) return;
+
+  try {
+    if (operationId === 'preview' || operationId === 'live') {
+      await state.onRun(operationId);
+      return;
+    }
+    if (operationId === 'unpreview' || operationId === 'unpublish' || operationId === 'delete') {
+      await state.onRunDestructive(operationId);
+      return;
+    }
+    if (operationId === 'open-da') {
+      await openSelectedDa(state);
+      return;
+    }
+    if (operationId === 'open-preview') {
+      await openSelectedUrls(state, 'preview');
+      return;
+    }
+    if (operationId === 'open-live') {
+      await openSelectedUrls(state, 'live');
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return;
+    const op = operationApiKey(operationId);
+    const msg = messageFromApiError(err, 'Operation failed.', op);
+    state.status = msg;
+    state.statusType = 'error';
+    const root = state.root;
+    if (root) render(/** @type {HTMLElement} */ (root), state);
+  }
+}
+
+/**
  * @param {ReturnType<typeof createAppState>} state
  */
-function appendDestructiveButtons(group, state) {
-  const count = getActiveSelectionCount(state);
-  const disabled = state.loading
-    || state.contentLoading
-    || state.statusChecking
-    || isJobModalOpen()
-    || count === 0;
+function buildOperationSelect(state) {
+  const field = el('div', 'bulk-pp-operation-field');
+  const label = el('label', 'bulk-pp-operation-label', 'Operation');
+  const select = document.createElement('select');
+  select.id = 'bulk-pp-operation';
+  select.className = 'bulk-pp-operation-select';
+  select.disabled = state.pages.length === 0 || state.statusChecking;
+  label.htmlFor = select.id;
 
-  const unpreviewBtn = el(
-    'button',
-    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-outline-danger',
-    'Remove preview',
+  PAGE_OPERATIONS.forEach(({ group, items }) => {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = group;
+    items.forEach(({ id, label: text }) => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = text;
+      if (id === state.selectedOperation) opt.selected = true;
+      optgroup.append(opt);
+    });
+    select.append(optgroup);
+  });
+
+  select.addEventListener('change', () => {
+    state.selectedOperation = /** @type {PageOperationId} */ (select.value);
+  });
+
+  field.append(label, select);
+  return { field, select };
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {{ visiblePages: { helixPath: string }[], statusChecking: boolean }} opts
+ */
+function buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking }) {
+  const header = el('div', 'bulk-pp-pages-header');
+  const left = el('div', 'bulk-pp-pages-header-left');
+  left.append(buildSectionHead('Pages', pageCountLabel, 'bulk-pp-page-count', 'pages'));
+
+  const selectionRow = el('div', 'bulk-pp-selection-row');
+  selectionRow.append(
+    el('span', 'bulk-pp-step-badge bulk-pp-step-badge-inline', 'Steps 3–4'),
+    el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state)),
   );
-  unpreviewBtn.type = 'button';
-  unpreviewBtn.id = 'bulk-pp-unpreview-btn';
-  unpreviewBtn.title = count === 0
-    ? 'Select pages to remove from preview'
-    : `Remove preview for ${count} selected page${count === 1 ? '' : 's'}`;
-  unpreviewBtn.disabled = disabled;
-  unpreviewBtn.addEventListener('click', () => state.onRunDestructive('unpreview'));
+  selectionRow.querySelector('.bulk-pp-selection-pill').id = 'bulk-pp-selection-pill';
 
-  const unpublishBtn = el(
-    'button',
-    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-outline-danger',
-    'Remove from live',
-  );
-  unpublishBtn.type = 'button';
-  unpublishBtn.id = 'bulk-pp-unpublish-btn';
-  unpublishBtn.title = count === 0
-    ? 'Select pages to unpublish from live'
-    : `Unpublish ${count} selected page${count === 1 ? '' : 's'} from production`;
-  unpublishBtn.disabled = disabled;
-  unpublishBtn.addEventListener('click', () => state.onRunDestructive('unpublish'));
+  const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Select all');
+  const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Clear');
+  selectAllBtn.type = 'button';
+  selectNoneBtn.type = 'button';
+  selectAllBtn.id = 'bulk-pp-select-all';
+  selectNoneBtn.id = 'bulk-pp-select-none';
+  selectAllBtn.disabled = visiblePages.length === 0 || statusChecking;
+  selectNoneBtn.disabled = visiblePages.length === 0
+    || statusChecking
+    || getActiveSelectionCount(state) === 0;
+  selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
+  selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
+  selectionRow.append(selectAllBtn, selectNoneBtn);
+  left.append(selectionRow);
 
-  const deleteBtn = el(
-    'button',
-    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-delete',
-    'Delete from DA',
-  );
-  deleteBtn.type = 'button';
-  deleteBtn.id = 'bulk-pp-delete-btn';
-  deleteBtn.title = count === 0
-    ? 'Select pages to delete from Document Authoring'
-    : `Unpreview, unpublish, and delete ${count} selected page${count === 1 ? '' : 's'} from DA`;
-  deleteBtn.disabled = disabled;
-  deleteBtn.addEventListener('click', () => state.onRunDestructive('delete'));
+  const right = el('div', 'bulk-pp-operation-bar');
+  right.setAttribute('aria-label', 'Page operations');
+  const { field, select } = buildOperationSelect(state);
+  const runBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-run-operation', 'Run');
+  runBtn.type = 'button';
+  runBtn.id = 'bulk-pp-run-operation';
+  runBtn.disabled = isOperationBlocked(state) || select.disabled;
+  runBtn.title = getActiveSelectionCount(state) === 0
+    ? 'Select at least one page to run an operation'
+    : 'Run the selected operation on checked pages';
+  runBtn.addEventListener('click', () => {
+    void runPageOperation(state, /** @type {PageOperationId} */ (select.value));
+  });
 
-  group.append(unpreviewBtn, unpublishBtn, deleteBtn);
+  right.append(field, runBtn);
+  header.append(left, right);
+  return header;
 }
 
 /**
@@ -760,87 +803,6 @@ async function runRemovePartitionJob(state, daFetch, partition, paths, phaseLabe
     state.jobAbort?.signal,
   );
   return resolveJobOutcome(finalJob);
-}
-
-/**
- * @param {ReturnType<typeof createAppState>} state
- * @param {{ visiblePages: { helixPath: string }[], statusChecking: boolean }} opts
- */
-function buildActionDeck(state, { visiblePages, statusChecking }) {
-  const deck = el('section', 'bulk-pp-action-deck');
-  deck.setAttribute('aria-label', 'Bulk actions');
-
-  const head = el('div', 'bulk-pp-action-deck-head');
-  const headCopy = el('div', 'bulk-pp-action-deck-head-copy');
-  headCopy.append(
-    el('h3', 'bulk-pp-action-deck-title', 'Run an action on selected pages'),
-    el('p', 'bulk-pp-action-deck-lead', 'Choose deploy, remove, or open — each action applies only to checked pages.'),
-  );
-  head.append(
-    el('span', 'bulk-pp-step-badge bulk-pp-step-badge-inline', 'Step 4'),
-    headCopy,
-  );
-
-  const selectionBar = el('div', 'bulk-pp-selection-bar');
-  const selectionMeta = el('div', 'bulk-pp-selection-meta');
-  selectionMeta.append(
-    el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state)),
-  );
-  selectionMeta.querySelector('.bulk-pp-selection-pill').id = 'bulk-pp-selection-pill';
-
-  const selectionActions = el('div', 'bulk-pp-selection-actions');
-  const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-secondary', 'Select all visible');
-  const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-secondary', 'Clear selection');
-  selectAllBtn.type = 'button';
-  selectNoneBtn.type = 'button';
-  selectAllBtn.id = 'bulk-pp-select-all';
-  selectNoneBtn.id = 'bulk-pp-select-none';
-  selectAllBtn.disabled = visiblePages.length === 0 || statusChecking;
-  selectNoneBtn.disabled = visiblePages.length === 0
-    || statusChecking
-    || getActiveSelectionCount(state) === 0;
-  selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
-  selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
-  selectionActions.append(selectAllBtn, selectNoneBtn);
-  selectionBar.append(selectionMeta, selectionActions);
-
-  const count = getActiveSelectionCount(state);
-  const hint = el(
-    'p',
-    'bulk-pp-action-deck-hint',
-    count === 0
-      ? 'No pages selected yet — check pages in the list above, or use Select all visible.'
-      : `${count} page${count === 1 ? '' : 's'} ready. Actions run after you confirm in the dialog.`,
-  );
-  hint.id = 'bulk-pp-action-deck-hint';
-
-  const grid = el('div', 'bulk-pp-action-grid');
-
-  const deploy = buildActionCard(
-    'Deploy',
-    'Push content to AEM preview or production.',
-    'deploy',
-  );
-  appendRunSelectedButtons(deploy.actions, state);
-
-  const remove = buildActionCard(
-    'Remove',
-    'Undo preview, live publish, or delete source files from DA.',
-    'remove',
-  );
-  appendDestructiveButtons(remove.actions, state);
-
-  const openCard = buildActionCard(
-    'Open',
-    'Review pages in Document Authoring or on preview/live URLs.',
-    'open',
-  );
-  appendOpenSelectedActionButtons(openCard.actions, state);
-
-  grid.append(deploy.card, remove.card, openCard.card);
-
-  deck.append(head, selectionBar, hint, grid);
-  return deck;
 }
 
 function buildStatusLegend() {
@@ -1163,7 +1125,7 @@ function render(root, state) {
     const pageCountLabel = searchDraft && !searchTooShort
       ? `${visiblePages.length} of ${state.pages.length}`
       : String(state.pages.length);
-    pagesSection.append(buildSectionHead('Pages', pageCountLabel, 'bulk-pp-page-count', 'pages'));
+    pagesSection.append(buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking }));
 
     if (statusCheckFailed && !isStatusFetchModalOpen()) {
       pagesSection.append(el(
@@ -1241,13 +1203,6 @@ function render(root, state) {
     controls.append(searchRow);
     pagesSection.append(controls);
 
-    const listHead = el('div', 'bulk-pp-list-head');
-    listHead.append(
-      el('span', 'bulk-pp-step-badge bulk-pp-step-badge-inline', 'Step 3'),
-      el('span', 'bulk-pp-list-head-label', 'Select pages from the list'),
-    );
-    pagesSection.append(listHead);
-
     const pageWrap = el('div', 'bulk-pp-list-wrap');
     pageWrap.id = 'bulk-pp-page-list-wrap';
     const pageList = el('ul', 'bulk-pp-list');
@@ -1276,7 +1231,6 @@ function render(root, state) {
     }
     pageWrap.append(pageList);
     pagesSection.append(pageWrap);
-    pagesSection.append(buildActionDeck(state, { visiblePages, statusChecking }));
     contentGrid.append(pagesSection);
     workspace.append(contentGrid);
     pagesPane.append(workspace);
@@ -1431,10 +1385,13 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusFetchStartedAt = null;
     state.statusCheckFailed = true;
     resetFetchStatusOption(state);
-    state.statusError = messageFromApiError(statusErr, 'Status check failed');
+    state.statusError = messageFromApiError(statusErr, 'Status check failed.', 'status');
+    state.status = state.statusError;
+    state.statusType = 'error';
     console.warn('[bulk-pp] platform status failed', statusErr);
     showStatusFetchErrorModal({
       message: state.statusError,
+      hint: errorHintFrom(statusErr, state.statusError),
       onClose: () => finishProgressModal(state, 'status'),
     });
   });
@@ -1663,7 +1620,7 @@ async function main() {
       state.pages = [];
       state.selected.clear();
       state.contentLoading = false;
-      state.error = messageFromApiError(err, 'Failed to load content.');
+      state.error = messageFromApiError(err, 'Failed to load content.', 'list');
       state.status = state.error;
       state.statusType = 'error';
       render(app, state);
@@ -1825,6 +1782,7 @@ async function main() {
         showJobErrorModal({
           message: state.status,
           topic,
+          hint: permissionErrorHint(0, state.status),
           onClose: () => finishProgressModal(state, 'job'),
         });
       } else {
@@ -1841,17 +1799,7 @@ async function main() {
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      const msg = messageFromApiError(err);
-      state.status = msg;
-      state.statusType = 'error';
-      if (err && typeof err === 'object' && 'data' in err && err.data) {
-        state.jobDetail = JSON.stringify(err.data, null, 2);
-      }
-      showJobErrorModal({
-        message: msg,
-        topic,
-        onClose: () => finishProgressModal(state, 'job'),
-      });
+      presentJobError(state, topic, err, topic);
     } finally {
       state.loading = false;
       state.jobAbort = null;
@@ -1900,7 +1848,7 @@ async function main() {
           else if (outcome.statusType === 'info' && statusType === 'success') statusType = 'info';
         } catch (phaseErr) {
           if (phaseErr instanceof DOMException && phaseErr.name === 'AbortError') return;
-          notes.push(`Preview removal failed: ${messageFromApiError(phaseErr)}`);
+          notes.push(`Preview removal failed: ${messageFromApiError(phaseErr, 'Preview removal failed.', 'unpreview')}`);
           statusType = 'error';
           console.warn('[bulk-pp] unpreview phase failed', phaseErr);
         }
@@ -1922,7 +1870,7 @@ async function main() {
           else if (outcome.statusType === 'info' && statusType === 'success') statusType = 'info';
         } catch (phaseErr) {
           if (phaseErr instanceof DOMException && phaseErr.name === 'AbortError') return;
-          notes.push(`Unpublish failed: ${messageFromApiError(phaseErr)}`);
+          notes.push(`Unpublish failed: ${messageFromApiError(phaseErr, 'Unpublish failed.', 'unpublish')}`);
           statusType = 'error';
           console.warn('[bulk-pp] unpublish phase failed', phaseErr);
         }
@@ -1988,6 +1936,7 @@ async function main() {
         showJobErrorModal({
           message: summary,
           topic,
+          hint: permissionErrorHint(0, summary),
           onClose: () => finishProgressModal(state, 'job'),
         });
       } else {
@@ -2001,14 +1950,7 @@ async function main() {
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      const msg = messageFromApiError(err);
-      state.status = msg;
-      state.statusType = 'error';
-      showJobErrorModal({
-        message: msg,
-        topic,
-        onClose: () => finishProgressModal(state, 'job'),
-      });
+      presentJobError(state, topic, err, action);
     } finally {
       state.loading = false;
       state.jobAbort = null;

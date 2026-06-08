@@ -24,7 +24,7 @@ function syncPageRowDaLinks(root, state) {
       el.setAttribute('aria-disabled', 'true');
       el.removeAttribute('href');
       el.title = multi
-        ? 'Use “Open in DA” in the action panel when multiple pages are selected'
+        ? 'Use Operation → Open in Document Authoring when multiple pages are selected'
         : 'Unavailable while status is loading';
     } else {
       el.classList.remove('bulk-pp-btn-open-da-disabled');
@@ -35,68 +35,24 @@ function syncPageRowDaLinks(root, state) {
   });
 }
 
-function syncOpenSelectedActionButtons(root, state) {
+function syncOperationBar(root, state) {
   const count = getActiveSelectionCount(state);
-  const disabled = count === 0
+  const blocked = count === 0
     || state.statusChecking
     || state.loading
     || state.contentLoading
     || isJobModalOpen();
 
-  const countHint = count === 1 ? '1 page' : `${count} pages`;
-  const daBtn = root.querySelector('#bulk-pp-open-selected-da');
-  const previewBtn = root.querySelector('#bulk-pp-open-selected-preview');
-  const liveBtn = root.querySelector('#bulk-pp-open-selected-live');
-  if (daBtn instanceof HTMLButtonElement) {
-    daBtn.disabled = disabled;
-    daBtn.title = `Open Document Authoring for ${countHint}`;
+  const runBtn = root.querySelector('#bulk-pp-run-operation');
+  const opSelect = root.querySelector('#bulk-pp-operation');
+  if (runBtn instanceof HTMLButtonElement) {
+    runBtn.disabled = blocked || (opSelect instanceof HTMLSelectElement && opSelect.disabled);
+    runBtn.title = count === 0
+      ? 'Select at least one page to run an operation'
+      : 'Run the selected operation on checked pages';
   }
-  if (previewBtn instanceof HTMLButtonElement) {
-    previewBtn.disabled = disabled;
-    previewBtn.title = `Open .aem.page preview URL for ${countHint}`;
-  }
-  if (liveBtn instanceof HTMLButtonElement) {
-    liveBtn.disabled = disabled;
-    liveBtn.title = `Open .aem.live publish URL for ${countHint}`;
-  }
-
-  const runDisabled = disabled;
-  const bulkPreviewBtn = root.querySelector('#bulk-pp-preview-btn');
-  const bulkPublishBtn = root.querySelector('#bulk-pp-publish-btn');
-  if (bulkPreviewBtn instanceof HTMLButtonElement) {
-    bulkPreviewBtn.disabled = runDisabled;
-    bulkPreviewBtn.title = count === 0
-      ? 'Select pages to preview'
-      : `Bulk preview ${count} selected page${count === 1 ? '' : 's'}`;
-  }
-  if (bulkPublishBtn instanceof HTMLButtonElement) {
-    bulkPublishBtn.disabled = runDisabled;
-    bulkPublishBtn.title = count === 0
-      ? 'Select pages to publish'
-      : `Publish ${count} selected page${count === 1 ? '' : 's'} to production`;
-  }
-
-  const destructiveDisabled = disabled;
-  const unpreviewBtn = root.querySelector('#bulk-pp-unpreview-btn');
-  const unpublishBtn = root.querySelector('#bulk-pp-unpublish-btn');
-  const deleteBtn = root.querySelector('#bulk-pp-delete-btn');
-  if (unpreviewBtn instanceof HTMLButtonElement) {
-    unpreviewBtn.disabled = destructiveDisabled;
-    unpreviewBtn.title = count === 0
-      ? 'Select pages to remove from preview'
-      : `Remove preview for ${count} selected page${count === 1 ? '' : 's'}`;
-  }
-  if (unpublishBtn instanceof HTMLButtonElement) {
-    unpublishBtn.disabled = destructiveDisabled;
-    unpublishBtn.title = count === 0
-      ? 'Select pages to unpublish from live'
-      : `Unpublish ${count} selected page${count === 1 ? '' : 's'} from production`;
-  }
-  if (deleteBtn instanceof HTMLButtonElement) {
-    deleteBtn.disabled = destructiveDisabled;
-    deleteBtn.title = count === 0
-      ? 'Select pages to delete from Document Authoring'
-      : `Unpreview, unpublish, and delete ${count} selected page${count === 1 ? '' : 's'} from DA`;
+  if (opSelect instanceof HTMLSelectElement && state.selectedOperation) {
+    opSelect.value = state.selectedOperation;
   }
 
   syncPageRowDaLinks(root, state);
@@ -160,13 +116,6 @@ export function syncSelectionUI(root, state) {
   const pill = root.querySelector('#bulk-pp-selection-pill');
   if (pill) pill.textContent = formatSelectionPillText(state);
 
-  const deckHint = root.querySelector('#bulk-pp-action-deck-hint');
-  if (deckHint) {
-    deckHint.textContent = activeCount === 0
-      ? 'No pages selected yet — check pages in the list above, or use Select all visible.'
-      : `${activeCount} page${activeCount === 1 ? '' : 's'} ready. Actions run after you confirm in the dialog.`;
-  }
-
   root.querySelectorAll('.bulk-pp-page-cb').forEach((cb) => {
     if (!(cb instanceof HTMLInputElement)) return;
     const path = cb.dataset.path || cb.value;
@@ -180,7 +129,7 @@ export function syncSelectionUI(root, state) {
     selectNoneBtn.disabled = listBusy || activeCount === 0;
   }
 
-  syncOpenSelectedActionButtons(root, state);
+  syncOperationBar(root, state);
 }
 
 /**

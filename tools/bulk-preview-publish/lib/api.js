@@ -35,34 +35,73 @@ function resolveAdminUrl(url) {
   return String(url);
 }
 
+/** @typedef {'preview'|'live'|'unpreview'|'unpublish'|'delete'|'status'|'list'} AdminOperation */
+
+const OPERATION_LABELS = {
+  preview: 'preview pages',
+  live: 'publish pages to production',
+  unpreview: 'remove preview deployments',
+  unpublish: 'unpublish pages from production',
+  delete: 'delete documents from Document Authoring',
+  status: 'read deployment status',
+  list: 'browse site content',
+};
+
 /**
  * @param {unknown} data
  * @param {number} status
+ * @param {AdminOperation} [operation]
  * @returns {string | null}
  */
-export function formatAdminApiError(data, status) {
+export function formatAdminApiError(data, status, operation = '') {
   const raw = data && typeof data === 'object'
     ? String(/** @type {{ message?: string, error?: string }} */ (data).message
       || /** @type {{ error?: string }} */ (data).error || '')
     : '';
+  const opLabel = operation ? OPERATION_LABELS[operation] : '';
+  const opSuffix = opLabel ? ` to ${opLabel}` : '';
+
   if (/missing ims client id/i.test(raw)) {
     return 'Open this tool from Document Authoring (https://da.live) — preview (.aem.live) URLs cannot authenticate.';
   }
-  if (status === 401 || status === 403) {
-    return 'Not signed in or not permitted. Open from da.live and sign in with Adobe IMS.';
+  if (status === 401) {
+    if (raw && !/unauthorized/i.test(raw)) {
+      return `${raw} Sign in at https://da.live and reopen this tool from Apps.`;
+    }
+    return 'You are not signed in. Open this tool from Document Authoring (https://da.live) and sign in with Adobe IMS.';
+  }
+  if (status === 403) {
+    if (raw && !/^forbidden$/i.test(raw.trim())) {
+      return `${raw} If this persists, ask your AEM administrator for permission${opSuffix}.`;
+    }
+    return `You do not have permission${opSuffix}. Ask your AEM administrator to grant the required AEM / DA role for this site.`;
   }
   if (status === 429) {
-    return 'Too many status requests — wait a moment and click Refresh.';
+    return 'Too many requests — wait a moment and try again.';
   }
   return raw || null;
 }
 
 /**
+ * @param {string} message
+ * @param {number} [status]
+ * @param {unknown} [data]
+ * @returns {Error & { status?: number, data?: unknown }}
+ */
+function createApiError(message, status = 0, data = null) {
+  const err = new Error(message);
+  if (status) err.status = status;
+  if (data) err.data = data;
+  return err;
+}
+
+/**
  * @param {unknown} err
  * @param {string} [fallback]
+ * @param {AdminOperation} [operation]
  * @returns {string}
  */
-export function messageFromApiError(err, fallback = 'Operation failed.') {
+export function messageFromApiError(err, fallback = 'Operation failed.', operation = '') {
   const raw = err instanceof Error ? err.message : String(err ?? fallback);
   const data = err && typeof err === 'object' && 'data' in err && err.data
     ? err.data
@@ -70,7 +109,62 @@ export function messageFromApiError(err, fallback = 'Operation failed.') {
   const status = err && typeof err === 'object' && 'status' in err
     ? Number(/** @type {{ status?: number }} */ (err).status)
     : 0;
-  return formatAdminApiError(data, status) || raw;
+  return formatAdminApiError(data, status, operation) || raw || fallback;
+}
+
+/**
+ * @param {number} status
+ * @param {string} message
+ * @returns {string}
+ */
+export function permissionErrorHint(status, message) {
+  const text = String(message || '');
+  const looksForbidden = status === 403
+    || /not permitted|permission|forbidden|not authorized|access denied/i.test(text);
+  if (!looksForbidden) return '';
+  return 'You may lack the AEM or Document Authoring role needed for this action. Contact your site administrator to request preview, publish, or content access.';
+}
+
+/**
+ * @param {Record<string, unknown>} job
+ * @returns {string}
+ */
+function extractJobFailureDetail(job) {
+  /** @type {string[]} */
+  const parts = [];
+  const push = (value) => {
+    const text = String(value || '').trim();
+    if (text && !parts.includes(text)) parts.push(text);
+  };
+
+  push(job.message);
+  push(job.error);
+  const progress = job.progress || job.job?.progress;
+  if (progress && typeof progress === 'object') {
+    push(/** @type {{ message?: string }} */ (progress).message);
+    const errors = /** @type {{ errors?: unknown[] }} */ (progress).errors;
+    if (Array.isArray(errors)) {
+      errors.slice(0, 3).forEach((item) => {
+        if (typeof item === 'string') push(item);
+        else if (item && typeof item === 'object') {
+          push(/** @type {{ message?: string, error?: string }} */ (item).message);
+          push(/** @type {{ error?: string }} */ (item).error);
+        }
+      });
+    }
+  }
+
+  const jobErrors = job.errors;
+  if (Array.isArray(jobErrors)) {
+    jobErrors.slice(0, 3).forEach((item) => {
+      if (typeof item === 'string') push(item);
+      else if (item && typeof item === 'object') {
+        push(/** @type {{ message?: string }} */ (item).message);
+      }
+    });
+  }
+
+  return parts.join(' · ');
 }
 
 /**
@@ -227,9 +321,10 @@ async function fetchPaginated(daFetch, url) {
 
     if (resp.status === 404) return all;
     if (!resp.ok) {
-      const err = new Error(`Could not list folder (${resp.status})`);
-      err.status = resp.status;
-      throw err;
+      const data = await parseJson(resp);
+      const message = formatAdminApiError(data, resp.status, 'list')
+        || `Could not list folder (${resp.status})`;
+      throw createApiError(message, resp.status, data);
     }
 
     const data = await parseJson(resp);
@@ -422,11 +517,10 @@ export async function startBulkJob(daFetch, org, site, ref, topic, paths, opts =
 
   const data = await parseJson(resp);
   if (!resp.ok && resp.status !== 202) {
-    const message = data?.message || data?.error || `Bulk ${topic} failed (${resp.status})`;
-    const err = new Error(message);
-    err.status = resp.status;
-    err.data = data;
-    throw err;
+    const op = topic === 'live' ? 'live' : 'preview';
+    const message = formatAdminApiError(data, resp.status, op)
+      || `Bulk ${topic} failed (${resp.status})`;
+    throw createApiError(message, resp.status, data);
   }
 
   return data || { status: resp.status };
@@ -461,12 +555,9 @@ export async function deleteDaSourceDocument(daFetch, org, repo, sourcePath, hel
   const resp = await daFetch(url, { method: 'DELETE' });
   if (resp.status === 204 || resp.status === 404) return;
   const data = await parseJson(resp);
-  const message = formatAdminApiError(data, resp.status)
+  const message = formatAdminApiError(data, resp.status, 'delete')
     || `Could not delete ${deletePath} (${resp.status})`;
-  const err = new Error(message);
-  err.status = resp.status;
-  err.data = data;
-  throw err;
+  throw createApiError(message, resp.status, data);
 }
 
 /**
@@ -500,7 +591,7 @@ export async function deleteDaDocumentsSequential(daFetch, org, repo, pages, onP
       failed += 1;
       errors.push({
         helixPath: page.helixPath,
-        message: messageFromApiError(err, 'Delete failed'),
+        message: messageFromApiError(err, 'Delete failed', 'delete'),
       });
     }
     if (onProgress) {
@@ -587,6 +678,13 @@ export async function pollJob(daFetch, jobUrl, onProgress, signal) {
       continue;
     }
 
+    if (resp.status === 401 || resp.status === 403) {
+      const data = await parseJson(resp);
+      const msg = formatAdminApiError(data, resp.status)
+        || `Not authorized to track this job (${resp.status})`;
+      throw createApiError(msg, resp.status, data);
+    }
+
     notFoundCount = 0;
     const data = await parseJson(resp);
     if (data) {
@@ -621,9 +719,11 @@ export function resolveJobOutcome(job) {
   const completed = success || processed || total;
 
   if (state === 'failed' || failed > 0) {
+    const detail = extractJobFailureDetail(job);
+    const base = failed > 0 ? `finished with ${failed} failed` : 'failed';
     return {
       statusType: 'error',
-      message: `finished with ${failed} failed`,
+      message: detail ? `${base} — ${detail}` : base,
     };
   }
 
@@ -1241,12 +1341,12 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths) {
   });
   const data = await parseJson(resp);
   if (resp.status === 401 || resp.status === 403) {
-    const msg = formatAdminApiError(data, resp.status);
-    throw new Error(msg || `Not authorized to read page status (${resp.status}).`);
+    const msg = formatAdminApiError(data, resp.status, 'status');
+    throw createApiError(msg || `Not authorized to read page status (${resp.status}).`, resp.status, data);
   }
   if (!resp.ok && resp.status !== 202) {
-    const msg = formatAdminApiError(data, resp.status);
-    throw new Error(msg || `Status check failed (${resp.status})`);
+    const msg = formatAdminApiError(data, resp.status, 'status');
+    throw createApiError(msg || `Status check failed (${resp.status})`, resp.status, data);
   }
 
   const jobUrl = getJobPollUrl(data || {}, org, site, ref, 'status');

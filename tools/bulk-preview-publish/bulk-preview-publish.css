@@ -162,6 +162,11 @@
   color: var(--pp-text-subtle);
 }
 
+.bulk-pp-status-modal-error-hint {
+  margin-bottom: 16px;
+  color: var(--pp-text-muted);
+}
+
 .bulk-pp-status-modal-breakdown {
   margin: 0 0 18px;
 }
@@ -776,12 +781,132 @@
   padding: 4px 8px;
 }
 
-/* —— Action deck (replaces flat toolbar) —— */
+/* —— Pages header & DA-style operation bar —— */
+.bulk-pp-pages-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #fff 0%, var(--pp-surface-subtle) 100%);
+  border-bottom: 1px solid var(--pp-border);
+}
+
+.bulk-pp-pages-header-left {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.bulk-pp-pages-header-left .bulk-pp-section-head {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.bulk-pp-selection-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+}
+
+.bulk-pp-operation-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 0 1 auto;
+  padding: 10px 12px;
+  border-radius: var(--pp-radius-sm);
+  background: #fff;
+  border: 1px solid var(--pp-border-strong);
+  box-shadow: 0 2px 8px rgb(7 29 73 / 6%);
+}
+
+.bulk-pp-operation-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: min(100%, 240px);
+}
+
+.bulk-pp-operation-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pp-text-muted);
+}
+
+.bulk-pp-operation-select {
+  min-width: 220px;
+  max-width: 280px;
+  padding: 9px 32px 9px 12px;
+  border: 1px solid var(--pp-border-strong);
+  border-radius: var(--pp-radius-xs);
+  font-size: 0.875rem;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--pp-navy);
+  background:
+    #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%235a6478' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color var(--pp-transition), box-shadow var(--pp-transition);
+}
+
+.bulk-pp-operation-select:hover:not(:disabled) {
+  border-color: var(--pp-blue);
+}
+
+.bulk-pp-operation-select:focus {
+  outline: none;
+  border-color: var(--pp-blue);
+  box-shadow: 0 0 0 3px rgb(0 102 245 / 14%);
+}
+
+.bulk-pp-operation-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bulk-pp-btn-run-operation {
+  min-width: 5.5rem;
+  min-height: 38px;
+  padding: 9px 20px;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.bulk-pp-btn-text {
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--pp-blue);
+  box-shadow: none;
+}
+
+.bulk-pp-btn-text:hover:not(:disabled) {
+  background: var(--pp-blue-soft);
+  color: var(--pp-blue-hover);
+  transform: none;
+  box-shadow: none;
+}
+
+.bulk-pp-btn-text:disabled {
+  color: var(--pp-text-subtle);
+}
+
+/* Legacy action deck — removed from UI */
 .bulk-pp-action-deck {
-  margin: 0;
-  padding: 20px;
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  border-top: 1px solid var(--pp-border);
+  display: none;
 }
 
 .bulk-pp-action-deck-head {
@@ -2488,6 +2613,28 @@
 
   .bulk-pp-workflow-detail {
     display: none;
+  }
+
+  .bulk-pp-operation-bar {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .bulk-pp-operation-field {
+    flex: 1 1 100%;
+  }
+
+  .bulk-pp-operation-select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .bulk-pp-btn-run-operation {
+    flex: 1;
+  }
+
+  .bulk-pp-pages-header {
+    flex-direction: column;
   }
 
   .bulk-pp-selection-bar {
