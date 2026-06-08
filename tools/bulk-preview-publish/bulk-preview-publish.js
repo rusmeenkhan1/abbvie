@@ -119,13 +119,12 @@ const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 
 const APP_TITLE = 'Content Deployment Hub';
-const APP_DESCRIPTION = 'Browse pages, check deployment status, and run bulk preview, publish, and removal operations.';
-const APP_FEATURES = [
-  'Deployment status',
-  'Bulk preview & publish',
-  'Unpreview & unpublish',
-  'Delete from DA',
-  'Open DA & URLs',
+const APP_DESCRIPTION = 'Load pages, check deployment status, and run bulk preview, publish, or removal.';
+const WORKFLOW_STEPS = [
+  { n: 1, label: 'Load pages', detail: 'Pick a folder and load the page list' },
+  { n: 2, label: 'Check status', detail: 'See which pages are previewed or live' },
+  { n: 3, label: 'Select pages', detail: 'Check the pages you want to act on' },
+  { n: 4, label: 'Run action', detail: 'Preview, publish, remove, or open URLs' },
 ];
 
 async function initSdk() {
@@ -184,6 +183,78 @@ function createPanel(title, extraClass = '') {
   const body = el('div', 'bulk-pp-panel-body');
   panel.append(head, body);
   return { panel, body };
+}
+
+/**
+ * @param {number} stepNum
+ * @param {string} title
+ * @param {string} [subtitle]
+ * @param {string} [extraClass]
+ */
+function createStepPanel(stepNum, title, subtitle = '', extraClass = '') {
+  const panel = el('section', `bulk-pp-panel bulk-pp-panel-step ${extraClass}`.trim());
+  const head = el('div', 'bulk-pp-panel-head');
+  const headMain = el('div', 'bulk-pp-panel-head-main');
+  headMain.append(
+    el('span', 'bulk-pp-step-badge', `Step ${stepNum}`),
+    el('h2', null, title),
+  );
+  if (subtitle) headMain.append(el('p', 'bulk-pp-panel-subtitle', subtitle));
+  head.append(headMain);
+  const body = el('div', 'bulk-pp-panel-body');
+  panel.append(head, body);
+  return { panel, body };
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @returns {number}
+ */
+function getWorkflowStep(state) {
+  if (getActiveSelectionCount(state) > 0) return 4;
+  if (state.pages.length > 0 && state.statusFetched) return 3;
+  if (state.pages.length > 0) return 2;
+  return 1;
+}
+
+/**
+ * @param {number} activeStep
+ */
+function buildWorkflowStrip(activeStep) {
+  const strip = el('nav', 'bulk-pp-workflow');
+  strip.setAttribute('aria-label', 'How to use this tool');
+  WORKFLOW_STEPS.forEach((step) => {
+    const item = el('div', 'bulk-pp-workflow-step');
+    if (step.n < activeStep) item.classList.add('bulk-pp-workflow-step-done');
+    if (step.n === activeStep) item.classList.add('bulk-pp-workflow-step-current');
+    const copy = el('div', 'bulk-pp-workflow-copy');
+    copy.append(
+      el('span', 'bulk-pp-workflow-label', step.label),
+      el('span', 'bulk-pp-workflow-detail', step.detail),
+    );
+    item.append(
+      el('span', 'bulk-pp-workflow-num', String(step.n)),
+      copy,
+    );
+    strip.append(item);
+  });
+  return strip;
+}
+
+/**
+ * @param {string} title
+ * @param {string} desc
+ * @param {string} variant
+ */
+function buildActionCard(title, desc, variant) {
+  const card = el('article', `bulk-pp-action-card bulk-pp-action-card-${variant}`);
+  card.append(
+    el('h4', 'bulk-pp-action-card-title', title),
+    el('p', 'bulk-pp-action-card-desc', desc),
+  );
+  const actions = el('div', 'bulk-pp-action-card-actions');
+  card.append(actions);
+  return { card, actions };
 }
 
 /**
@@ -357,7 +428,7 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
     daLink.classList.add('bulk-pp-btn-open-da-disabled');
     daLink.setAttribute('aria-disabled', 'true');
     daLink.title = multiSelected
-      ? 'Use “Open DA URL for selected” in the toolbar when multiple pages are selected'
+      ? 'Use “Open in DA” in the action panel when multiple pages are selected'
       : 'Unavailable while status is loading';
     daLink.textContent = 'DA';
     daLink.addEventListener('click', (e) => {
@@ -461,15 +532,14 @@ async function openSelectedDa(state) {
 function appendOpenSelectedActionButtons(group, state) {
   const count = getActiveSelectionCount(state);
   group.id = 'bulk-pp-open-selected-group';
-  group.hidden = count === 0;
 
   const countHint = count === 1 ? '1 page' : `${count} pages`;
   const actionDisabled = count === 0 || state.statusChecking || state.loading || state.contentLoading;
 
   const daBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-outline-neutral',
-    'Open DA URL for selected',
+    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-outline-neutral',
+    'Open in DA',
   );
   daBtn.type = 'button';
   daBtn.id = 'bulk-pp-open-selected-da';
@@ -481,8 +551,8 @@ function appendOpenSelectedActionButtons(group, state) {
 
   const previewBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-outline-preview',
-    'Open preview URL for selected',
+    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-outline-preview',
+    'Open preview site',
   );
   previewBtn.type = 'button';
   previewBtn.id = 'bulk-pp-open-selected-preview';
@@ -494,8 +564,8 @@ function appendOpenSelectedActionButtons(group, state) {
 
   const liveBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-outline-publish',
-    'Open publish URL for selected',
+    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-outline-publish',
+    'Open live site',
   );
   liveBtn.type = 'button';
   liveBtn.id = 'bulk-pp-open-selected-live';
@@ -522,8 +592,8 @@ function appendRunSelectedButtons(group, state) {
 
   const previewBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-preview',
-    'Preview selected',
+    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-preview',
+    'Preview on .aem.page',
   );
   previewBtn.type = 'button';
   previewBtn.id = 'bulk-pp-preview-btn';
@@ -535,8 +605,8 @@ function appendRunSelectedButtons(group, state) {
 
   const publishBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-publish',
-    'Publish selected',
+    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-publish',
+    'Publish to .aem.live',
   );
   publishBtn.type = 'button';
   publishBtn.id = 'bulk-pp-publish-btn';
@@ -563,8 +633,8 @@ function appendDestructiveButtons(group, state) {
 
   const unpreviewBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-outline-danger',
-    'Unpreview selected',
+    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-outline-danger',
+    'Remove preview',
   );
   unpreviewBtn.type = 'button';
   unpreviewBtn.id = 'bulk-pp-unpreview-btn';
@@ -576,8 +646,8 @@ function appendDestructiveButtons(group, state) {
 
   const unpublishBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-outline-danger',
-    'Unpublish selected',
+    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-outline-danger',
+    'Remove from live',
   );
   unpublishBtn.type = 'button';
   unpublishBtn.id = 'bulk-pp-unpublish-btn';
@@ -589,8 +659,8 @@ function appendDestructiveButtons(group, state) {
 
   const deleteBtn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-action-delete',
-    'Delete selected from DA',
+    'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-action-delete',
+    'Delete from DA',
   );
   deleteBtn.type = 'button';
   deleteBtn.id = 'bulk-pp-delete-btn';
@@ -696,14 +766,31 @@ async function runRemovePartitionJob(state, daFetch, partition, paths, phaseLabe
  * @param {ReturnType<typeof createAppState>} state
  * @param {{ visiblePages: { helixPath: string }[], statusChecking: boolean }} opts
  */
-function buildPageToolbar(state, { visiblePages, statusChecking }) {
-  const toolbar = el('div', 'bulk-pp-toolbar');
-  const main = el('div', 'bulk-pp-toolbar-main');
+function buildActionDeck(state, { visiblePages, statusChecking }) {
+  const deck = el('section', 'bulk-pp-action-deck');
+  deck.setAttribute('aria-label', 'Bulk actions');
 
-  const selectionGroup = el('div', 'bulk-pp-toolbar-group');
-  selectionGroup.setAttribute('aria-label', 'Selection');
-  const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-secondary', 'Select all');
-  const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-toolbar bulk-pp-btn-secondary', 'Clear');
+  const head = el('div', 'bulk-pp-action-deck-head');
+  const headCopy = el('div', 'bulk-pp-action-deck-head-copy');
+  headCopy.append(
+    el('h3', 'bulk-pp-action-deck-title', 'Run an action on selected pages'),
+    el('p', 'bulk-pp-action-deck-lead', 'Choose deploy, remove, or open — each action applies only to checked pages.'),
+  );
+  head.append(
+    el('span', 'bulk-pp-step-badge bulk-pp-step-badge-inline', 'Step 4'),
+    headCopy,
+  );
+
+  const selectionBar = el('div', 'bulk-pp-selection-bar');
+  const selectionMeta = el('div', 'bulk-pp-selection-meta');
+  selectionMeta.append(
+    el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state)),
+  );
+  selectionMeta.querySelector('.bulk-pp-selection-pill').id = 'bulk-pp-selection-pill';
+
+  const selectionActions = el('div', 'bulk-pp-selection-actions');
+  const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-secondary', 'Select all visible');
+  const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-action bulk-pp-btn-secondary', 'Clear selection');
   selectAllBtn.type = 'button';
   selectNoneBtn.type = 'button';
   selectAllBtn.id = 'bulk-pp-select-all';
@@ -714,27 +801,46 @@ function buildPageToolbar(state, { visiblePages, statusChecking }) {
     || getActiveSelectionCount(state) === 0;
   selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
   selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
-  selectionGroup.append(selectAllBtn, selectNoneBtn);
+  selectionActions.append(selectAllBtn, selectNoneBtn);
+  selectionBar.append(selectionMeta, selectionActions);
 
-  const publishGroup = el('div', 'bulk-pp-toolbar-group bulk-pp-toolbar-group-publish');
-  publishGroup.setAttribute('aria-label', 'Deploy selected');
-  appendRunSelectedButtons(publishGroup, state);
-
-  const destructiveGroup = el('div', 'bulk-pp-toolbar-group bulk-pp-toolbar-group-destructive');
-  destructiveGroup.setAttribute('aria-label', 'Remove selected');
-  appendDestructiveButtons(destructiveGroup, state);
-
-  const openGroup = el('div', 'bulk-pp-toolbar-group bulk-pp-toolbar-group-open');
-  openGroup.setAttribute('aria-label', 'Open selected');
-  appendOpenSelectedActionButtons(openGroup, state);
-
-  main.append(selectionGroup, publishGroup, destructiveGroup, openGroup);
-  toolbar.append(
-    main,
-    el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state)),
+  const count = getActiveSelectionCount(state);
+  const hint = el(
+    'p',
+    'bulk-pp-action-deck-hint',
+    count === 0
+      ? 'No pages selected yet — check pages in the list above, or use Select all visible.'
+      : `${count} page${count === 1 ? '' : 's'} ready. Actions run after you confirm in the dialog.`,
   );
-  toolbar.querySelector('.bulk-pp-selection-pill').id = 'bulk-pp-selection-pill';
-  return toolbar;
+  hint.id = 'bulk-pp-action-deck-hint';
+
+  const grid = el('div', 'bulk-pp-action-grid');
+
+  const deploy = buildActionCard(
+    'Deploy',
+    'Push content to AEM preview or production.',
+    'deploy',
+  );
+  appendRunSelectedButtons(deploy.actions, state);
+
+  const remove = buildActionCard(
+    'Remove',
+    'Undo preview, live publish, or delete source files from DA.',
+    'remove',
+  );
+  appendDestructiveButtons(remove.actions, state);
+
+  const openCard = buildActionCard(
+    'Open',
+    'Review pages in Document Authoring or on preview/live URLs.',
+    'open',
+  );
+  appendOpenSelectedActionButtons(openCard.actions, state);
+
+  grid.append(deploy.card, remove.card, openCard.card);
+
+  deck.append(head, selectionBar, hint, grid);
+  return deck;
 }
 
 function buildStatusLegend() {
@@ -871,6 +977,8 @@ function render(root, state) {
   root.replaceChildren();
   root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
 
+  const workflowStep = getWorkflowStep(state);
+
   const header = el('header', 'bulk-pp-header');
   const headerInner = el('div', 'bulk-pp-header-inner');
   const headerBrand = el('div', 'bulk-pp-header-brand');
@@ -879,12 +987,6 @@ function render(root, state) {
     el('h1', null, APP_TITLE),
     el('p', 'bulk-pp-header-desc', APP_DESCRIPTION),
   );
-  const featureList = el('ul', 'bulk-pp-header-features');
-  featureList.setAttribute('aria-label', 'Capabilities');
-  APP_FEATURES.forEach((label) => {
-    featureList.append(el('li', 'bulk-pp-header-feature', label));
-  });
-  headerBrand.append(featureList);
   const headerMeta = el('div', 'bulk-pp-header-meta');
   headerMeta.append(
     el('span', 'bulk-pp-badge', org),
@@ -892,13 +994,20 @@ function render(root, state) {
     el('span', 'bulk-pp-badge bulk-pp-badge-muted', ref),
   );
   headerInner.append(headerBrand, headerMeta);
-  header.append(headerInner);
+  header.append(headerInner, buildWorkflowStrip(workflowStep));
   root.append(header);
 
-  const { panel: browse, body: browseBody } = createPanel('Workspace');
+  const { panel: browse, body: browseBody } = createStepPanel(
+    1,
+    'Load pages',
+    'Choose a content folder and scope, then load pages into the workspace.',
+  );
   const row = el('div', 'bulk-pp-row');
   const pathField = el('div', 'bulk-pp-field');
-  pathField.append(el('label', null, 'Jump to path'));
+  pathField.append(
+    el('label', null, 'Content folder'),
+    el('span', 'bulk-pp-field-hint', 'Site path to browse — leave empty for root'),
+  );
   const pathInput = document.createElement('input');
   pathInput.type = 'text';
   pathInput.placeholder = '/who-we-are or leave empty for site root';
@@ -911,7 +1020,10 @@ function render(root, state) {
   row.append(pathField);
 
   const depthField = el('div', 'bulk-pp-field bulk-pp-field-narrow');
-  depthField.append(el('label', null, 'Pages to show'));
+  depthField.append(
+    el('label', null, 'Page scope'),
+    el('span', 'bulk-pp-field-hint', 'This folder only, or include all subfolders'),
+  );
   const depthSelect = document.createElement('select');
   depthSelect.id = 'bulk-pp-depth';
   depthSelect.disabled = busy;
@@ -925,7 +1037,7 @@ function render(root, state) {
   depthField.append(depthSelect);
   row.append(depthField);
 
-  const fetchBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary', contentLoading ? 'Fetching…' : 'Fetch');
+  const fetchBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-load', contentLoading ? 'Loading…' : 'Load pages');
   fetchBtn.type = 'button';
   fetchBtn.id = 'bulk-pp-fetch-btn';
   fetchBtn.disabled = busy;
@@ -942,11 +1054,11 @@ function render(root, state) {
   statusOptCb.disabled = busy;
   const statusCopy = el('span', 'bulk-pp-status-fetch-copy');
   statusCopy.append(
-    el('span', 'bulk-pp-status-fetch-title', 'Load preview & publish status on Fetch'),
+    el('span', 'bulk-pp-status-fetch-title', 'Also check deployment status'),
     el(
       'span',
       'bulk-pp-status-fetch-hint',
-      'Select checkbox to fetch Deployment status of pages',
+      'Step 2 — loads preview & live state for each page (can take time on large folders)',
     ),
   );
   statusOptLabel.append(statusOptCb, statusCopy);
@@ -954,13 +1066,19 @@ function render(root, state) {
   browseBody.append(statusCard);
   root.append(browse);
 
-  const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content');
+  const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content bulk-pp-panel-step');
   const contentHead = el('div', 'bulk-pp-panel-head');
-  contentHead.append(el('h2', null, 'Site content'));
+  const contentHeadMain = el('div', 'bulk-pp-panel-head-main');
+  contentHeadMain.append(
+    el('span', 'bulk-pp-step-badge', 'Steps 2–4'),
+    el('h2', null, 'Pages & actions'),
+    el('p', 'bulk-pp-panel-subtitle', 'Review deployment status, select pages, and run bulk operations.'),
+  );
+  contentHead.append(contentHeadMain);
   contentPanel.append(contentHead);
   const tabBar = el('div', 'bulk-pp-tabs');
-  const pagesTabBtn = el('button', 'bulk-pp-tab', 'Browse');
-  const urlsTabBtn = el('button', 'bulk-pp-tab', 'Urls');
+  const pagesTabBtn = el('button', 'bulk-pp-tab', 'Page browser');
+  const urlsTabBtn = el('button', 'bulk-pp-tab', 'Result URLs');
   pagesTabBtn.type = 'button';
   urlsTabBtn.type = 'button';
   if (activeTab === 'pages') pagesTabBtn.classList.add('bulk-pp-tab-active');
@@ -1062,13 +1180,13 @@ function render(root, state) {
         'p',
         'bulk-pp-status-note bulk-pp-status-note-muted',
         etaHint
-          ? `Preview/publish status not loaded. Fetch usually takes ${etaHint} for ${state.pages.length} pages.`
-          : 'Preview/publish status not loaded. Fetch Deployment status to see dots and filters.',
+          ? `Deployment status not loaded. Checking ${state.pages.length} pages usually takes ${etaHint}.`
+          : 'Deployment status not loaded. Use Check deployment status to enable filters and status dots.',
       ));
       const checkStatusBtn = el(
         'button',
         'bulk-pp-btn bulk-pp-btn-fetch-deployment',
-        'Fetch Deployment status',
+        'Check deployment status',
       );
       checkStatusBtn.type = 'button';
       checkStatusBtn.id = 'bulk-pp-check-status';
@@ -1081,7 +1199,7 @@ function render(root, state) {
     const controls = el('div', 'bulk-pp-pages-controls');
     const filterRow = el('div', 'bulk-pp-pages-filter-row');
     const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
-    filterField.append(el('label', null, 'Filter pages'));
+    filterField.append(el('label', null, 'Filter by deployment'));
     const filterSelect = document.createElement('select');
     filterSelect.id = 'bulk-pp-page-filter';
     const filtersLocked = statusChecking || !statusFetched;
@@ -1105,8 +1223,8 @@ function render(root, state) {
         'p',
         'bulk-pp-pages-filter-note',
         filtersLocked
-          ? 'Fetch Deployment status to unlock filters'
-          : 'Folder scope only · resets on navigation',
+          ? 'Check deployment status to unlock filters'
+          : 'Filters apply to the current folder scope only',
       ),
     );
     controls.append(filterRow);
@@ -1123,7 +1241,12 @@ function render(root, state) {
     controls.append(searchRow);
     pagesSection.append(controls);
 
-    pagesSection.append(buildPageToolbar(state, { visiblePages, statusChecking }));
+    const listHead = el('div', 'bulk-pp-list-head');
+    listHead.append(
+      el('span', 'bulk-pp-step-badge bulk-pp-step-badge-inline', 'Step 3'),
+      el('span', 'bulk-pp-list-head-label', 'Select pages from the list'),
+    );
+    pagesSection.append(listHead);
 
     const pageWrap = el('div', 'bulk-pp-list-wrap');
     pageWrap.id = 'bulk-pp-page-list-wrap';
@@ -1153,6 +1276,7 @@ function render(root, state) {
     }
     pageWrap.append(pageList);
     pagesSection.append(pageWrap);
+    pagesSection.append(buildActionDeck(state, { visiblePages, statusChecking }));
     contentGrid.append(pagesSection);
     workspace.append(contentGrid);
     pagesPane.append(workspace);

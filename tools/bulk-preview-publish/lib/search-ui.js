@@ -6,6 +6,7 @@ import {
   isStatusLoaded,
   SEARCH_MIN_LEN,
 } from './state.js';
+import { isJobModalOpen } from './progress-modal.js';
 import { el } from './dom.js';
 
 /**
@@ -23,7 +24,7 @@ function syncPageRowDaLinks(root, state) {
       el.setAttribute('aria-disabled', 'true');
       el.removeAttribute('href');
       el.title = multi
-        ? 'Use “Open DA URL for selected” in the toolbar when multiple pages are selected'
+        ? 'Use “Open in DA” in the action panel when multiple pages are selected'
         : 'Unavailable while status is loading';
     } else {
       el.classList.remove('bulk-pp-btn-open-da-disabled');
@@ -39,9 +40,8 @@ function syncOpenSelectedActionButtons(root, state) {
   const disabled = count === 0
     || state.statusChecking
     || state.loading
-    || state.contentLoading;
-  const group = root.querySelector('#bulk-pp-open-selected-group');
-  if (group instanceof HTMLElement) group.hidden = count === 0;
+    || state.contentLoading
+    || isJobModalOpen();
 
   const countHint = count === 1 ? '1 page' : `${count} pages`;
   const daBtn = root.querySelector('#bulk-pp-open-selected-da');
@@ -60,10 +60,7 @@ function syncOpenSelectedActionButtons(root, state) {
     liveBtn.title = `Open .aem.live publish URL for ${countHint}`;
   }
 
-  const runDisabled = state.loading
-    || state.contentLoading
-    || state.statusChecking
-    || count === 0;
+  const runDisabled = disabled;
   const bulkPreviewBtn = root.querySelector('#bulk-pp-preview-btn');
   const bulkPublishBtn = root.querySelector('#bulk-pp-publish-btn');
   if (bulkPreviewBtn instanceof HTMLButtonElement) {
@@ -79,7 +76,7 @@ function syncOpenSelectedActionButtons(root, state) {
       : `Publish ${count} selected page${count === 1 ? '' : 's'} to production`;
   }
 
-  const destructiveDisabled = runDisabled;
+  const destructiveDisabled = disabled;
   const unpreviewBtn = root.querySelector('#bulk-pp-unpreview-btn');
   const unpublishBtn = root.querySelector('#bulk-pp-unpublish-btn');
   const deleteBtn = root.querySelector('#bulk-pp-delete-btn');
@@ -162,6 +159,13 @@ export function syncSelectionUI(root, state) {
 
   const pill = root.querySelector('#bulk-pp-selection-pill');
   if (pill) pill.textContent = formatSelectionPillText(state);
+
+  const deckHint = root.querySelector('#bulk-pp-action-deck-hint');
+  if (deckHint) {
+    deckHint.textContent = activeCount === 0
+      ? 'No pages selected yet — check pages in the list above, or use Select all visible.'
+      : `${activeCount} page${activeCount === 1 ? '' : 's'} ready. Actions run after you confirm in the dialog.`;
+  }
 
   root.querySelectorAll('.bulk-pp-page-cb').forEach((cb) => {
     if (!(cb instanceof HTMLInputElement)) return;
