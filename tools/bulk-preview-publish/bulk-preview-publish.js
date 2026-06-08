@@ -31,9 +31,9 @@ import {
   statusLabel,
 } from './lib/page-history.js';
 import {
+  confirmBulkRun,
   confirmDestructiveAction,
   confirmOpenUrlsInNewTabs,
-  confirmPublishToLive,
   confirmTreeScopeFetch,
 } from './lib/modal.js';
 import {
@@ -1573,10 +1573,8 @@ async function main() {
     const paths = [...state.selected].filter((path) => pagePaths.has(path));
     if (paths.length === 0) return;
 
-    if (topic === 'live') {
-      const ok = await confirmPublishToLive(paths.length);
-      if (!ok) return;
-    }
+    const confirmed = await confirmBulkRun(topic, paths.length);
+    if (!confirmed) return;
 
     const appRoot = /** @type {HTMLElement} */ (app);
     state.loading = true;

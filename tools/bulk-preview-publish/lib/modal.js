@@ -113,6 +113,20 @@ export function confirmOpenUrlsInNewTabs(count) {
  * @param {number} count
  * @returns {Promise<boolean>}
  */
+export function confirmPreviewSelected(count) {
+  return showConfirmModal({
+    title: 'Preview selected pages?',
+    body: `You are about to create preview deployments for ${count} selected page${count === 1 ? '' : 's'} on the preview site (.aem.page).`,
+    confirmLabel: 'Preview selected',
+    cancelLabel: 'Cancel',
+    variant: 'warning',
+  });
+}
+
+/**
+ * @param {number} count
+ * @returns {Promise<boolean>}
+ */
 export function confirmPublishToLive(count) {
   return showConfirmModal({
     title: 'Publish to production?',
@@ -121,6 +135,17 @@ export function confirmPublishToLive(count) {
     cancelLabel: 'Cancel',
     variant: 'warning',
   });
+}
+
+/**
+ * Confirm before starting a bulk preview or publish job.
+ * @param {'preview'|'live'} topic
+ * @param {number} count
+ * @returns {Promise<boolean>}
+ */
+export function confirmBulkRun(topic, count) {
+  if (topic === 'live') return confirmPublishToLive(count);
+  return confirmPreviewSelected(count);
 }
 
 /** @typedef {'unpreview' | 'unpublish' | 'delete'} DestructiveAction */
