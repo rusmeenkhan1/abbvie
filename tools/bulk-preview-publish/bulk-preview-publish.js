@@ -119,7 +119,7 @@ const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 
 const APP_TITLE = 'Content Deployment Hub';
-const APP_DESCRIPTION = 'Enterprise workspace for AEM Edge Delivery. Browse site folders, load preview and live deployment status, and run bulk preview, publish, unpreview, unpublish, or delete on selected pages—then open Document Authoring or environment URLs in one place.';
+const APP_DESCRIPTION = 'Browse pages, check deployment status, and run bulk preview, publish, and removal operations.';
 const APP_FEATURES = [
   'Deployment status',
   'Bulk preview & publish',
