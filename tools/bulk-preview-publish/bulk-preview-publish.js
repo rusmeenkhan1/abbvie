@@ -42,20 +42,13 @@ import {
 } from './lib/ui-utils.js';
 import {
   closeJobModal,
-  closeStatusFetchModal,
   isJobModalOpen,
   isProgressModalOpen,
-  isStatusFetchModalOpen,
   openJobModal,
-  openStatusFetchModal,
   showJobCancelledModal,
   showJobCompleteModal,
   showJobErrorModal,
-  showStatusFetchCompleteModal,
-  showStatusFetchCancelledModal,
-  showStatusFetchErrorModal,
   updateJobModal,
-  updateStatusFetchModal,
 } from './lib/progress-modal.js';
 import { formatStatusFetchEta } from './lib/status-estimate.js';
 import {
@@ -478,8 +471,7 @@ async function openUrlsInNewTabs(urls, state = null) {
   const ok = await confirmOpenUrlsInNewTabs(urls.length);
   if (!ok) return;
   if (state) {
-    clearPageWorkspaceAfterOperation(state);
-    if (state.root) render(/** @type {HTMLElement} */ (state.root), state);
+    applyOperationWorkspaceReset(state);
   }
   const result = openUrlsInNewTabsQuiet(urls);
   if (shouldWarnPopupBlock(result) && state) {
@@ -579,7 +571,7 @@ function presentJobError(state, topic, err, operation = '') {
     message: msg,
     topic,
     hint: errorHintFrom(err, msg),
-    onClose: () => finishProgressModal(state, 'job'),
+    onClose: () => finishProgressModal(state),
   });
 }
 
@@ -768,6 +760,183 @@ function formatSelectionBarText(count) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
+ */
+function applyOperationWorkspaceReset(state) {
+  clearPageWorkspaceAfterOperation(state);
+  const root = /** @type {HTMLElement | null} */ (state.root);
+  if (!root) return;
+
+  const filterSelect = root.querySelector('#bulk-pp-page-filter');
+  if (filterSelect instanceof HTMLSelectElement) {
+    filterSelect.value = 'all';
+    patchPagesFilterControls(root, state);
+  }
+
+  const pageSearchInput = root.querySelector('#bulk-pp-page-search');
+  if (pageSearchInput instanceof HTMLInputElement) pageSearchInput.value = '';
+
+  const folderSearchInput = root.querySelector('#bulk-pp-folder-search');
+  if (folderSearchInput instanceof HTMLInputElement) folderSearchInput.value = '';
+
+  patchPageSearchResults(
+    root,
+    state,
+    { org: state.org, site: state.site, ref: state.ref },
+    buildPageRow,
+  );
+  patchFolderSearchResults(root, state, buildFolderRow);
+  syncSelectionUI(root, state);
+}
+
+/**
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function patchPagesFilterControls(root, state) {
+  const filtersLocked = state.statusChecking || !state.statusFetched;
+  const filterSelect = root.querySelector('#bulk-pp-page-filter');
+  if (filterSelect instanceof HTMLSelectElement) {
+    filterSelect.disabled = filtersLocked;
+    filterSelect.querySelectorAll('option').forEach((opt) => {
+      if (!(opt instanceof HTMLOptionElement)) return;
+      if (opt.value === 'all') {
+        opt.disabled = false;
+        opt.textContent = 'All pages';
+        return;
+      }
+      const baseLabel = PAGE_FILTERS.find(([v]) => v === opt.value)?.[1] || opt.textContent;
+      opt.disabled = filtersLocked;
+      opt.textContent = filtersLocked ? `${baseLabel} (requires status)` : baseLabel;
+    });
+  }
+  const filterNote = root.querySelector('.bulk-pp-pages-filter-note');
+  if (filterNote) {
+    filterNote.textContent = filtersLocked
+      ? 'Load deployment status to unlock filters'
+      : state.pageScope === 'tree'
+        ? 'Filters apply to all pages under this directory'
+        : 'Filters apply to pages in this directory only';
+  }
+}
+
+/**
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function patchDeploymentStatusPanel(root, state) {
+  const host = root.querySelector('#bulk-pp-deployment-panel-host');
+  if (!host || state.pages.length === 0) return;
+  host.replaceChildren(buildDeploymentStatusPanel(state));
+  patchPagesFilterControls(root, state);
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function refreshDeploymentUi(state) {
+  const root = /** @type {HTMLElement | null} */ (state.root);
+  if (!root) return;
+  patchDeploymentStatusPanel(root, state);
+  patchPageSearchResults(
+    root,
+    state,
+    { org: state.org, site: state.site, ref: state.ref },
+    buildPageRow,
+  );
+  syncSelectionUI(root, state);
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function buildDeploymentStatusPanel(state) {
+  const panel = el('div', 'bulk-pp-deployment-panel');
+  panel.id = 'bulk-pp-deployment-panel';
+  const pageCount = state.pages.length;
+
+  if (state.statusChecking) {
+    const done = state.statusProgressDone;
+    const total = state.statusProgressTotal || pageCount;
+    const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+    const loading = el('div', 'bulk-pp-deployment-panel-loading');
+    const head = el('div', 'bulk-pp-deployment-panel-head');
+    head.append(
+      el('span', 'bulk-pp-deployment-panel-title', 'Loading deployment status'),
+      el('span', 'bulk-pp-deployment-panel-meta', `${done} of ${total} pages`),
+    );
+    loading.append(head);
+    const track = el('div', 'bulk-pp-progress-track bulk-pp-deployment-panel-track');
+    const fill = el('div', 'bulk-pp-progress-fill');
+    fill.style.width = `${pct}%`;
+    track.append(fill);
+    loading.append(track);
+    const eta = formatStatusFetchEta(total);
+    loading.append(el(
+      'p',
+      'bulk-pp-deployment-panel-hint',
+      eta ? `This usually takes ${eta}. You can keep browsing while this runs.` : 'Checking preview and publish state from AEM…',
+    ));
+    const cancelBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text bulk-pp-deployment-panel-cancel', 'Stop');
+    cancelBtn.type = 'button';
+    cancelBtn.addEventListener('click', () => state.onCancelStatus());
+    loading.append(cancelBtn);
+    panel.append(loading);
+    return panel;
+  }
+
+  if (state.statusCheckFailed) {
+    const failed = el('div', 'bulk-pp-deployment-panel-failed');
+    failed.append(
+      el('span', 'bulk-pp-deployment-panel-title', 'Could not load deployment status'),
+      el('p', 'bulk-pp-deployment-panel-error', state.statusError || 'Status check failed.'),
+    );
+    const retryBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-fetch-deployment', 'Try again');
+    retryBtn.type = 'button';
+    retryBtn.addEventListener('click', () => { void state.onCheckStatus(); });
+    failed.append(retryBtn);
+    panel.append(failed);
+    return panel;
+  }
+
+  if (state.statusFetched) {
+    const loaded = el('div', 'bulk-pp-deployment-panel-loaded');
+    if (state.statusPanelNote) {
+      loaded.append(el('p', 'bulk-pp-deployment-panel-note', state.statusPanelNote));
+    }
+    loaded.append(buildDeploymentStatsBar(state.platformStatus, state.pages));
+    const refreshBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text bulk-pp-deployment-panel-refresh', 'Refresh status');
+    refreshBtn.type = 'button';
+    refreshBtn.addEventListener('click', () => { void state.onCheckStatus(); });
+    loaded.append(refreshBtn);
+    panel.append(loaded);
+    return panel;
+  }
+
+  const idle = el('div', 'bulk-pp-deployment-panel-idle');
+  const copy = el('div', 'bulk-pp-deployment-panel-copy');
+  copy.append(
+    el('span', 'bulk-pp-deployment-panel-title', 'Deployment status'),
+    el(
+      'p',
+      'bulk-pp-deployment-panel-lead',
+      `See which of ${pageCount} page${pageCount === 1 ? '' : 's'} ${state.pageScope === 'tree' ? 'under this directory are' : 'in this directory are'} previewed or published.`,
+    ),
+  );
+  if (state.statusPanelNote) {
+    copy.append(el('p', 'bulk-pp-deployment-panel-note', state.statusPanelNote));
+  }
+  const loadBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-fetch-deployment', 'Load status');
+  loadBtn.type = 'button';
+  loadBtn.id = 'bulk-pp-check-status';
+  loadBtn.disabled = state.contentLoading;
+  loadBtn.addEventListener('click', () => { void state.onCheckStatus(); });
+  idle.append(copy, loadBtn);
+  panel.append(idle);
+  return panel;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
  * @param {boolean} contentLoading
  * @param {boolean} statusChecking
  */
@@ -946,19 +1115,13 @@ function resetFetchStatusOption(state) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
- * @param {'status'|'job'} kind
  */
-function finishProgressModal(state, kind) {
+function finishProgressModal(state) {
   const root = /** @type {HTMLElement | null} */ (state.root);
-  if (kind === 'job') {
-    closeJobModal(root);
-    state.jobTopic = null;
-    state.jobAbort = null;
-    state.jobStartedAt = null;
-  } else {
-    closeStatusFetchModal(root);
-    resetFetchStatusOption(state);
-  }
+  closeJobModal(root);
+  state.jobTopic = null;
+  state.jobAbort = null;
+  state.jobStartedAt = null;
   if (root) render(root, state);
 }
 
@@ -990,6 +1153,9 @@ function render(root, state) {
   root.replaceChildren();
   root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
   const selectionCount = getActiveSelectionCount(state);
+  const hasWorkspace = !contentLoading && !error
+    && (state.pages.length > 0 || state.folders.length > 0 || statusChecking);
+  root.classList.toggle('bulk-pp-reserve-action-bar', hasWorkspace);
   root.classList.toggle('bulk-pp-has-selection-bar', selectionCount > 0);
 
   const workflowStep = getWorkflowStep(state);
@@ -1024,7 +1190,9 @@ function render(root, state) {
   const contentBody = el('div', 'bulk-pp-panel-body bulk-pp-content-body');
 
   if (contentLoading) {
-    contentBody.append(el('p', 'bulk-pp-list-empty', 'Fetching content…'));
+    const loading = el('div', 'bulk-pp-content-loading');
+    loading.append(el('p', 'bulk-pp-list-empty', 'Fetching content…'));
+    contentBody.append(loading);
   } else if (error) {
     contentBody.append(el('p', 'bulk-pp-list-empty bulk-pp-list-empty-error', error));
   } else if (state.pages.length === 0 && state.folders.length === 0 && !statusChecking) {
@@ -1093,35 +1261,11 @@ function render(root, state) {
     pagesSection.append(buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking }));
     pagesSection.append(buildPageScopeRow(state, contentLoading, statusChecking));
 
-    if (statusCheckFailed && !isStatusFetchModalOpen()) {
-      pagesSection.append(el(
-        'p',
-        'bulk-pp-status-note bulk-pp-status-note-error',
-        statusError || 'Could not load deployment status from AEM.',
-      ));
-    } else if (state.pages.length > 0 && statusFetched) {
-      pagesSection.append(buildDeploymentStatsBar(state.platformStatus, state.pages));
-    } else if (state.pages.length > 0) {
-      const statusRow = el('div', 'bulk-pp-status-row');
-      const etaHint = formatStatusFetchEta(state.pages.length);
-      statusRow.append(el(
-        'p',
-        'bulk-pp-status-note bulk-pp-status-note-muted',
-        etaHint
-          ? `Deployment status not loaded. Checking ${state.pages.length} pages usually takes ${etaHint}.`
-          : 'Deployment status not loaded. Use Check deployment status to enable filters and status dots.',
-      ));
-      const checkStatusBtn = el(
-        'button',
-        'bulk-pp-btn bulk-pp-btn-fetch-deployment',
-        'Check deployment status',
-      );
-      checkStatusBtn.type = 'button';
-      checkStatusBtn.id = 'bulk-pp-check-status';
-      checkStatusBtn.disabled = contentLoading || statusChecking;
-      checkStatusBtn.addEventListener('click', () => state.onCheckStatus());
-      statusRow.append(checkStatusBtn);
-      pagesSection.append(statusRow);
+    if (state.pages.length > 0) {
+      const panelHost = el('div', 'bulk-pp-deployment-panel-host');
+      panelHost.id = 'bulk-pp-deployment-panel-host';
+      panelHost.append(buildDeploymentStatusPanel(state));
+      pagesSection.append(panelHost);
     }
 
     const controls = el('div', 'bulk-pp-pages-controls');
@@ -1151,7 +1295,7 @@ function render(root, state) {
         'p',
         'bulk-pp-pages-filter-note',
         filtersLocked
-          ? 'Check deployment status to unlock filters'
+          ? 'Load deployment status to unlock filters'
           : pageScope === 'tree'
             ? 'Filters apply to all pages under this directory'
             : 'Filters apply to pages in this directory only',
@@ -1251,6 +1395,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
   state.statusCancelled = false;
   state.statusCheckFailed = false;
   state.statusError = null;
+  state.statusPanelNote = null;
   state.statusChecking = pathsToCheck.length > 0;
   state.statusProgressDone = 0;
   state.statusProgressTotal = pathsToCheck.length;
@@ -1269,9 +1414,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     return;
   }
 
-  const appRoot = /** @type {HTMLElement | null} */ (state.root);
-  openStatusFetchModal(appRoot, state, () => state.onCancelStatus());
-  render(appRoot, state);
+  refreshDeploymentUi(state);
 
   fetchPlatformStatusForPaths(
     daFetch,
@@ -1283,7 +1426,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       state.platformStatus = { ...partial };
       state.statusProgressDone = done;
       state.statusProgressTotal = total;
-      updateStatusFetchModal(state);
+      refreshDeploymentUi(state);
     },
     { signal: state.statusAbort.signal },
   ).then((platformStatus) => {
@@ -1295,21 +1438,10 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusFetchStartedAt = null;
     state.statusProgressDone = pathsToCheck.length;
     state.statusProgressTotal = pathsToCheck.length;
-    const statusMap = /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */ ({});
-    state.pages.forEach((p) => {
-      statusMap[p.helixPath] = platformStatus[p.helixPath] || {};
-    });
-    const { live, preview, none } = countStatusBreakdown(statusMap, state.pages);
     resetFetchStatusOption(state);
     state.status = null;
-    state.statusType = 'success';
-    showStatusFetchCompleteModal({
-      live,
-      previewOnly: preview,
-      none,
-      total: state.pages.length,
-      onClose: () => finishProgressModal(state, 'status'),
-    });
+    state.statusType = 'info';
+    refreshDeploymentUi(state);
   }).catch((statusErr) => {
     if (statusErr instanceof DOMException && statusErr.name === 'AbortError') {
       state.statusAbort = null;
@@ -1327,11 +1459,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.status = state.statusError;
     state.statusType = 'error';
     console.warn('[bulk-pp] platform status failed', statusErr);
-    showStatusFetchErrorModal({
-      message: state.statusError,
-      hint: errorHintFrom(statusErr, state.statusError),
-      onClose: () => finishProgressModal(state, 'status'),
-    });
+    refreshDeploymentUi(state);
   });
 }
 
@@ -1350,11 +1478,9 @@ function finishContentLoadWithoutStatus(state, location, docCount, folderCount) 
   if (folderCount === 0 && docCount === 0) {
     state.status = `No folders or pages in ${location}.`;
   } else if (state.pageScope === 'tree') {
-    state.status = `Loaded ${docCount} page(s) under ${location} (all subdirectories). `
-      + 'Use Check deployment status for preview/publish dots.';
+    state.status = `Loaded ${docCount} page(s) under ${location} (all subdirectories).`;
   } else {
-    state.status = `Loaded ${docCount} page(s) and ${folderCount} folder(s) in ${location}. `
-      + 'Use Check deployment status for preview/publish dots.';
+    state.status = `Loaded ${docCount} page(s) and ${folderCount} folder(s) in ${location}.`;
   }
   state.statusType = 'info';
   render(/** @type {HTMLElement} */ (state.root), state);
@@ -1384,14 +1510,15 @@ async function main() {
     const total = state.statusProgressTotal;
     cancelStatusCheck(state, false);
     resetFetchStatusOption(state);
-    if (app) syncSelectionUI(app, state);
-    const partialNote = checked > 0
-      ? `Status results for ${checked} of ${total} pages are kept in the list. `
-      : '';
-    showStatusFetchCancelledModal({
-      message: `${partialNote}Stopping the check does not undo requests already sent to AEM. You can run Fetch Deployment status again anytime.`,
-      onClose: () => finishProgressModal(state, 'status'),
-    });
+    state.statusChecking = false;
+    if (checked > 0) {
+      state.statusFetched = true;
+      state.statusPanelNote = `Stopped after ${checked} of ${total} pages. Showing partial results.`;
+    } else {
+      state.statusFetched = false;
+      state.statusPanelNote = 'Status check stopped.';
+    }
+    refreshDeploymentUi(state);
   };
 
   state.onCancelJob = () => {
@@ -1405,7 +1532,7 @@ async function main() {
       onClose: () => {
         state.status = null;
         state.statusType = 'info';
-        finishProgressModal(state, 'job');
+        finishProgressModal(state);
       },
     });
   };
@@ -1474,6 +1601,7 @@ async function main() {
     state.platformStatus = {};
     state.statusCheckFailed = false;
     state.statusError = null;
+    state.statusPanelNote = null;
     state.status = 'Fetching content…';
     state.statusType = 'info';
     render(app, state);
@@ -1566,6 +1694,7 @@ async function main() {
     if (!confirmed) return;
 
     clearPageWorkspaceAfterOperation(state);
+    applyOperationWorkspaceReset(state);
 
     const appRoot = /** @type {HTMLElement} */ (app);
     state.loading = true;
@@ -1580,7 +1709,6 @@ async function main() {
       : `Starting bulk preview for ${paths.length} page(s)…`;
     state.statusType = 'info';
     openJobModal(appRoot, topic, paths.length, () => state.onCancelJob());
-    render(app, state);
 
     const host = buildSiteHost(state.org, state.site, state.ref);
     const env = topic === 'live' ? 'live' : 'preview';
@@ -1616,7 +1744,7 @@ async function main() {
           topic,
           urls,
           host,
-          onClose: () => finishProgressModal(state, 'job'),
+          onClose: () => finishProgressModal(state),
         });
         return;
       }
@@ -1673,7 +1801,7 @@ async function main() {
           message: state.status,
           topic,
           hint: permissionErrorHint(0, state.status),
-          onClose: () => finishProgressModal(state, 'job'),
+          onClose: () => finishProgressModal(state),
         });
       } else {
         showJobCompleteModal({
@@ -1681,7 +1809,7 @@ async function main() {
           topic,
           urls,
           host,
-          onClose: () => finishProgressModal(state, 'job'),
+          onClose: () => finishProgressModal(state),
         });
       }
     } catch (err) {
@@ -1703,6 +1831,7 @@ async function main() {
     if (!ok) return;
 
     clearPageWorkspaceAfterOperation(state);
+    applyOperationWorkspaceReset(state);
 
     const appRoot = /** @type {HTMLElement} */ (app);
     const topic = /** @type {'unpreview'|'unpublish'|'delete'} */ (action);
@@ -1716,7 +1845,6 @@ async function main() {
     state.statusType = 'info';
     state.status = destructiveStartMessage(action, paths.length);
     openJobModal(appRoot, topic, paths.length, () => state.onCancelJob());
-    render(app, state);
 
     /** @type {string[]} */
     const notes = [];
@@ -1826,13 +1954,13 @@ async function main() {
           message: summary,
           topic,
           hint: permissionErrorHint(0, summary),
-          onClose: () => finishProgressModal(state, 'job'),
+          onClose: () => finishProgressModal(state),
         });
       } else {
         showJobCompleteModal({
           summary,
           topic,
-          onClose: () => finishProgressModal(state, 'job'),
+          onClose: () => finishProgressModal(state),
         });
       }
     } catch (err) {

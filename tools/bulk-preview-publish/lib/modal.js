@@ -90,9 +90,9 @@ export function confirmCheckDeploymentStatus(pageCount, scope, etaHint = '') {
   if (etaHint) body += ` Estimated time: ${etaHint}.`;
   body += ' You can cancel the check at any time.';
   return showConfirmModal({
-    title: 'Check deployment status?',
+    title: 'Load deployment status?',
     body,
-    confirmLabel: 'Check status',
+    confirmLabel: 'Load status',
     cancelLabel: 'Cancel',
     variant: 'warning',
   });
