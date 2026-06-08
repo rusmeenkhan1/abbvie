@@ -1,4 +1,6 @@
 import { formatRuntimeStatusEta, formatStatusFetchEta } from './status-estimate.js';
+import { confirmOpenUrlsInNewTabs } from './modal.js';
+import { copyTextToClipboard, openUrlsInNewTabsQuiet, runButtonAction } from './ui-utils.js';
 import { el } from './dom.js';
 
 /** @typedef {'status' | 'job'} ProgressModalKind */
@@ -472,40 +474,92 @@ function jobHeadCompleteTitle(topic) {
 }
 
 /**
+ * @param {string[]} urls
+ * @param {string} host
+ */
+function buildJobUrlResults(urls, host) {
+  const section = el('div', 'bulk-pp-modal-url-results');
+  if (host) section.append(el('p', 'bulk-pp-modal-url-host', host));
+
+  const count = urls.length;
+  const actions = el('div', 'bulk-pp-modal-url-actions');
+  const copyBtn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-ghost', 'Copy URLs');
+  copyBtn.type = 'button';
+  copyBtn.title = `Copy ${count} URL${count === 1 ? '' : 's'} to clipboard`;
+  copyBtn.addEventListener('click', () => {
+    runButtonAction(copyBtn, 'Copied', 'Copy failed', 'Copy URLs', async () => {
+      await copyTextToClipboard(urls.join('\n'));
+    });
+  });
+  const openBtn = el(
+    'button',
+    'bulk-pp-modal-btn bulk-pp-modal-btn-confirm',
+    `Open all (${count})`,
+  );
+  openBtn.type = 'button';
+  openBtn.title = `Open ${count} URL${count === 1 ? '' : 's'} in separate browser tabs`;
+  openBtn.addEventListener('click', () => {
+    Promise.resolve(confirmOpenUrlsInNewTabs(count)).then((ok) => {
+      if (!ok) return;
+      openUrlsInNewTabsQuiet(urls);
+    }).catch(() => {});
+  });
+  actions.append(copyBtn, openBtn);
+  section.append(actions);
+
+  const listWrap = el('div', 'bulk-pp-modal-url-list-wrap');
+  const list = el('ul', 'bulk-pp-modal-url-list');
+  urls.forEach((url) => {
+    const li = el('li');
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = url;
+    li.append(link);
+    list.append(li);
+  });
+  listWrap.append(list);
+  section.append(listWrap);
+  return section;
+}
+
+/**
  * @param {{
  *   summary: string,
  *   topic: JobTopic,
- *   urlCount?: number,
- *   onViewUrls: () => void,
+ *   urls?: string[],
+ *   host?: string,
  *   onClose: () => void,
  * }} opts
  */
 export function showJobCompleteModal(opts) {
   if (!modalRef || modalRef.kind !== 'job') return;
-  const { summary, topic, urlCount = 0, onViewUrls, onClose } = opts;
+  const { summary, topic, urls = [], host = '', onClose } = opts;
   const completeTitle = jobCompleteTitle(topic);
   const destructive = topic === 'unpreview' || topic === 'unpublish' || topic === 'delete';
-  const actions = destructive
-    ? [closeActionBtn(onClose)]
-    : [
-      confirmActionBtn('View URLs', onViewUrls, urlCount === 0, 'No URLs available for this operation'),
-      closeActionBtn(onClose),
-    ];
-  replacePanel(modalRef.panel, [
-    el('p', 'bulk-pp-status-modal-success-icon', destructive ? '✓' : '✓'),
+  const hasUrls = !destructive && urls.length > 0;
+  const dialog = modalRef.backdrop.querySelector('.bulk-pp-status-modal');
+  if (dialog instanceof HTMLElement) {
+    dialog.classList.toggle('bulk-pp-status-modal-with-urls', hasUrls);
+  }
+  const body = [
+    el('p', 'bulk-pp-status-modal-success-icon', '✓'),
     el('h3', 'bulk-pp-status-modal-complete-title', completeTitle),
     el('p', 'bulk-pp-status-modal-summary', summary),
-    destructive
-      ? el('p', 'bulk-pp-status-modal-hint', 'Close to continue browsing.')
-      : el(
-        'p',
-        'bulk-pp-status-modal-hint',
-        urlCount > 0
-          ? 'View generated URLs on the Urls tab, or close to continue browsing.'
-          : 'Close to continue browsing.',
-      ),
-    actionRow(actions),
-  ]);
+  ];
+  if (hasUrls) {
+    body.push(buildJobUrlResults(urls, host));
+    body.push(el(
+      'p',
+      'bulk-pp-status-modal-hint',
+      'Copy URLs or open them in new tabs, then close to continue browsing.',
+    ));
+  } else {
+    body.push(el('p', 'bulk-pp-status-modal-hint', 'Close to continue browsing.'));
+  }
+  body.push(actionRow([closeActionBtn(onClose)]));
+  replacePanel(modalRef.panel, body);
   setHeadTitle(jobHeadCompleteTitle(topic));
   hideHeaderCancel();
 }

@@ -1,8 +1,6 @@
 import {
-  collectPages,
   deleteDaDocumentsSequential,
   fetchPlatformStatusForPaths,
-  isHardcodeIndexTest,
   wrapDaFetch,
   messageFromApiError,
   permissionErrorHint,
@@ -35,12 +33,9 @@ import {
   confirmBulkRun,
   confirmDestructiveAction,
   confirmOpenUrlsInNewTabs,
-  confirmTreeScopeFetch,
 } from './lib/modal.js';
 import {
-  copyTextToClipboard,
   openUrlsInNewTabsQuiet,
-  runButtonAction,
   shouldWarnPopupBlock,
 } from './lib/ui-utils.js';
 import {
@@ -120,12 +115,12 @@ const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 
 const APP_TITLE = 'Content Deployment Hub';
-const APP_DESCRIPTION = 'Load pages, check deployment status, and run bulk preview, publish, or removal.';
+const APP_DESCRIPTION = 'Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level.';
 const WORKFLOW_STEPS = [
-  { n: 1, label: 'Load pages', detail: 'Pick a folder and load the page list' },
-  { n: 2, label: 'Check status', detail: 'See which pages are previewed or live' },
-  { n: 3, label: 'Select pages', detail: 'Check the pages you want to act on' },
-  { n: 4, label: 'Run operation', detail: 'Pick an operation and click Run' },
+  { n: 1, label: 'Open a folder', detail: 'Browse the tree — pages in that folder load automatically' },
+  { n: 2, label: 'Check status', detail: 'Optional: preview & live deployment state' },
+  { n: 3, label: 'Select pages', detail: 'Check pages you want to act on' },
+  { n: 4, label: 'Run operation', detail: 'Choose an operation and click Run' },
 ];
 
 /** @typedef {import('./lib/state.js').PageOperationId} PageOperationId */
@@ -209,27 +204,6 @@ function createPanel(title, extraClass = '') {
   const panel = el('section', `bulk-pp-panel ${extraClass}`.trim());
   const head = el('div', 'bulk-pp-panel-head');
   head.append(el('h2', null, title));
-  const body = el('div', 'bulk-pp-panel-body');
-  panel.append(head, body);
-  return { panel, body };
-}
-
-/**
- * @param {number} stepNum
- * @param {string} title
- * @param {string} [subtitle]
- * @param {string} [extraClass]
- */
-function createStepPanel(stepNum, title, subtitle = '', extraClass = '') {
-  const panel = el('section', `bulk-pp-panel bulk-pp-panel-step ${extraClass}`.trim());
-  const head = el('div', 'bulk-pp-panel-head');
-  const headMain = el('div', 'bulk-pp-panel-head-main');
-  headMain.append(
-    el('span', 'bulk-pp-step-badge', `Step ${stepNum}`),
-    el('h2', null, title),
-  );
-  if (subtitle) headMain.append(el('p', 'bulk-pp-panel-subtitle', subtitle));
-  head.append(headMain);
   const body = el('div', 'bulk-pp-panel-body');
   panel.append(head, body);
   return { panel, body };
@@ -324,8 +298,15 @@ function buildDeploymentStatsBar(platformStatus, pages) {
 
 function buildBreadcrumb(folderPath, onNavigate, locked = false) {
   const nav = el('nav', 'bulk-pp-breadcrumb');
-  nav.setAttribute('aria-label', 'Folder path');
-  const rootBtn = el('button', 'bulk-pp-breadcrumb-segment', 'Back to root');
+  nav.setAttribute('aria-label', 'Current folder');
+  const normalized = normalizeFolderPath(folderPath);
+
+  if (!normalized) {
+    nav.append(el('span', 'bulk-pp-breadcrumb-current', 'Site root'));
+    return nav;
+  }
+
+  const rootBtn = el('button', 'bulk-pp-breadcrumb-segment', 'Site root');
   rootBtn.type = 'button';
   rootBtn.disabled = locked;
   if (!locked) rootBtn.addEventListener('click', () => onNavigate(''));
@@ -495,7 +476,7 @@ async function openUrlsInNewTabs(urls, state = null) {
   if (!ok) return;
   const result = openUrlsInNewTabsQuiet(urls);
   if (shouldWarnPopupBlock(result) && state) {
-    state.status = 'Your browser blocked new tabs. Allow pop-ups for this site, or use Copy URLs on the Urls tab.';
+    state.status = 'Your browser blocked new tabs. Allow pop-ups for this site, or copy URLs from the operation completion dialog.';
     state.statusType = 'error';
     if (state.root) render(/** @type {HTMLElement} */ (state.root), state);
   }
@@ -677,7 +658,7 @@ function buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking 
 
   const selectionRow = el('div', 'bulk-pp-selection-row');
   selectionRow.append(
-    el('span', 'bulk-pp-step-badge bulk-pp-step-badge-inline', 'Steps 3–4'),
+    el('span', 'bulk-pp-step-badge bulk-pp-step-badge-inline', 'Step 3'),
     el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state)),
   );
   selectionRow.querySelector('.bulk-pp-selection-pill').id = 'bulk-pp-selection-pill';
@@ -849,69 +830,6 @@ function finishProgressModal(state, kind) {
 }
 
 /**
- * @param {HTMLElement} container
- * @param {string} title
- * @param {string} host
- * @param {string[]} urls
- * @param {ReturnType<typeof createAppState>} state
- */
-function appendUrlSection(container, title, host, urls, state) {
-  const section = el('div', 'bulk-pp-url-section');
-  const head = el('div', 'bulk-pp-url-section-head');
-  const titleEl = el('h3', 'bulk-pp-url-section-title', title);
-  head.append(titleEl);
-  if (urls.length > 0) {
-    const count = urls.length;
-    const actions = el('div', 'bulk-pp-url-section-actions');
-    const copyBtn = el(
-      'button',
-      'bulk-pp-btn bulk-pp-btn-ghost bulk-pp-btn-copy-urls',
-      'Copy URLs',
-    );
-    copyBtn.type = 'button';
-    copyBtn.title = `Copy ${count} URL${count === 1 ? '' : 's'} to clipboard`;
-    copyBtn.addEventListener('click', () => {
-      runButtonAction(copyBtn, 'Copied', 'Copy failed', 'Copy URLs', async () => {
-        await copyTextToClipboard(urls.join('\n'));
-      });
-    });
-    const openAllBtn = el(
-      'button',
-      'bulk-pp-btn bulk-pp-btn-open-urls bulk-pp-btn-open-all-urls',
-      `Open all URLs (${count})`,
-    );
-    openAllBtn.type = 'button';
-    openAllBtn.title = `Open ${count} URL${count === 1 ? '' : 's'} in separate browser tabs`;
-    openAllBtn.addEventListener('click', () => {
-      openUrlsInNewTabs(urls, state).catch(() => {});
-    });
-    actions.append(copyBtn, openAllBtn);
-    head.append(actions);
-  }
-  section.append(head);
-  section.append(el('p', 'bulk-pp-url-host', host));
-  const listWrap = el('div', 'bulk-pp-list-wrap');
-  const list = el('ul', 'bulk-pp-url-list');
-  if (urls.length === 0) {
-    list.append(el('li', 'bulk-pp-list-empty', 'No URLs for this operation.'));
-  } else {
-    urls.forEach((url) => {
-      const li = el('li');
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener';
-      link.textContent = url;
-      li.append(link);
-      list.append(li);
-    });
-  }
-  listWrap.append(list);
-  section.append(listWrap);
-  container.append(section);
-}
-
-/**
  * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
  */
@@ -922,14 +840,14 @@ function render(root, state) {
 
   const {
     org, site, ref, folderPath, loading, error, status, statusType, jobDetail,
-    activeTab, pageScope, pageFilter, statusCheckFailed, statusError,
-    statusChecking, pageSearch, folderSearch, contentLoading, lastOperation,
-    fetchStatus, statusFetched,
+    pageFilter, statusCheckFailed, statusError,
+    statusChecking, pageSearch, folderSearch, contentLoading,
+    statusFetched,
   } = state;
 
   const { visible: visiblePages, statusMap, browseFolder } = getVisiblePages(state);
   const visibleFolders = getVisibleFolders(state);
-  const busy = loading || contentLoading || statusChecking;
+  const safeFolder = resolveContentFolderPath(folderPath);
   const searchDraft = String(pageSearch || '').trim();
   const searchTooShort = searchDraft.length > 0 && searchDraft.length < SEARCH_MIN_LEN;
   const folderSearchDraft = String(folderSearch || '').trim();
@@ -959,104 +877,23 @@ function render(root, state) {
   header.append(headerInner, buildWorkflowStrip(workflowStep));
   root.append(header);
 
-  const { panel: browse, body: browseBody } = createStepPanel(
-    1,
-    'Load pages',
-    'Choose a content folder and scope, then load pages into the workspace.',
-  );
-  const row = el('div', 'bulk-pp-row');
-  const pathField = el('div', 'bulk-pp-field');
-  pathField.append(
-    el('label', null, 'Content folder'),
-    el('span', 'bulk-pp-field-hint', 'Site path to browse — leave empty for root'),
-  );
-  const pathInput = document.createElement('input');
-  pathInput.type = 'text';
-  pathInput.placeholder = '/who-we-are or leave empty for site root';
-  const safeFolder = resolveContentFolderPath(folderPath);
-  pathInput.value = displayFolderPath(safeFolder);
-  pathInput.autocomplete = 'off';
-  pathInput.id = 'bulk-pp-path';
-  pathInput.disabled = busy;
-  pathField.append(pathInput);
-  row.append(pathField);
-
-  const depthField = el('div', 'bulk-pp-field bulk-pp-field-narrow');
-  depthField.append(
-    el('label', null, 'Page scope'),
-    el('span', 'bulk-pp-field-hint', 'This folder only, or include all subfolders'),
-  );
-  const depthSelect = document.createElement('select');
-  depthSelect.id = 'bulk-pp-depth';
-  depthSelect.disabled = busy;
-  [['folder', 'This folder'], ['tree', 'All subfolders']].forEach(([value, label]) => {
-    const opt = document.createElement('option');
-    opt.value = value;
-    opt.textContent = label;
-    if (value === pageScope) opt.selected = true;
-    depthSelect.append(opt);
-  });
-  depthField.append(depthSelect);
-  row.append(depthField);
-
-  const fetchBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-load', contentLoading ? 'Loading…' : 'Load pages');
-  fetchBtn.type = 'button';
-  fetchBtn.id = 'bulk-pp-fetch-btn';
-  fetchBtn.disabled = busy;
-  row.append(fetchBtn);
-  browseBody.append(row);
-
-  const statusCard = el('div', 'bulk-pp-status-fetch-option');
-  const statusOptLabel = document.createElement('label');
-  statusOptLabel.className = 'bulk-pp-status-fetch-label';
-  const statusOptCb = document.createElement('input');
-  statusOptCb.type = 'checkbox';
-  statusOptCb.id = 'bulk-pp-fetch-status';
-  statusOptCb.checked = Boolean(fetchStatus);
-  statusOptCb.disabled = busy;
-  const statusCopy = el('span', 'bulk-pp-status-fetch-copy');
-  statusCopy.append(
-    el('span', 'bulk-pp-status-fetch-title', 'Also check deployment status'),
-    el(
-      'span',
-      'bulk-pp-status-fetch-hint',
-      'Step 2 — loads preview & live state for each page (can take time on large folders)',
-    ),
-  );
-  statusOptLabel.append(statusOptCb, statusCopy);
-  statusCard.append(statusOptLabel);
-  browseBody.append(statusCard);
-  root.append(browse);
-
-  const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content bulk-pp-panel-step');
+  const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content');
   const contentHead = el('div', 'bulk-pp-panel-head');
   const contentHeadMain = el('div', 'bulk-pp-panel-head-main');
   contentHeadMain.append(
-    el('span', 'bulk-pp-step-badge', 'Steps 2–4'),
-    el('h2', null, 'Pages & actions'),
-    el('p', 'bulk-pp-panel-subtitle', 'Review deployment status, select pages, and run bulk operations.'),
+    el('h2', null, 'Site content'),
+    el('p', 'bulk-pp-panel-subtitle', 'Open a folder to load its pages, then select and run an operation.'),
   );
   contentHead.append(contentHeadMain);
   contentPanel.append(contentHead);
-  const tabBar = el('div', 'bulk-pp-tabs');
-  const pagesTabBtn = el('button', 'bulk-pp-tab', 'Page browser');
-  const urlsTabBtn = el('button', 'bulk-pp-tab', 'Result URLs');
-  pagesTabBtn.type = 'button';
-  urlsTabBtn.type = 'button';
-  if (activeTab === 'pages') pagesTabBtn.classList.add('bulk-pp-tab-active');
-  else urlsTabBtn.classList.add('bulk-pp-tab-active');
-  tabBar.append(pagesTabBtn, urlsTabBtn);
-  contentPanel.append(tabBar);
+  const contentBody = el('div', 'bulk-pp-panel-body bulk-pp-content-body');
 
-  const pagesPane = el('div', 'bulk-pp-tab-pane');
-  if (activeTab === 'pages') pagesPane.classList.add('bulk-pp-tab-pane-active');
-
-  if (contentLoading && activeTab === 'pages') {
-    pagesPane.append(el('p', 'bulk-pp-list-empty', 'Fetching content…'));
-  } else if (error && activeTab === 'pages') {
-    pagesPane.append(el('p', 'bulk-pp-list-empty bulk-pp-list-empty-error', error));
+  if (contentLoading) {
+    contentBody.append(el('p', 'bulk-pp-list-empty', 'Fetching content…'));
+  } else if (error) {
+    contentBody.append(el('p', 'bulk-pp-list-empty bulk-pp-list-empty-error', error));
   } else if (state.pages.length === 0 && state.folders.length === 0 && !statusChecking) {
-    pagesPane.append(el(
+    contentBody.append(el(
       'p',
       'bulk-pp-list-empty',
       'No folders or pages in this location.',
@@ -1064,62 +901,55 @@ function render(root, state) {
   } else {
     const workspace = el('div', 'bulk-pp-workspace');
     const contentGrid = el('div', 'bulk-pp-content-grid');
-    const inSubfolder = Boolean(normalizeFolderPath(safeFolder));
-    const showFolderSection = state.folders.length > 0 || inSubfolder;
 
-    if (showFolderSection) {
-      const folderSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-folders');
-      const folderCountLabel = folderSearchDraft && !folderSearchTooShort
-        ? `${visibleFolders.length} of ${state.folders.length}`
-        : String(state.folders.length);
-      folderSection.append(buildSectionHead('Folders', folderCountLabel, 'bulk-pp-folder-count', 'folders'));
+    const folderSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-folders');
+    const folderCountLabel = folderSearchDraft && !folderSearchTooShort
+      ? `${visibleFolders.length} of ${state.folders.length}`
+      : String(state.folders.length);
+    folderSection.append(buildSectionHead('Directories', folderCountLabel, 'bulk-pp-folder-count', 'folders'));
+    folderSection.append(buildBreadcrumb(
+      safeFolder,
+      (path) => state.onNavigate(path),
+      statusChecking,
+    ));
 
-      if (inSubfolder) {
-        folderSection.append(buildBreadcrumb(
-          safeFolder,
+    const { wrap: folderSearchField, input: folderSearchInput } = buildSearchField(
+      'bulk-pp-folder-search',
+      'Find a folder',
+      String(folderSearch || ''),
+      statusChecking,
+      searchHintText(folderSearch),
+    );
+    const folderSearchRow = el('div', 'bulk-pp-search-row');
+    folderSearchRow.append(folderSearchField);
+    folderSection.append(folderSearchRow);
+
+    const folderWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-folders');
+    const folderList = el('ul', 'bulk-pp-list');
+    folderList.id = 'bulk-pp-folder-list';
+    if (visibleFolders.length === 0) {
+      const folderEmptyMsg = folderSearchTooShort
+        ? `Type at least ${SEARCH_MIN_LEN} characters to search.`
+        : folderSearchDraft
+          ? 'No folders match this search.'
+          : 'No subfolders here — pages in this folder are listed on the right.';
+      folderList.append(el('li', 'bulk-pp-list-empty', folderEmptyMsg));
+    } else {
+      visibleFolders.forEach((folder) => {
+        folderList.append(buildFolderRow(
+          folder,
           (path) => state.onNavigate(path),
           statusChecking,
         ));
-      }
-
-      const { wrap: folderSearchField, input: folderSearchInput } = buildSearchField(
-        'bulk-pp-folder-search',
-        'Find a folder',
-        String(folderSearch || ''),
-        statusChecking,
-        searchHintText(folderSearch),
-      );
-      const folderSearchRow = el('div', 'bulk-pp-search-row');
-      folderSearchRow.append(folderSearchField);
-      folderSection.append(folderSearchRow);
-
-      const folderWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-folders');
-      const folderList = el('ul', 'bulk-pp-list');
-      folderList.id = 'bulk-pp-folder-list';
-      if (visibleFolders.length === 0) {
-        const folderEmptyMsg = folderSearchTooShort
-          ? `Type at least ${SEARCH_MIN_LEN} characters to search.`
-          : folderSearchDraft
-            ? 'No folders match this search.'
-            : 'No folders in this location.';
-        folderList.append(el('li', 'bulk-pp-list-empty', folderEmptyMsg));
-      } else {
-        visibleFolders.forEach((folder) => {
-          folderList.append(buildFolderRow(
-            folder,
-            (path) => state.onNavigate(path),
-            statusChecking,
-          ));
-        });
-      }
-      folderWrap.append(folderList);
-      folderSection.append(folderWrap);
-      contentGrid.append(folderSection);
-
-      bindSearchInput(folderSearchInput, state, 'folder', () => {
-        patchFolderSearchResults(root, state, buildFolderRow);
       });
     }
+    folderWrap.append(folderList);
+    folderSection.append(folderWrap);
+    contentGrid.append(folderSection);
+
+    bindSearchInput(folderSearchInput, state, 'folder', () => {
+      patchFolderSearchResults(root, state, buildFolderRow);
+    });
 
     const pagesSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-pages');
     const pageCountLabel = searchDraft && !searchTooShort
@@ -1233,7 +1063,7 @@ function render(root, state) {
     pagesSection.append(pageWrap);
     contentGrid.append(pagesSection);
     workspace.append(contentGrid);
-    pagesPane.append(workspace);
+    contentBody.append(workspace);
 
     filterSelect.addEventListener('change', () => {
       state.pageFilter = filterSelect.value;
@@ -1244,25 +1074,7 @@ function render(root, state) {
     });
     syncSelectionUI(root, state);
   }
-  contentPanel.append(pagesPane);
-
-  const urlsPane = el('div', 'bulk-pp-tab-pane');
-  if (activeTab === 'urls') urlsPane.classList.add('bulk-pp-tab-pane-active');
-  if (lastOperation) {
-    appendUrlSection(urlsPane, lastOperation.title, lastOperation.host, lastOperation.urls, state);
-    urlsPane.append(el(
-      'p',
-      'bulk-pp-url-operation-note',
-      `${lastOperation.paths.length} page(s) · completed ${new Date(lastOperation.completedAt).toLocaleString()}`,
-    ));
-  } else {
-    urlsPane.append(el(
-      'p',
-      'bulk-pp-list-empty',
-      'Run Preview or Publish on selected pages to see URLs from that operation here.',
-    ));
-  }
-  contentPanel.append(urlsPane);
+  contentPanel.append(contentBody);
   root.append(contentPanel);
 
   if (status && !statusChecking && statusType === 'error') {
@@ -1277,19 +1089,6 @@ function render(root, state) {
     statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
     root.append(statusEl);
   }
-
-  pathInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') state.onFetch(false);
-  });
-  pathInput.addEventListener('change', () => {
-    state.folderPath = normalizeFolderPath(pathInput.value.trim());
-  });
-  statusOptCb.addEventListener('change', () => {
-    state.fetchStatus = statusOptCb.checked;
-  });
-  fetchBtn.addEventListener('click', () => state.onFetch(false));
-  pagesTabBtn.addEventListener('click', () => state.onTab('pages'));
-  urlsTabBtn.addEventListener('click', () => state.onTab('urls'));
 
   requestAnimationFrame(() => {
     if (savedListScroll != null) {
@@ -1411,12 +1210,9 @@ function finishContentLoadWithoutStatus(state, location, docCount, folderCount) 
   state.platformStatus = {};
   if (folderCount === 0 && docCount === 0) {
     state.status = `No folders or pages in ${location}.`;
-  } else if (state.pageScope === 'tree') {
-    state.status = `Loaded ${docCount} page(s) under ${location}. `
-      + 'Use Fetch Deployment status for preview/publish dots.';
   } else {
     state.status = `Loaded ${docCount} page(s) and ${folderCount} folder(s) in ${location}. `
-      + 'Use Fetch Deployment status for preview/publish dots.';
+      + 'Use Check deployment status for preview/publish dots.';
   }
   state.statusType = 'info';
   render(/** @type {HTMLElement} */ (state.root), state);
@@ -1440,11 +1236,6 @@ async function main() {
   const urlPath = urlParams.get('path');
   if (urlPath) state.folderPath = resolveContentFolderPath(normalizeFolderPath(urlPath));
   syncUrlPath(state.ref, state.folderPath);
-
-  state.onTab = (tab) => {
-    state.activeTab = tab;
-    render(app, state);
-  };
 
   state.onCancelStatus = () => {
     const checked = state.statusProgressDone;
@@ -1479,7 +1270,6 @@ async function main() {
 
   state.onCheckStatus = () => {
     if (state.statusChecking || state.contentLoading || state.pages.length === 0) return;
-    state.fetchStatus = true;
     const location = displayFolderPath(state.folderPath) || 'site root';
     startStatusCheck(
       state,
@@ -1504,24 +1294,13 @@ async function main() {
   state.onFetch = async (fromFolderNav = false) => {
     if (state.statusChecking) return;
 
-    if (!fromFolderNav) {
-      const pathInput = document.getElementById('bulk-pp-path');
-      const depthSelect = document.getElementById('bulk-pp-depth');
-      const statusOptEl = document.getElementById('bulk-pp-fetch-status');
-      const rawPath = pathInput instanceof HTMLInputElement ? pathInput.value : '';
-      state.folderPath = resolveContentFolderPath(normalizeFolderPath(rawPath));
-      if (depthSelect instanceof HTMLSelectElement) {
-        state.pageScope = depthSelect.value === 'tree' ? 'tree' : 'folder';
-      }
-      if (statusOptEl instanceof HTMLInputElement) {
-        state.fetchStatus = statusOptEl.checked;
-      }
-      state.pageFilter = 'all';
-    }
+    state.pageScope = 'folder';
 
-    if (state.pageScope === 'tree' && state.fetchStatus && !fromFolderNav) {
-      const ok = await confirmTreeScopeFetch();
-      if (!ok) return;
+    if (!fromFolderNav) {
+      state.pageFilter = 'all';
+      state.pageSearch = '';
+      state.folderSearch = '';
+      state.selected.clear();
     }
 
     if (!state.org || !state.site) {
@@ -1556,24 +1335,7 @@ async function main() {
         state.folderPath,
       );
       state.folders = browseEntries.filter((e) => e.kind === 'folder');
-
-      if (state.pageScope === 'tree') {
-        const nestedPages = await collectPages(
-          daFetch,
-          state.org,
-          state.site,
-          state.folderPath,
-          -1,
-        );
-        state.pages = nestedPages.map((page) => ({
-          kind: 'document',
-          name: page.name,
-          sourcePath: page.sourcePath,
-          helixPath: page.helixPath,
-        }));
-      } else {
-        state.pages = browseEntries.filter((e) => e.kind === 'document');
-      }
+      state.pages = browseEntries.filter((e) => e.kind === 'document');
 
       if (fromFolderNav) {
         const prev = new Set(state.selected);
@@ -1586,35 +1348,13 @@ async function main() {
       const location = displayFolderPath(state.folderPath) || 'site root';
       state.contentLoading = false;
 
-      if (state.fetchStatus) {
-        if (isHardcodeIndexTest()) {
-          state.status = 'hardcodeIndex test mode — index only.';
-          state.statusType = 'info';
-          resetFetchStatusOption(state);
-        } else if (state.pageScope === 'tree') {
-          state.status = `${docCount} page(s) under ${location} · checking status…`;
-          state.statusType = 'success';
-        } else {
-          state.status = `${docCount} page(s) and ${state.folders.length} folder(s) in ${location} · checking status…`;
-          state.statusType = 'success';
-        }
-        startStatusCheck(
-          state,
-          daFetch,
-          state.pages.map((p) => p.helixPath),
-          location,
-          docCount,
-          state.folders.length,
-        );
-      } else {
-        if (state.pageFilter !== 'all') state.pageFilter = 'all';
-        finishContentLoadWithoutStatus(
-          state,
-          location,
-          docCount,
-          state.folders.length,
-        );
-      }
+      if (state.pageFilter !== 'all') state.pageFilter = 'all';
+      finishContentLoadWithoutStatus(
+        state,
+        location,
+        docCount,
+        state.folders.length,
+      );
     } catch (err) {
       state.folders = [];
       state.pages = [];
@@ -1690,14 +1430,6 @@ async function main() {
       const jobUrl = getJobPollUrl(bulkResp, state.org, state.site, state.ref, topic);
       if (!jobUrl) {
         const urls = buildUrlsForPaths(paths, state.org, state.site, state.ref, env);
-        state.lastOperation = {
-          topic,
-          paths,
-          urls,
-          host,
-          title: topic === 'live' ? 'Published (.aem.live)' : 'Preview (.aem.page)',
-          completedAt: Date.now(),
-        };
         state.status = topic === 'live'
           ? `Bulk publish scheduled (${paths.length} paths).`
           : `Bulk preview scheduled (${paths.length} paths).`;
@@ -1712,11 +1444,8 @@ async function main() {
         showJobCompleteModal({
           summary: state.status,
           topic,
-          urlCount: urls.length,
-          onViewUrls: () => {
-            state.activeTab = 'urls';
-            finishProgressModal(state, 'job');
-          },
+          urls,
+          host,
           onClose: () => finishProgressModal(state, 'job'),
         });
         return;
@@ -1747,18 +1476,9 @@ async function main() {
       state.status = `${action} ${outcome.message}`;
       state.statusType = outcome.statusType;
 
-      let urlCount = 0;
+      let urls = [];
       if (outcome.statusType === 'success') {
-        const urls = buildUrlsForPaths(paths, state.org, state.site, state.ref, env);
-        urlCount = urls.length;
-        state.lastOperation = {
-          topic,
-          paths,
-          urls,
-          host,
-          title: topic === 'live' ? 'Published (.aem.live)' : 'Preview (.aem.page)',
-          completedAt: Date.now(),
-        };
+        urls = buildUrlsForPaths(paths, state.org, state.site, state.ref, env);
         try {
           const refreshed = await fetchPlatformStatusForPaths(
             daFetch,
@@ -1789,11 +1509,8 @@ async function main() {
         showJobCompleteModal({
           summary: state.status,
           topic,
-          urlCount,
-          onViewUrls: () => {
-            state.activeTab = 'urls';
-            finishProgressModal(state, 'job');
-          },
+          urls,
+          host,
           onClose: () => finishProgressModal(state, 'job'),
         });
       }
@@ -1943,8 +1660,6 @@ async function main() {
         showJobCompleteModal({
           summary,
           topic,
-          urlCount: 0,
-          onViewUrls: () => finishProgressModal(state, 'job'),
           onClose: () => finishProgressModal(state, 'job'),
         });
       }

@@ -11,17 +11,6 @@ import { resolveContentFolderPath } from './paths.js';
 export const SEARCH_MIN_LEN = 3;
 
 /**
- * @typedef {{
- *   topic: 'preview' | 'live',
- *   paths: string[],
- *   urls: string[],
- *   host: string,
- *   title: string,
- *   completedAt: number,
- * }} LastOperation
- */
-
-/**
  * @param {{ org: string, site: string, ref: string }} ctx
  */
 export function createAppState(ctx) {
@@ -38,7 +27,6 @@ export function createAppState(ctx) {
     status: null,
     statusType: 'info',
     jobDetail: null,
-    activeTab: 'pages',
     pageFilter: 'all',
     pageSearch: '',
     folderSearch: '',
@@ -55,8 +43,6 @@ export function createAppState(ctx) {
     statusProgressTotal: 0,
     /** @type {number | null} */
     statusFetchStartedAt: null,
-    /** @type {LastOperation | null} */
-    lastOperation: null,
     /** @type {AbortController | null} */
     statusAbort: null,
     /** @type {AbortController | null} */
@@ -91,7 +77,6 @@ export function resetWorkspace(state) {
   state.status = null;
   state.statusType = 'info';
   state.jobDetail = null;
-  state.activeTab = 'pages';
   state.pageFilter = 'all';
   state.pageSearch = '';
   state.folderSearch = '';
@@ -109,7 +94,6 @@ export function resetWorkspace(state) {
   state.jobProgressProcessed = 0;
   state.jobProgressTotal = 0;
   state.jobTopic = null;
-  state.lastOperation = null;
   state.folders = [];
   state.pages = [];
   state.selected.clear();
