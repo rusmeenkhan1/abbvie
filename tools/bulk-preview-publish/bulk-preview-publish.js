@@ -125,8 +125,8 @@ const STATUS_COLOR = {
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 
-const APP_TITLE = 'Content Deployment Hub';
-const APP_DESCRIPTION = 'Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level.';
+const APP_TITLE = 'Content Operation Hub';
+const APP_DESCRIPTION = 'Browse, select, and run bulk content operations.';
 
 /** @typedef {import('./lib/state.js').PageOperationId} PageOperationId */
 
@@ -255,18 +255,18 @@ function buildPreviewPublishToggle(state, locked) {
   const on = state.showPreviewPublish;
   const btn = el('button', `bulk-pp-toggle${on ? ' bulk-pp-toggle-on' : ''}`);
   btn.type = 'button';
-  btn.id = 'bulk-pp-preview-publish-toggle';
+  btn.id = 'bulk-pp-fetch-deployment-status-toggle';
   btn.setAttribute('role', 'switch');
   btn.setAttribute('aria-checked', on ? 'true' : 'false');
-  btn.setAttribute('aria-label', 'Preview and publish status');
+  btn.setAttribute('aria-label', 'Fetch deployment status');
   btn.disabled = locked || state.pages.length === 0;
   btn.title = on
-    ? 'Hide preview and publish status'
-    : 'Load preview and publish status for listed pages';
+    ? 'Hide deployment status'
+    : 'Fetch deployment status for listed pages';
 
   const track = el('span', 'bulk-pp-toggle-track');
   track.append(el('span', 'bulk-pp-toggle-thumb'));
-  btn.append(track, el('span', 'bulk-pp-toggle-label', 'Preview & publish'));
+  btn.append(track, el('span', 'bulk-pp-toggle-label', 'Fetch deployment status'));
   btn.addEventListener('click', () => {
     void state.onTogglePreviewPublish(!state.showPreviewPublish);
   });
@@ -1069,7 +1069,7 @@ function deploymentToolbarTooltipText(state) {
   if (state.showPreviewPublish && state.statusChecking) {
     return 'Fetching deployment status. Filters unlock when the check completes.';
   }
-  return 'Toggle on Preview & publish to fetch deployment status and unlock filters.';
+  return 'Turn on Fetch deployment status to load indicators and unlock filters.';
 }
 
 /**
@@ -1131,6 +1131,13 @@ function buildDeploymentToolbarPanel(state, pageFilter, interactionsLocked) {
   }
   content.append(head);
 
+  if (!unlocked) {
+    const hint = el('p', 'bulk-pp-deployment-toolbar-hint');
+    hint.id = 'bulk-pp-deployment-toolbar-hint';
+    hint.textContent = deploymentToolbarTooltipText(state);
+    content.append(hint);
+  }
+
   const controls = el('div', 'bulk-pp-deployment-toolbar-controls');
   const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
   filterField.append(el('label', null, 'Filter by status'));
@@ -1155,12 +1162,7 @@ function buildDeploymentToolbarPanel(state, pageFilter, interactionsLocked) {
   panel.append(content);
 
   if (!unlocked) {
-    const tooltip = el('div', 'bulk-pp-deployment-toolbar-tooltip');
-    tooltip.id = 'bulk-pp-deployment-toolbar-tooltip';
-    tooltip.setAttribute('role', 'tooltip');
-    tooltip.textContent = deploymentToolbarTooltipText(state);
-    panel.append(tooltip);
-    panel.setAttribute('aria-describedby', tooltip.id);
+    panel.setAttribute('aria-describedby', 'bulk-pp-deployment-toolbar-hint');
   }
 
   return { panel, filterSelect };
@@ -1288,18 +1290,14 @@ function render(root, state) {
   root.classList.add('bulk-pp-shell');
   root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
   const selectionCount = getActiveSelectionCount(state);
-  const hasWorkspace = !contentLoading && !error
-    && (state.pages.length > 0 || state.folders.length > 0 || statusChecking);
-  root.classList.toggle('bulk-pp-reserve-action-bar', hasWorkspace);
   root.classList.toggle('bulk-pp-has-selection-bar', selectionCount > 0);
 
-  const header = el('header', 'bulk-pp-header');
+  const header = el('header', 'bulk-pp-header bulk-pp-header-compact');
   const headerInner = el('div', 'bulk-pp-header-inner');
   const headerBrand = el('div', 'bulk-pp-header-brand');
   headerBrand.append(
-    el('span', 'bulk-pp-header-eyebrow', 'Adobe Experience Manager · Edge Delivery'),
+    el('span', 'bulk-pp-header-eyebrow', 'AEM · Edge Delivery'),
     el('h1', null, APP_TITLE),
-    el('p', 'bulk-pp-header-desc', APP_DESCRIPTION),
   );
   const headerMeta = el('div', 'bulk-pp-header-meta');
   headerMeta.append(
@@ -1314,10 +1312,7 @@ function render(root, state) {
   const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content bulk-pp-panel-fill');
   const contentHead = el('div', 'bulk-pp-panel-head');
   const contentHeadMain = el('div', 'bulk-pp-panel-head-main');
-  contentHeadMain.append(
-    el('h2', null, 'Site content'),
-    el('p', 'bulk-pp-panel-subtitle', 'Browse folders, select pages, then preview or publish.'),
-  );
+  contentHeadMain.append(el('h2', null, 'Site content'));
   contentHead.append(contentHeadMain);
   contentPanel.append(contentHead);
   const contentBody = el('div', 'bulk-pp-panel-body bulk-pp-content-body');

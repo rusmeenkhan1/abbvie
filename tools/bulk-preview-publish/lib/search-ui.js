@@ -48,10 +48,6 @@ function syncSelectionActionBar(root, state) {
     bar.hidden = count === 0;
   }
   root.classList.toggle('bulk-pp-has-selection-bar', count > 0);
-  root.classList.toggle(
-    'bulk-pp-reserve-action-bar',
-    Boolean(root.querySelector('.bulk-pp-workspace') || root.querySelector('.bulk-pp-content-loading')),
-  );
 
   const countEl = root.querySelector('#bulk-pp-selection-count');
   if (countEl) countEl.textContent = count === 1 ? '1 page selected' : `${count} pages selected`;
