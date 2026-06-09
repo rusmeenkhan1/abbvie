@@ -224,7 +224,7 @@ function buildPagesSectionHead(state, workspaceLocked) {
     ),
   );
 
-  const scopeBracket = el('span', 'bulk-pp-pages-scope-bracket');
+  const scopeRow = el('div', 'bulk-pp-pages-scope-option');
   const scopeCheck = el('input');
   scopeCheck.type = 'checkbox';
   scopeCheck.id = 'bulk-pp-include-subdirectories';
@@ -235,9 +235,12 @@ function buildPagesSectionHead(state, workspaceLocked) {
   });
   const scopeLabel = el('label', 'bulk-pp-pages-scope-check');
   scopeLabel.htmlFor = 'bulk-pp-include-subdirectories';
-  scopeLabel.append(scopeCheck, document.createTextNode(' Include subdirectories'));
-  scopeBracket.append(document.createTextNode('('), scopeLabel, document.createTextNode(')'));
-  copyWrap.append(scopeBracket);
+  scopeLabel.append(
+    scopeCheck,
+    document.createTextNode(' Include all subdirectories'),
+  );
+  scopeRow.append(scopeLabel);
+  copyWrap.append(scopeRow);
 
   titleWrap.append(icon, copyWrap);
   head.append(titleWrap);
@@ -1071,6 +1074,36 @@ function deploymentToolbarTooltipText(state) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
+ */
+function buildDeploymentSummaryStrip(state) {
+  const helixPaths = state.pages.map((p) => p.helixPath);
+  const { live, previewOnly, none, total } = deploymentCountsForPaths(
+    state.platformStatus,
+    helixPaths,
+  );
+  const strip = el('div', 'bulk-pp-deployment-summary');
+  strip.setAttribute('aria-label', 'Deployment summary for pages in this view');
+
+  /** @type {[string, number, string][]} */
+  const items = [
+    ['live', live, 'Published'],
+    ['preview', previewOnly, 'Preview only'],
+    ['none', none, 'Not deployed'],
+    ['total', total, 'Total in view'],
+  ];
+  items.forEach(([mod, value, label]) => {
+    const item = el('div', `bulk-pp-deployment-summary-item bulk-pp-deployment-summary-${mod}`);
+    item.append(
+      el('span', 'bulk-pp-deployment-summary-value', String(value)),
+      el('span', 'bulk-pp-deployment-summary-label', label),
+    );
+    strip.append(item);
+  });
+  return strip;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
  * @param {string} pageFilter
  * @param {boolean} interactionsLocked
  * @returns {{ panel: HTMLElement, filterSelect: HTMLSelectElement | null }}
@@ -1087,12 +1120,20 @@ function buildDeploymentToolbarPanel(state, pageFilter, interactionsLocked) {
   }
 
   const content = el('div', 'bulk-pp-deployment-toolbar-content');
-  const title = el('span', 'bulk-pp-deployment-toolbar-title', 'Deployment status');
-  content.append(title);
+  const head = el('div', 'bulk-pp-deployment-toolbar-head');
+  head.append(el('span', 'bulk-pp-deployment-toolbar-title', 'Deployment status'));
+  if (!unlocked) {
+    const lockBadge = el('span', 'bulk-pp-deployment-lock-badge');
+    lockBadge.append(buildLockIcon(), el('span', 'bulk-pp-deployment-lock-label', 'Locked'));
+    head.append(lockBadge);
+  } else {
+    head.append(el('span', 'bulk-pp-deployment-active-badge', 'Active'));
+  }
+  content.append(head);
 
   const controls = el('div', 'bulk-pp-deployment-toolbar-controls');
   const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
-  filterField.append(el('label', null, 'Filter'));
+  filterField.append(el('label', null, 'Filter by status'));
   const filterSelect = document.createElement('select');
   filterSelect.id = 'bulk-pp-page-filter';
   filterSelect.disabled = !unlocked || interactionsLocked;
@@ -1106,13 +1147,14 @@ function buildDeploymentToolbarPanel(state, pageFilter, interactionsLocked) {
   filterField.append(filterSelect);
   controls.append(filterField, buildStatusLegend());
   content.append(controls);
+
+  if (unlocked) {
+    content.append(buildDeploymentSummaryStrip(state));
+  }
+
   panel.append(content);
 
   if (!unlocked) {
-    const lockBadge = el('span', 'bulk-pp-deployment-lock-badge');
-    lockBadge.append(buildLockIcon(), el('span', 'bulk-pp-deployment-lock-label', 'Locked'));
-    panel.append(lockBadge);
-
     const tooltip = el('div', 'bulk-pp-deployment-toolbar-tooltip');
     tooltip.id = 'bulk-pp-deployment-toolbar-tooltip';
     tooltip.setAttribute('role', 'tooltip');
@@ -1187,20 +1229,22 @@ function deploymentCountsForPaths(platformStatus, helixPaths) {
  * @param {string[]} helixPaths
  * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
  */
-function finishStatusFetchWithModal(state, helixPaths, platformStatus) {
+function finishStatusFetchWithModal(state, helixPaths) {
   const root = /** @type {HTMLElement | null} */ (state.root);
-  if (!root || !isStatusFetchModalOpen()) {
-    if (root) render(root, state);
+  const counts = deploymentCountsForPaths(state.platformStatus, helixPaths);
+
+  if (root && isStatusFetchModalOpen()) {
+    showStatusFetchCompleteModal({
+      ...counts,
+      onClose: () => {
+        closeProgressModal(root);
+        render(root, state);
+      },
+    });
     return;
   }
-  const counts = deploymentCountsForPaths(platformStatus, helixPaths);
-  showStatusFetchCompleteModal({
-    ...counts,
-    onClose: () => {
-      closeProgressModal(root);
-      render(root, state);
-    },
-  });
+
+  if (root) render(root, state);
 }
 
 /**
@@ -1496,7 +1540,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.status = null;
     state.statusType = 'info';
     refreshDeploymentUi(state);
-    finishStatusFetchWithModal(state, pathsToCheck, platformStatus);
+    finishStatusFetchWithModal(state, pathsToCheck);
   }).catch((statusErr) => {
     if (statusErr instanceof DOMException && statusErr.name === 'AbortError') {
       state.statusAbort = null;
