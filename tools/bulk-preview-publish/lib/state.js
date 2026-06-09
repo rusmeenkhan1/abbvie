@@ -255,18 +255,7 @@ export function selectAllVisible(state, checked) {
  * @param {ReturnType<typeof createAppState>} state
  */
 export function formatSelectionPillText(state) {
-  const { visible } = getVisiblePages(state);
   const activeCount = getActiveSelectionCount(state);
-  const visibleCount = visible.length;
   const totalCount = state.pages.length;
-  if (activeCount === 0) {
-    return visibleCount === totalCount
-      ? `No pages selected · ${totalCount} in list`
-      : `No pages selected · ${visibleCount} shown (${totalCount} total)`;
-  }
-  if (visibleCount === totalCount) {
-    return `${activeCount} of ${totalCount} selected`;
-  }
-  const visibleSelected = visible.filter((p) => state.selected.has(p.helixPath)).length;
-  return `${activeCount} selected · ${visibleSelected} of ${visibleCount} shown`;
+  return `${activeCount} selected out of ${totalCount}`;
 }

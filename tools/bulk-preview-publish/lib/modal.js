@@ -116,87 +116,92 @@ export function promptFolderLoadMode(folderLabel) {
 
     const content = el('div', 'bulk-pp-modal-body-wrap');
 
-    const scopeGroup = el('div', 'bulk-pp-modal-scope');
-    scopeGroup.setAttribute('role', 'radiogroup');
-    scopeGroup.setAttribute('aria-label', 'Pages to include');
-    scopeGroup.append(el('span', 'bulk-pp-modal-scope-label', 'Pages to include'));
+    const scopeSegment = el('div', 'bulk-pp-modal-scope-segment');
+    scopeSegment.setAttribute('role', 'radiogroup');
+    scopeSegment.setAttribute('aria-label', 'Page scope');
 
-    const scopeOptions = el('div', 'bulk-pp-modal-scope-options');
+    /** @type {HTMLButtonElement[]} */
+    const segmentButtons = [];
 
     /**
      * @param {'folder'|'tree'} value
-     * @param {string} title
-     * @param {string} hint
+     * @param {string} label
      */
-    const makeScopeOption = (value, title, hint) => {
-      const option = el('label', 'bulk-pp-modal-scope-option');
-      const input = document.createElement('input');
-      input.type = 'radio';
-      input.name = 'bulk-pp-folder-scope';
-      input.value = value;
-      input.checked = value === 'folder';
-      input.className = 'bulk-pp-modal-scope-input';
-      const textWrap = el('span', 'bulk-pp-modal-scope-text');
-      textWrap.append(
-        el('span', 'bulk-pp-modal-scope-title', title),
-        el('span', 'bulk-pp-modal-scope-hint', hint),
-      );
-      option.append(input, textWrap);
-      input.addEventListener('change', () => {
-        if (input.checked) selectedScope = value;
-        syncScopeSelection();
-        updateScopeNote();
+    const makeSegmentButton = (value, label) => {
+      const btn = el('button', 'bulk-pp-modal-scope-segment-btn', label);
+      btn.type = 'button';
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', value === 'folder' ? 'true' : 'false');
+      if (value === 'folder') btn.classList.add('bulk-pp-modal-scope-segment-btn-active');
+      btn.addEventListener('click', () => {
+        selectedScope = value;
+        updateScopeUi();
       });
-      return option;
+      segmentButtons.push(btn);
+      return btn;
     };
 
-    scopeOptions.append(
-      makeScopeOption('folder', 'This folder only', 'Pages stored directly here'),
-      makeScopeOption('tree', 'All subdirectories', 'Every page under this folder'),
+    scopeSegment.append(
+      makeSegmentButton('folder', 'This folder'),
+      makeSegmentButton('tree', 'All subdirectories'),
     );
-    scopeGroup.append(scopeOptions);
 
-    const scopeNote = el(
+    const scopeHint = el(
       'p',
-      'bulk-pp-modal-scope-note',
-      'Including subdirectories loads more pages and takes longer, especially with deployment status.',
+      'bulk-pp-modal-scope-hint-line',
+      'Includes nested folders — may take longer.',
     );
-    scopeNote.hidden = true;
+    scopeHint.hidden = true;
 
-    content.append(scopeGroup, scopeNote);
+    content.append(scopeSegment, scopeHint);
 
     const actions = el('div', 'bulk-pp-modal-choice-actions');
-    const listBtn = el(
-      'button',
-      'bulk-pp-modal-choice-btn bulk-pp-modal-choice-btn-secondary',
-      'List pages',
-    );
-    const listWithStatusBtn = el(
-      'button',
-      'bulk-pp-modal-choice-btn bulk-pp-modal-choice-btn-primary',
-      'List pages with deployment status',
-    );
-    listBtn.type = 'button';
-    listWithStatusBtn.type = 'button';
+
+    /**
+     * @param {string} title
+     * @param {boolean} withStatus
+     */
+    const makeActionButton = (title, withStatus) => {
+      const btn = el(
+        'button',
+        `bulk-pp-modal-choice-btn ${withStatus
+          ? 'bulk-pp-modal-choice-btn-primary'
+          : 'bulk-pp-modal-choice-btn-secondary'}`,
+      );
+      btn.type = 'button';
+      btn.append(
+        el('span', 'bulk-pp-modal-choice-btn-title', title),
+        el('span', 'bulk-pp-modal-choice-btn-scope', 'This folder only'),
+      );
+      return btn;
+    };
+
+    const listBtn = makeActionButton('List pages', false);
+    const listWithStatusBtn = makeActionButton('List pages with deployment status', true);
     actions.append(listBtn, listWithStatusBtn);
 
     dialog.append(head, content, actions);
     backdrop.append(dialog);
     document.body.append(backdrop);
 
-    const syncScopeSelection = () => {
-      scopeOptions.querySelectorAll('.bulk-pp-modal-scope-option').forEach((label) => {
-        if (!(label instanceof HTMLLabelElement)) return;
-        const input = label.querySelector('input');
-        label.classList.toggle(
-          'bulk-pp-modal-scope-option-selected',
-          input instanceof HTMLInputElement && input.checked,
-        );
+    const syncScopeSegment = () => {
+      segmentButtons.forEach((btn, index) => {
+        const value = index === 0 ? 'folder' : 'tree';
+        const active = selectedScope === value;
+        btn.classList.toggle('bulk-pp-modal-scope-segment-btn-active', active);
+        btn.setAttribute('aria-checked', active ? 'true' : 'false');
       });
     };
 
-    const updateScopeNote = () => {
-      scopeNote.hidden = selectedScope !== 'tree';
+    const updateScopeUi = () => {
+      const scopeText = selectedScope === 'tree'
+        ? 'Including all subfolders'
+        : 'This folder only';
+      scopeHint.hidden = selectedScope !== 'tree';
+      actions.querySelectorAll('.bulk-pp-modal-choice-btn-scope').forEach((node) => {
+        node.textContent = scopeText;
+      });
+      syncScopeSegment();
     };
 
     const close = (result) => {
@@ -216,8 +221,7 @@ export function promptFolderLoadMode(folderLabel) {
       if (e.target === backdrop) close(null);
     });
     document.addEventListener('keydown', onKey);
-    syncScopeSelection();
-    updateScopeNote();
+    updateScopeUi();
     listBtn.focus();
   });
 }
