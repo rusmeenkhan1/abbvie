@@ -112,12 +112,6 @@ const SDK_TIMEOUT_MS = 8000;
 
 const APP_TITLE = 'Content Deployment Hub';
 const APP_DESCRIPTION = 'Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level.';
-const WORKFLOW_STEPS = [
-  { n: 1, label: 'Open a folder', detail: 'Browse the tree — pages in that folder load automatically' },
-  { n: 2, label: 'Check status', detail: 'Optional: preview & live deployment state' },
-  { n: 3, label: 'Select pages', detail: 'Check pages you want to act on' },
-  { n: 4, label: 'Run operation', detail: 'Use the action bar on selected pages' },
-];
 
 /** @typedef {import('./lib/state.js').PageOperationId} PageOperationId */
 
@@ -196,38 +190,39 @@ function createPanel(title, extraClass = '') {
 }
 
 /**
- * @param {ReturnType<typeof createAppState>} state
- * @returns {number}
+ * @param {string} folderPath
+ * @param {'folder'|'tree'} pageScope
  */
-function getWorkflowStep(state) {
-  if (getActiveSelectionCount(state) > 0) return 4;
-  if (state.pages.length > 0 && state.statusFetched) return 3;
-  if (state.pages.length > 0) return 2;
-  return 1;
+function formatPagesSectionSubtitle(folderPath, pageScope) {
+  const location = displayFolderPath(folderPath) || 'Site root';
+  if (pageScope === 'tree') {
+    return `${location} · including all subdirectories`;
+  }
+  return location;
 }
 
 /**
- * @param {number} activeStep
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {string | number} count
  */
-function buildWorkflowStrip(activeStep) {
-  const strip = el('nav', 'bulk-pp-workflow');
-  strip.setAttribute('aria-label', 'How to use this tool');
-  WORKFLOW_STEPS.forEach((step) => {
-    const item = el('div', 'bulk-pp-workflow-step');
-    if (step.n < activeStep) item.classList.add('bulk-pp-workflow-step-done');
-    if (step.n === activeStep) item.classList.add('bulk-pp-workflow-step-current');
-    const copy = el('div', 'bulk-pp-workflow-copy');
-    copy.append(
-      el('span', 'bulk-pp-workflow-label', step.label),
-      el('span', 'bulk-pp-workflow-detail', step.detail),
-    );
-    item.append(
-      el('span', 'bulk-pp-workflow-num', String(step.n)),
-      copy,
-    );
-    strip.append(item);
-  });
-  return strip;
+function buildPagesSectionHead(state, count) {
+  const head = el('div', 'bulk-pp-section-head');
+  const titleWrap = el('div', 'bulk-pp-section-title-wrap');
+  const icon = el('span', 'bulk-pp-section-icon bulk-pp-section-icon-pages');
+  icon.setAttribute('aria-hidden', 'true');
+  const copyWrap = el('div', 'bulk-pp-section-title-copy');
+  const titleText = state.pageScope === 'tree'
+    ? 'Pages in this directory and subdirectories'
+    : 'Pages in the current directory';
+  copyWrap.append(
+    el('h3', 'bulk-pp-section-title', titleText),
+    el('p', 'bulk-pp-section-subtitle', formatPagesSectionSubtitle(state.folderPath, state.pageScope)),
+  );
+  titleWrap.append(icon, copyWrap);
+  const countEl = el('span', 'bulk-pp-section-count', String(count));
+  countEl.id = 'bulk-pp-page-count';
+  head.append(titleWrap, countEl);
+  return head;
 }
 
 /**
@@ -957,14 +952,12 @@ function buildPageScopeRow(state, contentLoading, statusChecking) {
 function buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking }) {
   const header = el('div', 'bulk-pp-pages-header');
   const left = el('div', 'bulk-pp-pages-header-left');
-  left.append(buildSectionHead('Pages', pageCountLabel, 'bulk-pp-page-count', 'pages'));
+  left.append(buildPagesSectionHead(state, pageCountLabel));
 
   const selectionRow = el('div', 'bulk-pp-selection-row');
-  selectionRow.append(
-    el('span', 'bulk-pp-step-badge bulk-pp-step-badge-inline', 'Step 3'),
-    el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state)),
-  );
-  selectionRow.querySelector('.bulk-pp-selection-pill').id = 'bulk-pp-selection-pill';
+  const selectionPill = el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state));
+  selectionPill.id = 'bulk-pp-selection-pill';
+  selectionRow.append(selectionPill);
 
   const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Select all');
   const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Clear');
@@ -1143,8 +1136,6 @@ function render(root, state) {
   root.classList.toggle('bulk-pp-reserve-action-bar', hasWorkspace);
   root.classList.toggle('bulk-pp-has-selection-bar', selectionCount > 0);
 
-  const workflowStep = getWorkflowStep(state);
-
   const header = el('header', 'bulk-pp-header');
   const headerInner = el('div', 'bulk-pp-header-inner');
   const headerBrand = el('div', 'bulk-pp-header-brand');
@@ -1160,7 +1151,7 @@ function render(root, state) {
     el('span', 'bulk-pp-badge bulk-pp-badge-muted', ref),
   );
   headerInner.append(headerBrand, headerMeta);
-  header.append(headerInner, buildWorkflowStrip(workflowStep));
+  header.append(headerInner);
   root.append(header);
 
   const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content');
