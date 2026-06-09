@@ -170,7 +170,7 @@ export function buildStatusMap(state) {
  * @param {ReturnType<typeof createAppState>} state
  */
 export function isStatusLoaded(state) {
-  if (state.statusCheckFailed || state.statusChecking) return false;
+  if (state.statusCheckFailed) return false;
   return Boolean(state.statusFetched && state.pages.length > 0);
 }
 

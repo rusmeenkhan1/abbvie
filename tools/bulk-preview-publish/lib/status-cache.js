@@ -1,0 +1,264 @@
+/** @typedef {{ previewedAt?: number, publishedAt?: number, checkedAt: number }} CachedStatusEntry */
+
+const STORAGE_KEY = 'bulk-pp-deployment-status-v1';
+const CACHE_VERSION = 1;
+/** @type {number} */
+const MAX_ENTRY_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+/** @type {number} */
+const MAX_PATHS_PER_SITE = 8000;
+
+/**
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ */
+function buildSiteKey(org, site, ref) {
+  return `${org}|${site}|${ref}`;
+}
+
+/**
+ * @returns {{ v: number, sites: Record<string, Record<string, CachedStatusEntry>> }}
+ */
+function readStore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { v: CACHE_VERSION, sites: {} };
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || parsed.v !== CACHE_VERSION) {
+      return { v: CACHE_VERSION, sites: {} };
+    }
+    if (!parsed.sites || typeof parsed.sites !== 'object') {
+      return { v: CACHE_VERSION, sites: {} };
+    }
+    return /** @type {{ v: number, sites: Record<string, Record<string, CachedStatusEntry>> }} */ (parsed);
+  } catch {
+    return { v: CACHE_VERSION, sites: {} };
+  }
+}
+
+/**
+ * @param {{ v: number, sites: Record<string, Record<string, CachedStatusEntry>> }} store
+ */
+function writeStore(store) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    return true;
+  } catch (err) {
+    console.warn('[bulk-pp] deployment status cache write failed', err);
+    return false;
+  }
+}
+
+/**
+ * @param {Record<string, CachedStatusEntry>} siteCache
+ */
+function pruneSiteCache(siteCache) {
+  const now = Date.now();
+  Object.keys(siteCache).forEach((path) => {
+    const entry = siteCache[path];
+    if (!entry || typeof entry.checkedAt !== 'number' || now - entry.checkedAt > MAX_ENTRY_AGE_MS) {
+      delete siteCache[path];
+    }
+  });
+
+  const paths = Object.keys(siteCache);
+  if (paths.length <= MAX_PATHS_PER_SITE) return;
+
+  paths.sort((a, b) => (siteCache[a]?.checkedAt || 0) - (siteCache[b]?.checkedAt || 0));
+  const removeCount = paths.length - MAX_PATHS_PER_SITE;
+  for (let i = 0; i < removeCount; i += 1) {
+    delete siteCache[paths[i]];
+  }
+}
+
+/**
+ * @param {{ previewedAt?: number, publishedAt?: number }} entry
+ * @param {number} checkedAt
+ * @returns {CachedStatusEntry}
+ */
+function toCachedEntry(entry, checkedAt) {
+  /** @type {CachedStatusEntry} */
+  const cached = { checkedAt };
+  if (typeof entry.previewedAt === 'number' && entry.previewedAt > 0) {
+    cached.previewedAt = entry.previewedAt;
+  }
+  if (typeof entry.publishedAt === 'number' && entry.publishedAt > 0) {
+    cached.publishedAt = entry.publishedAt;
+  }
+  return cached;
+}
+
+/**
+ * @param {CachedStatusEntry | undefined} entry
+ */
+function isFreshEntry(entry) {
+  if (!entry || typeof entry.checkedAt !== 'number') return false;
+  return Date.now() - entry.checkedAt <= MAX_ENTRY_AGE_MS;
+}
+
+/**
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @returns {Record<string, CachedStatusEntry>}
+ */
+function getSiteCache(org, site, ref) {
+  const store = readStore();
+  return store.sites[buildSiteKey(org, site, ref)] || {};
+}
+
+/**
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ * @returns {Record<string, { previewedAt?: number, publishedAt?: number }>}
+ */
+export function readCachedPlatformStatus(org, site, ref, helixPaths) {
+  const siteCache = getSiteCache(org, site, ref);
+  /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
+  const result = {};
+  helixPaths.forEach((path) => {
+    const entry = siteCache[path];
+    if (!isFreshEntry(entry)) return;
+    /** @type {{ previewedAt?: number, publishedAt?: number }} */
+    const row = {};
+    if (entry.previewedAt) row.previewedAt = entry.previewedAt;
+    if (entry.publishedAt) row.publishedAt = entry.publishedAt;
+    result[path] = row;
+  });
+  return result;
+}
+
+/**
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ */
+export function hasCompleteCachedStatus(org, site, ref, helixPaths) {
+  if (helixPaths.length === 0) return false;
+  const siteCache = getSiteCache(org, site, ref);
+  return helixPaths.every((path) => isFreshEntry(siteCache[path]));
+}
+
+/**
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
+ */
+export function mergePlatformStatusIntoCache(org, site, ref, platformStatus) {
+  if (!platformStatus || typeof platformStatus !== 'object') return;
+  const paths = Object.keys(platformStatus);
+  if (paths.length === 0) return;
+
+  const store = readStore();
+  const siteKey = buildSiteKey(org, site, ref);
+  if (!store.sites[siteKey]) store.sites[siteKey] = {};
+  const siteCache = store.sites[siteKey];
+  const checkedAt = Date.now();
+
+  paths.forEach((path) => {
+    if (!path) return;
+    siteCache[path] = toCachedEntry(platformStatus[path] || {}, checkedAt);
+  });
+
+  pruneSiteCache(siteCache);
+  writeStore(store);
+}
+
+/**
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ */
+export function removePathsFromStatusCache(org, site, ref, helixPaths) {
+  if (helixPaths.length === 0) return;
+  const store = readStore();
+  const siteKey = buildSiteKey(org, site, ref);
+  const siteCache = store.sites[siteKey];
+  if (!siteCache) return;
+
+  helixPaths.forEach((path) => {
+    delete siteCache[path];
+  });
+
+  if (Object.keys(siteCache).length === 0) {
+    delete store.sites[siteKey];
+  }
+  writeStore(store);
+}
+
+/**
+ * @param {'preview'|'live'|'unpreview'|'unpublish'|'delete'} topic
+ * @param {string[]} helixPaths
+ * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} [existing]
+ * @returns {Record<string, { previewedAt?: number, publishedAt?: number }>}
+ */
+export function buildOptimisticStatusPatch(topic, helixPaths, existing = {}) {
+  const now = Date.now();
+  /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
+  const patch = {};
+
+  helixPaths.forEach((path) => {
+    const prev = existing[path] || {};
+    if (topic === 'preview') {
+      patch[path] = { ...prev, previewedAt: now };
+      return;
+    }
+    if (topic === 'live') {
+      patch[path] = {
+        previewedAt: prev.previewedAt || now,
+        publishedAt: now,
+      };
+      return;
+    }
+    if (topic === 'unpreview') {
+      patch[path] = { publishedAt: prev.publishedAt };
+      return;
+    }
+    if (topic === 'unpublish') {
+      patch[path] = { previewedAt: prev.previewedAt };
+      return;
+    }
+  });
+
+  return patch;
+}
+
+/**
+ * @param {ReturnType<import('./state.js').createAppState>} state
+ * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
+ */
+export function commitPlatformStatus(state, platformStatus) {
+  if (!platformStatus || typeof platformStatus !== 'object') return;
+  state.platformStatus = { ...state.platformStatus, ...platformStatus };
+  mergePlatformStatusIntoCache(state.org, state.site, state.ref, platformStatus);
+}
+
+/**
+ * @param {ReturnType<import('./state.js').createAppState>} state
+ */
+export function persistCurrentPlatformStatus(state) {
+  if (!state.platformStatus || typeof state.platformStatus !== 'object') return;
+  mergePlatformStatusIntoCache(state.org, state.site, state.ref, state.platformStatus);
+}
+
+/**
+ * Hydrate in-memory status from localStorage for the current page list.
+ * @param {ReturnType<import('./state.js').createAppState>} state
+ * @param {string[]} helixPaths
+ * @returns {{ hydrated: boolean, complete: boolean }}
+ */
+export function hydratePlatformStatusFromCache(state, helixPaths) {
+  const cached = readCachedPlatformStatus(state.org, state.site, state.ref, helixPaths);
+  const complete = hasCompleteCachedStatus(state.org, state.site, state.ref, helixPaths);
+  if (Object.keys(cached).length === 0) {
+    return { hydrated: false, complete: false };
+  }
+  state.platformStatus = { ...cached };
+  if (complete) state.statusFetched = true;
+  return { hydrated: true, complete };
+}

@@ -19,6 +19,14 @@ import {
   resolveContentFolderPath,
 } from './lib/paths.js';
 import {
+  buildOptimisticStatusPatch,
+  commitPlatformStatus,
+  hasCompleteCachedStatus,
+  hydratePlatformStatusFromCache,
+  persistCurrentPlatformStatus,
+  removePathsFromStatusCache,
+} from './lib/status-cache.js';
+import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
@@ -473,7 +481,7 @@ async function openSelectedDa(state) {
 function isOperationBlocked(state) {
   return state.loading
     || state.contentLoading
-    || state.statusChecking
+    || (state.statusChecking && !state.statusFetched)
     || isJobModalOpen()
     || getActiveSelectionCount(state) === 0;
 }
@@ -569,7 +577,7 @@ async function runPageOperation(state, operationId) {
 function isSelectionActionsBlocked(state) {
   return state.loading
     || state.contentLoading
-    || state.statusChecking
+    || (state.statusChecking && !state.statusFetched)
     || isJobModalOpen();
 }
 
@@ -824,15 +832,16 @@ function buildPagesSelectionRow(state, { visiblePages, statusChecking }) {
   selectionPill.id = 'bulk-pp-selection-pill';
   row.append(selectionPill);
 
+  const interactionsLocked = statusChecking && !state.statusFetched;
   const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Select all');
   const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Clear');
   selectAllBtn.type = 'button';
   selectNoneBtn.type = 'button';
   selectAllBtn.id = 'bulk-pp-select-all';
   selectNoneBtn.id = 'bulk-pp-select-none';
-  selectAllBtn.disabled = visiblePages.length === 0 || statusChecking;
+  selectAllBtn.disabled = visiblePages.length === 0 || interactionsLocked;
   selectNoneBtn.disabled = visiblePages.length === 0
-    || statusChecking
+    || interactionsLocked
     || getActiveSelectionCount(state) === 0;
   selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
   selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
@@ -863,6 +872,37 @@ function removePagesFromState(state, helixPaths) {
     delete nextStatus[path];
   });
   state.platformStatus = nextStatus;
+  removePathsFromStatusCache(state.org, state.site, state.ref, helixPaths);
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {Function | null} daFetch
+ * @param {string[]} paths
+ * @param {'preview'|'live'|'unpreview'|'unpublish'|'delete'} topic
+ */
+async function refreshPlatformStatusAfterJob(state, daFetch, paths, topic) {
+  if (!daFetch || paths.length === 0) return;
+  if (topic === 'delete') {
+    removePathsFromStatusCache(state.org, state.site, state.ref, paths);
+    return;
+  }
+  try {
+    const refreshed = await fetchPlatformStatusForPaths(
+      daFetch,
+      state.org,
+      state.site,
+      state.ref,
+      paths,
+    );
+    commitPlatformStatus(state, refreshed);
+  } catch (refreshErr) {
+    console.warn('[bulk-pp] status refresh after job failed', refreshErr);
+    const optimistic = buildOptimisticStatusPatch(topic, paths, state.platformStatus);
+    if (Object.keys(optimistic).length > 0) {
+      commitPlatformStatus(state, optimistic);
+    }
+  }
 }
 
 /**
@@ -994,6 +1034,7 @@ function render(root, state) {
 
   const { visible: visiblePages, statusMap, browseFolder } = getVisiblePages(state);
   const visibleFolders = getVisibleFolders(state);
+  const workspaceLocked = statusChecking && !statusFetched;
   const safeFolder = resolveContentFolderPath(folderPath);
   const searchDraft = String(pageSearch || '').trim();
   const searchTooShort = searchDraft.length > 0 && searchDraft.length < SEARCH_MIN_LEN;
@@ -1062,14 +1103,14 @@ function render(root, state) {
     folderSection.append(buildBreadcrumb(
       safeFolder,
       (path) => state.onNavigate(path),
-      statusChecking,
+      workspaceLocked,
     ));
 
     const { wrap: folderSearchField, input: folderSearchInput } = buildSearchField(
       'bulk-pp-folder-search',
       'Find a folder',
       String(folderSearch || ''),
-      statusChecking,
+      workspaceLocked,
       searchHintText(folderSearch),
     );
     const folderSearchRow = el('div', 'bulk-pp-search-row');
@@ -1091,7 +1132,7 @@ function render(root, state) {
         folderList.append(buildFolderRow(
           folder,
           (path) => state.onNavigate(path),
-          statusChecking,
+          workspaceLocked,
         ));
       });
     }
@@ -1118,7 +1159,7 @@ function render(root, state) {
       'bulk-pp-page-search',
       'Find a page',
       String(pageSearch || ''),
-      statusChecking,
+      workspaceLocked,
       searchHintText(pageSearch),
     );
     searchField.classList.add('bulk-pp-pages-search-field');
@@ -1187,7 +1228,7 @@ function render(root, state) {
           state,
           isStatusLoaded(state),
           { org, site, ref },
-          statusChecking,
+          workspaceLocked,
         ));
       });
     }
@@ -1282,7 +1323,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     { signal: state.statusAbort.signal },
   ).then((platformStatus) => {
     if (state.statusAbort?.signal.aborted) return;
-    state.platformStatus = platformStatus;
+    commitPlatformStatus(state, platformStatus);
     state.statusChecking = false;
     state.statusFetched = true;
     state.statusAbort = null;
@@ -1299,17 +1340,41 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       state.statusAbort = null;
       state.statusFetchStartedAt = null;
       resetFetchStatusOption(state);
+      if (state.statusProgressDone > 0) {
+        persistCurrentPlatformStatus(state);
+        state.statusFetched = true;
+        const root = /** @type {HTMLElement | null} */ (state.root);
+        if (root) render(root, state);
+      }
       return;
     }
     state.statusChecking = false;
-    state.statusFetched = false;
     state.statusAbort = null;
     state.statusFetchStartedAt = null;
-    state.statusCheckFailed = true;
     resetFetchStatusOption(state);
-    state.statusError = messageFromApiError(statusErr, 'Status check failed.', 'status');
-    state.status = state.statusError;
-    state.statusType = 'error';
+
+    const hadProgress = state.statusProgressDone > 0;
+    if (hadProgress) {
+      persistCurrentPlatformStatus(state);
+      state.statusFetched = true;
+      state.statusCheckFailed = true;
+      state.statusError = messageFromApiError(statusErr, 'Status check failed.', 'status');
+      state.status = `${state.statusError} Partial results were saved.`;
+      state.statusType = 'error';
+    } else if (hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)) {
+      hydratePlatformStatusFromCache(state, pathsToCheck);
+      state.statusFetched = true;
+      state.statusCheckFailed = false;
+      state.statusError = null;
+      state.status = 'Could not refresh deployment status. Showing last saved results.';
+      state.statusType = 'info';
+    } else {
+      state.statusFetched = false;
+      state.statusCheckFailed = true;
+      state.statusError = messageFromApiError(statusErr, 'Status check failed.', 'status');
+      state.status = state.statusError;
+      state.statusType = 'error';
+    }
     console.warn('[bulk-pp] platform status failed', statusErr);
     const root = /** @type {HTMLElement | null} */ (state.root);
     if (root) render(root, state);
@@ -1365,6 +1430,7 @@ async function main() {
     resetFetchStatusOption(state);
     state.statusChecking = false;
     if (checked > 0) {
+      persistCurrentPlatformStatus(state);
       state.statusFetched = true;
       state.statusPanelNote = `Stopped after ${checked} of ${total} pages. Showing partial results.`;
     } else {
@@ -1392,8 +1458,12 @@ async function main() {
   };
 
   state.onNavigate = async (targetPath) => {
-    if (state.statusChecking || state.contentLoading) return;
-    cancelStatusCheck(state, false);
+    if (state.contentLoading) return;
+    if (state.statusChecking) {
+      persistCurrentPlatformStatus(state);
+      cancelStatusCheck(state, false);
+      state.statusChecking = false;
+    }
 
     const resolvedPath = resolveContentFolderPath(targetPath);
     const folderLabel = displayFolderPath(resolvedPath) || 'Site root';
@@ -1411,7 +1481,11 @@ async function main() {
   };
 
   state.onFetch = async (fromFolderNav = false) => {
-    if (state.statusChecking) return;
+    if (state.statusChecking) {
+      persistCurrentPlatformStatus(state);
+      cancelStatusCheck(state, false);
+      state.statusChecking = false;
+    }
 
     if (!fromFolderNav) {
       state.pageFilter = 'all';
@@ -1482,11 +1556,13 @@ async function main() {
       if (state.pageFilter !== 'all') state.pageFilter = 'all';
 
       if (loadWithStatus && docCount > 0) {
+        const helixPaths = state.pages.map((p) => p.helixPath);
+        hydratePlatformStatusFromCache(state, helixPaths);
         render(app, state);
         startStatusCheck(
           state,
           daFetch,
-          state.pages.map((p) => p.helixPath),
+          helixPaths,
           location,
           docCount,
           state.folders.length,
@@ -1588,6 +1664,7 @@ async function main() {
           failed: 0,
           stateLabel: 'complete',
         });
+        await refreshPlatformStatusAfterJob(state, daFetch, paths, topic);
         showJobCompleteModal({
           summary: state.status,
           topic,
@@ -1626,18 +1703,7 @@ async function main() {
       let urls = [];
       if (outcome.statusType === 'success') {
         urls = buildUrlsForPaths(paths, state.org, state.site, state.ref, env);
-        try {
-          const refreshed = await fetchPlatformStatusForPaths(
-            daFetch,
-            state.org,
-            state.site,
-            state.ref,
-            paths,
-          );
-          state.platformStatus = { ...state.platformStatus, ...refreshed };
-        } catch (refreshErr) {
-          console.warn('[bulk-pp] status refresh after job failed', refreshErr);
-        }
+        await refreshPlatformStatusAfterJob(state, daFetch, paths, topic);
       }
 
       state.jobDetail = outcome.statusType === 'error'
@@ -1773,17 +1839,8 @@ async function main() {
 
       if (state.jobAbort?.signal.aborted) return;
 
-      try {
-        const refreshed = await fetchPlatformStatusForPaths(
-          daFetch,
-          state.org,
-          state.site,
-          state.ref,
-          paths,
-        );
-        state.platformStatus = { ...state.platformStatus, ...refreshed };
-      } catch (refreshErr) {
-        console.warn('[bulk-pp] status refresh after destructive job failed', refreshErr);
+      if (statusType !== 'error') {
+        await refreshPlatformStatusAfterJob(state, daFetch, paths, action);
       }
 
       const summary = notes.filter(Boolean).join('. ') || 'Operation finished.';
