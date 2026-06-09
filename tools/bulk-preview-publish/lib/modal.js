@@ -79,6 +79,82 @@ export function showConfirmModal(opts) {
 }
 
 /**
+ * Ask how to open a folder before loading its pages.
+ * @param {string} folderLabel
+ * @returns {Promise<'with-status'|'without-status'|null>}
+ */
+export function promptFolderLoadMode(folderLabel) {
+  const location = folderLabel || 'Site root';
+  return new Promise((resolve) => {
+    const backdrop = el('div', 'bulk-pp-modal-backdrop');
+    backdrop.setAttribute('role', 'presentation');
+
+    const dialog = el('div', 'bulk-pp-modal bulk-pp-modal-choice');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'bulk-pp-modal-title');
+
+    const head = el('div', 'bulk-pp-modal-head');
+    const titleWrap = el('div', 'bulk-pp-modal-title-wrap');
+    titleWrap.append(el('h2', 'bulk-pp-modal-title', 'Open folder'));
+    head.append(titleWrap);
+    head.id = 'bulk-pp-modal-title';
+
+    const content = el('div', 'bulk-pp-modal-body-wrap');
+    content.append(el(
+      'p',
+      'bulk-pp-modal-body',
+      `Choose how to load pages in ${location}.`,
+    ));
+    content.append(el(
+      'p',
+      'bulk-pp-modal-body bulk-pp-modal-body-muted',
+      'With deployment status checks preview and publish state from AEM (slower on large folders). Without status loads the page list immediately.',
+    ));
+
+    const actions = el('div', 'bulk-pp-modal-actions bulk-pp-modal-actions-choice');
+    const cancelBtn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-cancel', 'Cancel');
+    const withoutBtn = el(
+      'button',
+      'bulk-pp-modal-btn bulk-pp-modal-btn-ghost',
+      'Without deployment status',
+    );
+    const withBtn = el(
+      'button',
+      'bulk-pp-modal-btn bulk-pp-modal-btn-confirm',
+      'With deployment status',
+    );
+    cancelBtn.type = 'button';
+    withoutBtn.type = 'button';
+    withBtn.type = 'button';
+    actions.append(cancelBtn, withoutBtn, withBtn);
+
+    dialog.append(head, content, actions);
+    backdrop.append(dialog);
+    document.body.append(backdrop);
+
+    const close = (result) => {
+      backdrop.remove();
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') close(null);
+    };
+
+    cancelBtn.addEventListener('click', () => close(null));
+    withoutBtn.addEventListener('click', () => close('without-status'));
+    withBtn.addEventListener('click', () => close('with-status'));
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) close(null);
+    });
+    document.addEventListener('keydown', onKey);
+    withBtn.focus();
+  });
+}
+
+/**
  * @param {number} pageCount
  * @param {'folder'|'tree'} scope
  * @param {string} [etaHint]

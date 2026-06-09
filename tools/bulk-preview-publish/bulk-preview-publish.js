@@ -31,9 +31,9 @@ import {
 } from './lib/page-history.js';
 import {
   confirmBulkRun,
-  confirmCheckDeploymentStatus,
   confirmDestructiveAction,
   confirmOpenUrlsInNewTabs,
+  promptFolderLoadMode,
 } from './lib/modal.js';
 import {
   openUrlsInNewTabsQuiet,
@@ -49,7 +49,6 @@ import {
   showJobErrorModal,
   updateJobModal,
 } from './lib/progress-modal.js';
-import { formatStatusFetchEta } from './lib/status-estimate.js';
 import {
   bindSearchInput,
   buildSearchField,
@@ -738,29 +737,21 @@ function applyOperationWorkspaceReset(state) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function patchPagesFilterControls(root, state) {
-  const filtersLocked = state.statusChecking || !state.statusFetched;
   const filterSelect = root.querySelector('#bulk-pp-page-filter');
-  if (filterSelect instanceof HTMLSelectElement) {
-    filterSelect.disabled = filtersLocked;
-    filterSelect.querySelectorAll('option').forEach((opt) => {
-      if (!(opt instanceof HTMLOptionElement)) return;
-      if (opt.value === 'all') {
-        opt.disabled = false;
-        opt.textContent = 'All pages';
-        return;
-      }
-      const baseLabel = PAGE_FILTERS.find(([v]) => v === opt.value)?.[1] || opt.textContent;
-      opt.disabled = filtersLocked;
-      opt.textContent = filtersLocked ? `${baseLabel} (requires status)` : baseLabel;
-    });
-  }
+  if (!(filterSelect instanceof HTMLSelectElement)) return;
+
+  filterSelect.querySelectorAll('option').forEach((opt) => {
+    if (!(opt instanceof HTMLOptionElement)) return;
+    const baseLabel = PAGE_FILTERS.find(([v]) => v === opt.value)?.[1] || opt.textContent;
+    opt.disabled = false;
+    opt.textContent = baseLabel;
+  });
+
   const filterNote = root.querySelector('.bulk-pp-pages-filter-note');
   if (filterNote) {
-    filterNote.textContent = filtersLocked
-      ? 'Load deployment status to unlock filters'
-      : state.pageScope === 'tree'
-        ? 'Filters apply to all pages under this directory'
-        : 'Filters apply to pages in this directory only';
+    filterNote.textContent = state.pageScope === 'tree'
+      ? 'Filters apply to all pages under this directory'
+      : 'Filters apply to pages in this directory only';
   }
 }
 
@@ -768,14 +759,22 @@ function patchPagesFilterControls(root, state) {
  * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
  */
-function patchPagesStatusActions(root, state) {
-  const host = root.querySelector('#bulk-pp-pages-status-actions');
-  if (!host) {
-    patchPagesFilterControls(root, state);
+function patchPagesStatusLoading(root, state) {
+  const host = root.querySelector('#bulk-pp-pages-status-loading');
+  if (state.statusChecking && state.pages.length > 0) {
+    const next = buildPagesStatusLoadingRow(state);
+    if (host) {
+      host.replaceWith(next);
+      return;
+    }
+    const controls = root.querySelector('.bulk-pp-pages-controls');
+    const selectionRow = root.querySelector('.bulk-pp-pages-selection-row');
+    if (controls && selectionRow) {
+      controls.insertBefore(next, selectionRow);
+    }
     return;
   }
-  host.replaceWith(buildPagesStatusActions(state));
-  patchPagesFilterControls(root, state);
+  if (host) host.remove();
 }
 
 /**
@@ -784,7 +783,8 @@ function patchPagesStatusActions(root, state) {
 function refreshDeploymentUi(state) {
   const root = /** @type {HTMLElement | null} */ (state.root);
   if (!root) return;
-  patchPagesStatusActions(root, state);
+  patchPagesStatusLoading(root, state);
+  patchPagesFilterControls(root, state);
   patchPageSearchResults(
     root,
     state,
@@ -797,55 +797,21 @@ function refreshDeploymentUi(state) {
 /**
  * @param {ReturnType<typeof createAppState>} state
  */
-function buildPagesStatusActions(state) {
-  const wrap = el('div', 'bulk-pp-pages-status-actions');
-  wrap.id = 'bulk-pp-pages-status-actions';
-
-  if (state.pages.length === 0) return wrap;
-
-  if (state.statusChecking) {
-    const done = state.statusProgressDone;
-    const total = state.statusProgressTotal || state.pages.length;
-    wrap.append(el(
-      'span',
-      'bulk-pp-pages-status-text',
-      `Loading status… ${done} of ${total}`,
-    ));
-    const cancelBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Stop');
-    cancelBtn.type = 'button';
-    cancelBtn.addEventListener('click', () => state.onCancelStatus());
-    wrap.append(cancelBtn);
-    return wrap;
-  }
-
-  if (state.statusCheckFailed) {
-    wrap.append(el(
-      'span',
-      'bulk-pp-pages-status-text bulk-pp-pages-status-error',
-      state.statusError || 'Status check failed',
-    ));
-    const retryBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Try again');
-    retryBtn.type = 'button';
-    retryBtn.addEventListener('click', () => { void state.onCheckStatus(); });
-    wrap.append(retryBtn);
-    return wrap;
-  }
-
-  if (state.statusFetched) {
-    const refreshBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Refresh status');
-    refreshBtn.type = 'button';
-    refreshBtn.addEventListener('click', () => { void state.onCheckStatus(); });
-    wrap.append(refreshBtn);
-    return wrap;
-  }
-
-  const loadBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-fetch-deployment', 'Load status');
-  loadBtn.type = 'button';
-  loadBtn.id = 'bulk-pp-check-status';
-  loadBtn.disabled = state.contentLoading;
-  loadBtn.addEventListener('click', () => { void state.onCheckStatus(); });
-  wrap.append(loadBtn);
-  return wrap;
+function buildPagesStatusLoadingRow(state) {
+  const row = el('div', 'bulk-pp-pages-status-loading');
+  row.id = 'bulk-pp-pages-status-loading';
+  const done = state.statusProgressDone;
+  const total = state.statusProgressTotal || state.pages.length;
+  row.append(el(
+    'span',
+    'bulk-pp-pages-status-text',
+    `Loading deployment status… ${done} of ${total}`,
+  ));
+  const cancelBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Stop');
+  cancelBtn.type = 'button';
+  cancelBtn.addEventListener('click', () => state.onCancelStatus());
+  row.append(cancelBtn);
+  return row;
 }
 
 /**
@@ -1144,9 +1110,10 @@ function render(root, state) {
     pagesSection.append(buildPagesHeader(state, pageCountLabel));
 
     const controls = el('div', 'bulk-pp-pages-controls');
-    const filtersLocked = statusChecking || !statusFetched;
+    const showDeploymentFilters = statusFetched;
 
     const toolbarRow = el('div', 'bulk-pp-pages-toolbar-row');
+    if (!showDeploymentFilters) toolbarRow.classList.add('bulk-pp-pages-toolbar-row-search-only');
     const { wrap: searchField, input: searchInput } = buildSearchField(
       'bulk-pp-page-search',
       'Find a page',
@@ -1155,44 +1122,45 @@ function render(root, state) {
       searchHintText(pageSearch),
     );
     searchField.classList.add('bulk-pp-pages-search-field');
+    toolbarRow.append(searchField);
 
-    const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
-    filterField.append(el('label', null, 'Filter by deployment'));
-    const filterSelect = document.createElement('select');
-    filterSelect.id = 'bulk-pp-page-filter';
-    filterSelect.disabled = filtersLocked;
-    PAGE_FILTERS.forEach(([value, label]) => {
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = label;
-      if (value === (pageFilter || 'all')) opt.selected = true;
-      if (filtersLocked && value !== 'all') {
-        opt.disabled = true;
-        opt.textContent = `${label} (requires status)`;
-      }
-      filterSelect.append(opt);
-    });
-    filterField.append(filterSelect);
-    toolbarRow.append(searchField, filterField);
+    /** @type {HTMLSelectElement | null} */
+    let filterSelect = null;
+    if (showDeploymentFilters) {
+      const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
+      filterField.append(el('label', null, 'Filter by deployment'));
+      filterSelect = document.createElement('select');
+      filterSelect.id = 'bulk-pp-page-filter';
+      PAGE_FILTERS.forEach(([value, label]) => {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = label;
+        if (value === (pageFilter || 'all')) opt.selected = true;
+        filterSelect.append(opt);
+      });
+      filterField.append(filterSelect);
+      toolbarRow.append(filterField);
+    }
     controls.append(toolbarRow);
 
-    const filterMeta = el('div', 'bulk-pp-pages-filter-meta');
-    filterMeta.append(
-      buildStatusLegend(),
-      el(
-        'p',
-        'bulk-pp-pages-filter-note',
-        filtersLocked
-          ? 'Load deployment status to unlock filters'
-          : pageScope === 'tree'
+    if (showDeploymentFilters) {
+      const filterMeta = el('div', 'bulk-pp-pages-filter-meta');
+      filterMeta.append(
+        buildStatusLegend(),
+        el(
+          'p',
+          'bulk-pp-pages-filter-note',
+          pageScope === 'tree'
             ? 'Filters apply to all pages under this directory'
             : 'Filters apply to pages in this directory only',
-      ),
-    );
-    if (state.pages.length > 0) {
-      filterMeta.append(buildPagesStatusActions(state));
+        ),
+      );
+      controls.append(filterMeta);
     }
-    controls.append(filterMeta);
+
+    if (statusChecking && state.pages.length > 0) {
+      controls.append(buildPagesStatusLoadingRow(state));
+    }
 
     controls.append(buildPagesSelectionRow(state, { visiblePages, statusChecking }));
     pagesSection.append(controls);
@@ -1229,7 +1197,8 @@ function render(root, state) {
     workspace.append(contentGrid);
     contentBody.append(workspace);
 
-    filterSelect.addEventListener('change', () => {
+    filterSelect?.addEventListener('change', () => {
+      if (!filterSelect) return;
       state.pageFilter = filterSelect.value;
       patchPageSearchResults(root, state, { org, site, ref }, buildPageRow);
     });
@@ -1323,7 +1292,8 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     resetFetchStatusOption(state);
     state.status = null;
     state.statusType = 'info';
-    refreshDeploymentUi(state);
+    const root = /** @type {HTMLElement | null} */ (state.root);
+    if (root) render(root, state);
   }).catch((statusErr) => {
     if (statusErr instanceof DOMException && statusErr.name === 'AbortError') {
       state.statusAbort = null;
@@ -1341,7 +1311,8 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.status = state.statusError;
     state.statusType = 'error';
     console.warn('[bulk-pp] platform status failed', statusErr);
-    refreshDeploymentUi(state);
+    const root = /** @type {HTMLElement | null} */ (state.root);
+    if (root) render(root, state);
   });
 }
 
@@ -1400,7 +1371,8 @@ async function main() {
       state.statusFetched = false;
       state.statusPanelNote = 'Status check stopped.';
     }
-    refreshDeploymentUi(state);
+    const root = /** @type {HTMLElement | null} */ (state.root);
+    if (root) render(root, state);
   };
 
   state.onCancelJob = () => {
@@ -1419,26 +1391,6 @@ async function main() {
     });
   };
 
-  state.onCheckStatus = async () => {
-    if (state.statusChecking || state.contentLoading || state.pages.length === 0) return;
-    const etaHint = formatStatusFetchEta(state.pages.length);
-    const ok = await confirmCheckDeploymentStatus(
-      state.pages.length,
-      state.pageScope,
-      etaHint,
-    );
-    if (!ok) return;
-    const location = displayFolderPath(state.folderPath) || 'site root';
-    startStatusCheck(
-      state,
-      daFetch,
-      state.pages.map((p) => p.helixPath),
-      location,
-      state.pages.length,
-      state.folders.length,
-    );
-  };
-
   state.onScopeChange = async (scope) => {
     if (state.statusChecking || state.contentLoading) return;
     const next = scope === 'tree' ? 'tree' : 'folder';
@@ -1449,8 +1401,16 @@ async function main() {
   };
 
   state.onNavigate = async (targetPath) => {
+    if (state.statusChecking || state.contentLoading) return;
     cancelStatusCheck(state, false);
-    state.folderPath = resolveContentFolderPath(targetPath);
+
+    const resolvedPath = resolveContentFolderPath(targetPath);
+    const folderLabel = displayFolderPath(resolvedPath) || 'Site root';
+    const choice = await promptFolderLoadMode(folderLabel);
+    if (!choice) return;
+
+    state.fetchStatus = choice === 'with-status';
+    state.folderPath = resolvedPath;
     state.pageSearch = '';
     state.folderSearch = '';
     state.pageFilter = 'all';
@@ -1476,6 +1436,7 @@ async function main() {
 
     syncUrlPath(state.ref, state.folderPath);
     cancelStatusCheck(state, false);
+    const loadWithStatus = state.fetchStatus;
     state.contentLoading = true;
     state.error = null;
     state.statusCancelled = false;
@@ -1527,12 +1488,26 @@ async function main() {
       state.contentLoading = false;
 
       if (state.pageFilter !== 'all') state.pageFilter = 'all';
-      finishContentLoadWithoutStatus(
-        state,
-        location,
-        docCount,
-        state.folders.length,
-      );
+
+      if (loadWithStatus && docCount > 0) {
+        render(app, state);
+        startStatusCheck(
+          state,
+          daFetch,
+          state.pages.map((p) => p.helixPath),
+          location,
+          docCount,
+          state.folders.length,
+        );
+      } else {
+        state.fetchStatus = false;
+        finishContentLoadWithoutStatus(
+          state,
+          location,
+          docCount,
+          state.folders.length,
+        );
+      }
     } catch (err) {
       state.folders = [];
       state.pages = [];
