@@ -30,7 +30,9 @@ export function createAppState(ctx) {
     pageFilter: 'all',
     pageSearch: '',
     folderSearch: '',
-    /** When false, Fetch loads pages/folders only — no AEM status API calls. */
+    /** When true, deployment status loads automatically whenever a folder is opened. */
+    autoLoadStatus: false,
+    /** @deprecated transient flag — use autoLoadStatus */
     fetchStatus: false,
     /** True after a successful status check for the current page set. */
     statusFetched: false,
@@ -81,6 +83,7 @@ export function resetWorkspace(state) {
   state.pageSearch = '';
   state.folderSearch = '';
   state.fetchStatus = false;
+  state.autoLoadStatus = false;
   state.statusFetched = false;
   state.platformStatus = {};
   state.statusCheckFailed = false;
