@@ -83,7 +83,7 @@ html:has(.bulk-pp-body) {
   max-width: 1360px;
   width: 100%;
   margin: 0 auto;
-  padding: 6px 16px 0;
+  padding: 8px 16px 0;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -93,44 +93,10 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp.bulk-pp-shell {
   min-height: 0;
-  padding-bottom: 56px;
 }
 
 .bulk-pp-header {
   flex-shrink: 0;
-  margin-bottom: 8px;
-}
-
-.bulk-pp-header-compact .bulk-pp-header-inner {
-  align-items: center;
-  gap: 12px;
-  padding: 12px 18px;
-}
-
-.bulk-pp-header-compact .bulk-pp-header-brand {
-  min-width: 0;
-}
-
-.bulk-pp-header-compact .bulk-pp-header-eyebrow {
-  margin-bottom: 2px;
-  font-size: 0.625rem;
-  letter-spacing: 0.08em;
-}
-
-.bulk-pp-header-compact h1 {
-  margin: 0;
-  font-size: 1.125rem;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-
-.bulk-pp-header-compact .bulk-pp-header-desc {
-  display: none;
-}
-
-.bulk-pp-header-compact .bulk-pp-badge {
-  padding: 4px 8px;
-  font-size: 0.6875rem;
 }
 
 .bulk-pp-panel-fill {
@@ -154,24 +120,12 @@ html:has(.bulk-pp-body) {
   flex-direction: column;
 }
 
-.bulk-pp-panel-fill > .bulk-pp-content-body > .bulk-pp-content-loading,
-.bulk-pp-panel-fill > .bulk-pp-content-body > .bulk-pp-list-empty {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.bulk-pp.bulk-pp-has-selection-bar {
+  padding-bottom: 72px;
 }
 
-.bulk-pp > .bulk-pp-status {
-  position: fixed;
-  left: 50%;
-  z-index: 840;
-  bottom: 58px;
-  width: min(calc(100% - 32px), 1328px);
-  margin: 0;
-  transform: translateX(-50%);
-  box-shadow: var(--pp-shadow-md);
+.bulk-pp.bulk-pp-reserve-action-bar:not(.bulk-pp-has-selection-bar) {
+  padding-bottom: 72px;
 }
 
 .bulk-pp *,
@@ -476,8 +430,8 @@ html:has(.bulk-pp-body) {
 
 /* —— Header —— */
 .bulk-pp-header {
-  margin-bottom: 8px;
-  border-radius: var(--pp-radius-sm);
+  margin-bottom: 12px;
+  border-radius: var(--pp-radius);
   background:
     linear-gradient(128deg, var(--pp-navy) 0%, #0c2a5e 42%, #143d78 100%);
   color: #fff;
@@ -811,16 +765,8 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-panel-content .bulk-pp-panel-head {
-  border-bottom: 1px solid var(--pp-border);
-  padding: 10px 20px;
-}
-
-.bulk-pp-panel-content .bulk-pp-panel-head h2 {
-  margin: 0;
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--pp-navy);
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .bulk-pp-panel-content .bulk-pp-tabs {
@@ -1914,21 +1860,47 @@ html:has(.bulk-pp-body) {
   color: var(--pp-blue-hover);
 }
 
-.bulk-pp-deployment-toolbar-hint {
-  display: none;
-  margin: 0;
-  padding: 8px 14px;
-  font-size: 0.75rem;
+.bulk-pp-deployment-toolbar-tooltip {
+  position: absolute;
+  z-index: 4;
+  right: 12px;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: min(300px, 86vw);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.45;
-  color: var(--pp-info-text);
-  background: var(--pp-info-bg);
-  border-bottom: 1px solid var(--pp-info-border);
+  color: #fff;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition:
+    opacity 0.18s ease,
+    visibility 0.18s ease,
+    transform 0.18s ease;
+  background: linear-gradient(135deg, var(--pp-navy) 0%, #0f2d5c 100%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  box-shadow: var(--pp-shadow-md);
 }
 
-.bulk-pp-deployment-toolbar-locked:hover .bulk-pp-deployment-toolbar-hint,
-.bulk-pp-deployment-toolbar-locked:focus-within .bulk-pp-deployment-toolbar-hint {
-  display: block;
+.bulk-pp-deployment-toolbar-tooltip::after {
+  content: '';
+  position: absolute;
+  right: 20px;
+  top: 100%;
+  border: 6px solid transparent;
+  border-top-color: #0f2d5c;
+}
+
+.bulk-pp-deployment-toolbar-locked:hover .bulk-pp-deployment-toolbar-tooltip,
+.bulk-pp-deployment-toolbar-locked:focus-within .bulk-pp-deployment-toolbar-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
 }
 
 .bulk-pp-deployment-toolbar-locked:focus-visible {
@@ -3983,8 +3955,9 @@ html:has(.bulk-pp-body) {
     font-size: 0.8125rem;
   }
 
-  .bulk-pp.bulk-pp-shell {
-    padding-bottom: 88px;
+  .bulk-pp.bulk-pp-has-selection-bar,
+  .bulk-pp.bulk-pp-reserve-action-bar:not(.bulk-pp-has-selection-bar) {
+    padding-bottom: 120px;
   }
 
   .bulk-pp-pages-header-top {

@@ -206,7 +206,7 @@ export function openStatusFetchConfirmModal(appRoot, pageCount, handlers) {
   dialog.setAttribute('aria-labelledby', ids.title);
 
   const head = el('div', 'bulk-pp-status-modal-head');
-  const titleEl = el('h2', 'bulk-pp-status-modal-title', 'Fetch deployment status?');
+  const titleEl = el('h2', 'bulk-pp-status-modal-title', 'Load preview & publish status?');
   titleEl.id = ids.title;
   head.append(titleEl);
 
