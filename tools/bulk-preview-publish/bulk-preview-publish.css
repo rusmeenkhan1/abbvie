@@ -5,6 +5,8 @@
   height: 100%;
   min-height: 100%;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background:
     radial-gradient(ellipse 120% 80% at 0% -20%, rgb(0 102 245 / 8%) 0%, transparent 50%),
     radial-gradient(ellipse 90% 60% at 100% 0%, rgb(7 29 73 / 6%) 0%, transparent 45%),
@@ -16,7 +18,16 @@
 
 html:has(.bulk-pp-body) {
   height: 100%;
+  min-height: 100%;
   overflow: hidden;
+}
+
+@supports (height: 100dvh) {
+  html:has(.bulk-pp-body),
+  .bulk-pp-body {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
 }
 
 .bulk-pp {
@@ -70,10 +81,11 @@ html:has(.bulk-pp-body) {
   line-height: 1.55;
   color: var(--pp-text);
   max-width: 1360px;
+  width: 100%;
   margin: 0 auto;
-  padding: 16px 20px 0;
-  height: 100vh;
-  max-height: 100vh;
+  padding: 8px 16px 0;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -418,7 +430,7 @@ html:has(.bulk-pp-body) {
 
 /* —— Header —— */
 .bulk-pp-header {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   border-radius: var(--pp-radius);
   background:
     linear-gradient(128deg, var(--pp-navy) 0%, #0c2a5e 42%, #143d78 100%);
@@ -1629,43 +1641,39 @@ html:has(.bulk-pp-body) {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
+  justify-content: space-between;
   gap: 12px 16px;
 }
 
+.bulk-pp-pages-toolbar-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 12px 16px;
+  margin-left: auto;
+  flex: 1 1 280px;
+}
+
 .bulk-pp-pages-toolbar-row .bulk-pp-pages-search-field {
-  flex: 1 1 200px;
+  flex: 0 1 340px;
   max-width: min(100%, 340px);
   min-width: 160px;
 }
 
 .bulk-pp-pages-toolbar-row .bulk-pp-field-filter {
-  flex: 0 1 220px;
-  min-width: 180px;
-  margin: 0 0 0 auto;
-}
-
-.bulk-pp-pages-filter-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-  margin-top: 8px;
-}
-
-.bulk-pp-pages-filter-meta .bulk-pp-status-legend {
+  flex: 0 1 200px;
+  min-width: 168px;
   margin: 0;
-  padding: 0;
+}
+
+.bulk-pp-pages-toolbar-right .bulk-pp-status-legend {
+  margin: 0;
+  padding: 0 0 2px;
   background: transparent;
   border: none;
-  flex: 0 1 auto;
-}
-
-.bulk-pp-pages-filter-meta .bulk-pp-pages-filter-note {
-  flex: 1 1 140px;
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  color: var(--pp-text-subtle);
+  flex: 1 1 auto;
+  justify-content: flex-end;
 }
 
 .bulk-pp-pages-toolbar-row-search-only .bulk-pp-pages-search-field {

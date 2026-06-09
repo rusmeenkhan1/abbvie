@@ -810,6 +810,7 @@ function clearPagesStatusDisplay(state) {
     cancelStatusCheck(state, false);
     state.statusChecking = false;
   }
+  state.pageFilter = 'all';
   state.statusFetched = false;
   state.platformStatus = {};
   state.statusCheckFailed = false;
@@ -1256,6 +1257,7 @@ function render(root, state) {
     /** @type {HTMLSelectElement | null} */
     let filterSelect = null;
     if (showDeploymentFilters) {
+      const toolbarRight = el('div', 'bulk-pp-pages-toolbar-right');
       const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
       filterField.append(el('label', null, 'Filter by deployment'));
       filterSelect = document.createElement('select');
@@ -1268,15 +1270,10 @@ function render(root, state) {
         filterSelect.append(opt);
       });
       filterField.append(filterSelect);
-      toolbarRow.append(filterField);
+      toolbarRight.append(filterField, buildStatusLegend());
+      toolbarRow.append(toolbarRight);
     }
     controls.append(toolbarRow);
-
-    if (showDeploymentFilters) {
-      const filterMeta = el('div', 'bulk-pp-pages-filter-meta');
-      filterMeta.append(buildStatusLegend());
-      controls.append(filterMeta);
-    }
 
     controls.append(buildPagesSelectionRow(state, { visiblePages, statusChecking }));
     pagesSection.append(controls);

@@ -196,10 +196,13 @@ export function isStatusLoaded(state) {
 export function getVisiblePages(state) {
   const statusMap = buildStatusMap(state);
   const browseFolder = resolveContentFolderPath(state.folderPath);
+  const filterId = isStatusLoaded(state)
+    ? String(state.pageFilter || 'all')
+    : 'all';
   let visible = filterAndSortPages(
     state.pages,
     statusMap,
-    String(state.pageFilter || 'all'),
+    filterId,
     browseFolder,
   );
   visible = /** @type {DocumentEntry[]} */ (filterPagesBySearch(
