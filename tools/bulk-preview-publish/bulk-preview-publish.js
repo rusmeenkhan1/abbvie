@@ -24,7 +24,6 @@ import {
   buildUrlsForPaths,
 } from './lib/urls.js';
 import {
-  countStatusBreakdown,
   formatStatusDate,
   getPageStatus,
   PAGE_FILTERS,
@@ -241,40 +240,6 @@ function buildSectionHead(title, count, countId = '', variant = 'folders') {
   if (countId) countEl.id = countId;
   head.append(titleWrap, countEl);
   return head;
-}
-
-/**
- * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
- * @param {{ helixPath: string }[]} pages
- */
-function buildDeploymentStatsBar(platformStatus, pages) {
-  const map = /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */ ({});
-  pages.forEach((p) => {
-    map[p.helixPath] = platformStatus[p.helixPath] || {};
-  });
-  const { live, preview, none } = countStatusBreakdown(map, pages);
-  const bar = el('div', 'bulk-pp-deployment-stats');
-  bar.id = 'bulk-pp-deployment-stats';
-  bar.setAttribute('aria-label', 'Deployment summary');
-  [
-    ['live', 'Published', live, 'bulk-pp-stat-live'],
-    ['preview', 'Preview only', preview, 'bulk-pp-stat-preview'],
-    ['none', 'neither previewed nor published', none, 'bulk-pp-stat-none'],
-  ].forEach(([, label, value, mod]) => {
-    const card = el('div', `bulk-pp-stat-card ${mod}`);
-    card.append(
-      el('span', 'bulk-pp-stat-value', String(value)),
-      el('span', 'bulk-pp-stat-label', label),
-    );
-    bar.append(card);
-  });
-  const total = el('div', 'bulk-pp-stat-card bulk-pp-stat-total');
-  total.append(
-    el('span', 'bulk-pp-stat-value', String(pages.length)),
-    el('span', 'bulk-pp-stat-label', 'Pages in view'),
-  );
-  bar.append(total);
-  return bar;
 }
 
 function buildBreadcrumb(folderPath, onNavigate, locked = false) {
@@ -803,10 +768,13 @@ function patchPagesFilterControls(root, state) {
  * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
  */
-function patchDeploymentStatusPanel(root, state) {
-  const host = root.querySelector('#bulk-pp-deployment-panel-host');
-  if (!host || state.pages.length === 0) return;
-  host.replaceChildren(buildDeploymentStatusPanel(state));
+function patchPagesStatusActions(root, state) {
+  const host = root.querySelector('#bulk-pp-pages-status-actions');
+  if (!host) {
+    patchPagesFilterControls(root, state);
+    return;
+  }
+  host.replaceWith(buildPagesStatusActions(state));
   patchPagesFilterControls(root, state);
 }
 
@@ -816,7 +784,7 @@ function patchDeploymentStatusPanel(root, state) {
 function refreshDeploymentUi(state) {
   const root = /** @type {HTMLElement | null} */ (state.root);
   if (!root) return;
-  patchDeploymentStatusPanel(root, state);
+  patchPagesStatusActions(root, state);
   patchPageSearchResults(
     root,
     state,
@@ -829,120 +797,55 @@ function refreshDeploymentUi(state) {
 /**
  * @param {ReturnType<typeof createAppState>} state
  */
-function buildDeploymentStatusPanel(state) {
-  const panel = el('div', 'bulk-pp-deployment-panel');
-  panel.id = 'bulk-pp-deployment-panel';
-  const pageCount = state.pages.length;
+function buildPagesStatusActions(state) {
+  const wrap = el('div', 'bulk-pp-pages-status-actions');
+  wrap.id = 'bulk-pp-pages-status-actions';
+
+  if (state.pages.length === 0) return wrap;
 
   if (state.statusChecking) {
     const done = state.statusProgressDone;
-    const total = state.statusProgressTotal || pageCount;
-    const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
-    const loading = el('div', 'bulk-pp-deployment-panel-loading');
-    const head = el('div', 'bulk-pp-deployment-panel-head');
-    head.append(
-      el('span', 'bulk-pp-deployment-panel-title', 'Loading deployment status'),
-      el('span', 'bulk-pp-deployment-panel-meta', `${done} of ${total} pages`),
-    );
-    loading.append(head);
-    const track = el('div', 'bulk-pp-progress-track bulk-pp-deployment-panel-track');
-    const fill = el('div', 'bulk-pp-progress-fill');
-    fill.style.width = `${pct}%`;
-    track.append(fill);
-    loading.append(track);
-    const eta = formatStatusFetchEta(total);
-    loading.append(el(
-      'p',
-      'bulk-pp-deployment-panel-hint',
-      eta ? `This usually takes ${eta}. You can keep browsing while this runs.` : 'Checking preview and publish state from AEM…',
+    const total = state.statusProgressTotal || state.pages.length;
+    wrap.append(el(
+      'span',
+      'bulk-pp-pages-status-text',
+      `Loading status… ${done} of ${total}`,
     ));
-    const cancelBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text bulk-pp-deployment-panel-cancel', 'Stop');
+    const cancelBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Stop');
     cancelBtn.type = 'button';
     cancelBtn.addEventListener('click', () => state.onCancelStatus());
-    loading.append(cancelBtn);
-    panel.append(loading);
-    return panel;
+    wrap.append(cancelBtn);
+    return wrap;
   }
 
   if (state.statusCheckFailed) {
-    const failed = el('div', 'bulk-pp-deployment-panel-failed');
-    failed.append(
-      el('span', 'bulk-pp-deployment-panel-title', 'Could not load deployment status'),
-      el('p', 'bulk-pp-deployment-panel-error', state.statusError || 'Status check failed.'),
-    );
-    const retryBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-fetch-deployment', 'Try again');
+    wrap.append(el(
+      'span',
+      'bulk-pp-pages-status-text bulk-pp-pages-status-error',
+      state.statusError || 'Status check failed',
+    ));
+    const retryBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Try again');
     retryBtn.type = 'button';
     retryBtn.addEventListener('click', () => { void state.onCheckStatus(); });
-    failed.append(retryBtn);
-    panel.append(failed);
-    return panel;
+    wrap.append(retryBtn);
+    return wrap;
   }
 
   if (state.statusFetched) {
-    const loaded = el('div', 'bulk-pp-deployment-panel-loaded');
-    if (state.statusPanelNote) {
-      loaded.append(el('p', 'bulk-pp-deployment-panel-note', state.statusPanelNote));
-    }
-    loaded.append(buildDeploymentStatsBar(state.platformStatus, state.pages));
-    const refreshBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text bulk-pp-deployment-panel-refresh', 'Refresh status');
+    const refreshBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Refresh status');
     refreshBtn.type = 'button';
     refreshBtn.addEventListener('click', () => { void state.onCheckStatus(); });
-    loaded.append(refreshBtn);
-    panel.append(loaded);
-    return panel;
+    wrap.append(refreshBtn);
+    return wrap;
   }
 
-  const idle = el('div', 'bulk-pp-deployment-panel-idle');
-  const copy = el('div', 'bulk-pp-deployment-panel-copy');
-  copy.append(
-    el('span', 'bulk-pp-deployment-panel-title', 'Deployment status'),
-    el(
-      'p',
-      'bulk-pp-deployment-panel-lead',
-      `See which of ${pageCount} page${pageCount === 1 ? '' : 's'} ${state.pageScope === 'tree' ? 'under this directory are' : 'in this directory are'} previewed or published.`,
-    ),
-  );
-  if (state.statusPanelNote) {
-    copy.append(el('p', 'bulk-pp-deployment-panel-note', state.statusPanelNote));
-  }
   const loadBtn = el('button', 'bulk-pp-btn bulk-pp-btn-primary bulk-pp-btn-fetch-deployment', 'Load status');
   loadBtn.type = 'button';
   loadBtn.id = 'bulk-pp-check-status';
   loadBtn.disabled = state.contentLoading;
   loadBtn.addEventListener('click', () => { void state.onCheckStatus(); });
-  idle.append(copy, loadBtn);
-  panel.append(idle);
-  return panel;
-}
-
-/**
- * @param {ReturnType<typeof createAppState>} state
- * @param {boolean} contentLoading
- * @param {boolean} statusChecking
- */
-function buildPageScopeRow(state, contentLoading, statusChecking) {
-  const row = el('div', 'bulk-pp-scope-row');
-  const field = el('div', 'bulk-pp-field bulk-pp-field-narrow bulk-pp-field-scope');
-  field.append(
-    el('label', null, 'Page scope'),
-    el('span', 'bulk-pp-field-hint', 'This directory, or include all subdirectories'),
-  );
-  const select = document.createElement('select');
-  select.id = 'bulk-pp-page-scope';
-  select.disabled = contentLoading || statusChecking;
-  [['folder', 'This directory'], ['tree', 'All subdirectories']].forEach(([value, label]) => {
-    const opt = document.createElement('option');
-    opt.value = value;
-    opt.textContent = label;
-    if (value === state.pageScope) opt.selected = true;
-    select.append(opt);
-  });
-  select.addEventListener('change', () => {
-    void state.onScopeChange(select.value === 'tree' ? 'tree' : 'folder');
-  });
-  field.append(select);
-  row.append(field);
-  return row;
+  wrap.append(loadBtn);
+  return wrap;
 }
 
 /**
@@ -975,7 +878,7 @@ function buildPagesSelectionRow(state, { visiblePages, statusChecking }) {
  * @param {ReturnType<typeof createAppState>} state
  * @param {{ visiblePages: { helixPath: string }[], statusChecking: boolean }} opts
  */
-function buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking }) {
+function buildPagesHeader(state, pageCountLabel) {
   const header = el('div', 'bulk-pp-pages-header');
   header.append(buildPagesSectionHead(state, pageCountLabel));
   return header;
@@ -1238,15 +1141,7 @@ function render(root, state) {
     const pageCountLabel = searchDraft && !searchTooShort
       ? `${visiblePages.length} of ${state.pages.length}`
       : String(state.pages.length);
-    pagesSection.append(buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking }));
-    pagesSection.append(buildPageScopeRow(state, contentLoading, statusChecking));
-
-    if (state.pages.length > 0) {
-      const panelHost = el('div', 'bulk-pp-deployment-panel-host');
-      panelHost.id = 'bulk-pp-deployment-panel-host';
-      panelHost.append(buildDeploymentStatusPanel(state));
-      pagesSection.append(panelHost);
-    }
+    pagesSection.append(buildPagesHeader(state, pageCountLabel));
 
     const controls = el('div', 'bulk-pp-pages-controls');
     const filtersLocked = statusChecking || !statusFetched;
@@ -1294,6 +1189,9 @@ function render(root, state) {
             : 'Filters apply to pages in this directory only',
       ),
     );
+    if (state.pages.length > 0) {
+      filterMeta.append(buildPagesStatusActions(state));
+    }
     controls.append(filterMeta);
 
     controls.append(buildPagesSelectionRow(state, { visiblePages, statusChecking }));

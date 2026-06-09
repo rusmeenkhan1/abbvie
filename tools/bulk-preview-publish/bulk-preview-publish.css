@@ -1484,6 +1484,26 @@
   color: var(--pp-text-subtle);
 }
 
+.bulk-pp-pages-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.bulk-pp-pages-status-text {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--pp-text-muted);
+}
+
+.bulk-pp-pages-status-error {
+  color: var(--pp-danger);
+  max-width: 280px;
+}
+
 .bulk-pp-content-section-pages .bulk-pp-list-wrap-pages {
   border-top: none;
 }
