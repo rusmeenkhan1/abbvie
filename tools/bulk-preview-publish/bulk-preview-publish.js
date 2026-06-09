@@ -35,6 +35,7 @@ import {
   formatStatusDate,
   getPageStatus,
   PAGE_FILTERS,
+  countStatusBreakdown,
   statusLabel,
 } from './lib/page-history.js';
 import {
@@ -48,13 +49,21 @@ import {
 } from './lib/ui-utils.js';
 import {
   closeJobModal,
+  closeProgressModal,
   isJobModalOpen,
   isProgressModalOpen,
+  isStatusFetchModalOpen,
   openJobModal,
+  openStatusFetchConfirmModal,
   showJobCancelledModal,
   showJobCompleteModal,
   showJobErrorModal,
+  showStatusFetchCancelledModal,
+  showStatusFetchCompleteModal,
+  showStatusFetchErrorModal,
+  transitionStatusModalToProgress,
   updateJobModal,
+  updateStatusFetchModal,
 } from './lib/progress-modal.js';
 import {
   bindSearchInput,
@@ -196,21 +205,11 @@ function createPanel(title, extraClass = '') {
 }
 
 /**
- * @param {string} folderPath
- * @param {'folder'|'tree'} pageScope
- */
-function formatPagesSectionSubtitle(folderPath, pageScope) {
-  const location = displayFolderPath(folderPath) || 'Site root';
-  if (pageScope === 'tree') {
-    return `${location} — includes subdirectories`;
-  }
-  return location;
-}
-
-/**
  * @param {ReturnType<typeof createAppState>} state
+ * @param {boolean} workspaceLocked
  */
-function buildPagesSectionHead(state) {
+function buildPagesSectionHead(state, workspaceLocked) {
+  const locked = workspaceLocked || state.contentLoading;
   const head = el('div', 'bulk-pp-section-head');
   const titleWrap = el('div', 'bulk-pp-section-title-wrap');
   const icon = el('span', 'bulk-pp-section-icon bulk-pp-section-icon-pages');
@@ -218,11 +217,57 @@ function buildPagesSectionHead(state) {
   const copyWrap = el('div', 'bulk-pp-section-title-copy');
   copyWrap.append(
     el('h3', 'bulk-pp-section-title', 'Pages'),
-    el('p', 'bulk-pp-section-subtitle', formatPagesSectionSubtitle(state.folderPath, state.pageScope)),
+    el(
+      'p',
+      'bulk-pp-section-subtitle',
+      displayFolderPath(state.folderPath) || 'Site root',
+    ),
   );
+
+  const scopeBracket = el('span', 'bulk-pp-pages-scope-bracket');
+  const scopeCheck = el('input');
+  scopeCheck.type = 'checkbox';
+  scopeCheck.id = 'bulk-pp-include-subdirectories';
+  scopeCheck.checked = state.pageScope === 'tree';
+  scopeCheck.disabled = locked;
+  scopeCheck.addEventListener('change', () => {
+    void state.onToggleIncludeSubdirectories(scopeCheck.checked);
+  });
+  const scopeLabel = el('label', 'bulk-pp-pages-scope-check');
+  scopeLabel.htmlFor = 'bulk-pp-include-subdirectories';
+  scopeLabel.append(scopeCheck, document.createTextNode(' Include subdirectories'));
+  scopeBracket.append(document.createTextNode('('), scopeLabel, document.createTextNode(')'));
+  copyWrap.append(scopeBracket);
+
   titleWrap.append(icon, copyWrap);
   head.append(titleWrap);
   return head;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {boolean} locked
+ */
+function buildPreviewPublishToggle(state, locked) {
+  const on = state.showPreviewPublish;
+  const btn = el('button', `bulk-pp-toggle${on ? ' bulk-pp-toggle-on' : ''}`);
+  btn.type = 'button';
+  btn.id = 'bulk-pp-preview-publish-toggle';
+  btn.setAttribute('role', 'switch');
+  btn.setAttribute('aria-checked', on ? 'true' : 'false');
+  btn.setAttribute('aria-label', 'Preview and publish status');
+  btn.disabled = locked || state.pages.length === 0;
+  btn.title = on
+    ? 'Hide preview and publish status'
+    : 'Load preview and publish status for listed pages';
+
+  const track = el('span', 'bulk-pp-toggle-track');
+  track.append(el('span', 'bulk-pp-toggle-thumb'));
+  btn.append(track, el('span', 'bulk-pp-toggle-label', 'Preview & publish'));
+  btn.addEventListener('click', () => {
+    void state.onTogglePreviewPublish(!state.showPreviewPublish);
+  });
+  return btn;
 }
 
 /**
@@ -711,6 +756,7 @@ function applyOperationWorkspaceReset(state) {
   clearPageWorkspaceAfterOperation(state);
   clearPagesStatusDisplay(state);
   const root = /** @type {HTMLElement | null} */ (state.root);
+  closeProgressModal(root);
   if (!root) return;
 
   const filterSelect = root.querySelector('#bulk-pp-page-filter');
@@ -801,6 +847,9 @@ function patchPagesStatusLoading(root, state) {
 function refreshDeploymentUi(state) {
   const root = /** @type {HTMLElement | null} */ (state.root);
   if (!root) return;
+  if (isStatusFetchModalOpen()) {
+    updateStatusFetchModal(state);
+  }
   patchPagesStatusLoading(root, state);
   patchPagesFilterControls(root, state);
   patchPageSearchResults(
@@ -850,76 +899,14 @@ function buildPagesHeader(state, pageCountLabel, workspaceLocked) {
 
   const topRow = el('div', 'bulk-pp-pages-header-top');
   const main = el('div', 'bulk-pp-pages-header-main');
-  main.append(buildPagesSectionHead(state));
+  main.append(buildPagesSectionHead(state, workspaceLocked));
 
   const aside = el('div', 'bulk-pp-pages-header-aside');
-
-  const scopeCheck = el('input');
-  scopeCheck.type = 'checkbox';
-  scopeCheck.id = 'bulk-pp-include-subdirectories';
-  scopeCheck.checked = state.pageScope === 'tree';
-  scopeCheck.disabled = locked;
-  scopeCheck.addEventListener('change', () => {
-    void state.onToggleIncludeSubdirectories(scopeCheck.checked);
-  });
-  const scopeLabel = el('label', 'bulk-pp-pages-header-check');
-  scopeLabel.htmlFor = 'bulk-pp-include-subdirectories';
-  scopeLabel.append(
-    scopeCheck,
-    document.createTextNode(' Include subdirectories'),
-  );
-
-  const statusCheck = el('input');
-  statusCheck.type = 'checkbox';
-  statusCheck.id = 'bulk-pp-show-preview-publish';
-  statusCheck.checked = state.showPreviewPublish;
-  statusCheck.disabled = locked || state.pages.length === 0;
-  statusCheck.addEventListener('change', () => {
-    void state.onTogglePreviewPublish(statusCheck.checked);
-  });
-  const statusLabel = el('label', 'bulk-pp-pages-header-check');
-  statusLabel.htmlFor = 'bulk-pp-show-preview-publish';
-  statusLabel.append(
-    statusCheck,
-    document.createTextNode(' Show preview & publish'),
-  );
-
   const countEl = el('span', 'bulk-pp-section-count', String(pageCountLabel));
   countEl.id = 'bulk-pp-page-count';
-  aside.append(scopeLabel, statusLabel, countEl);
+  aside.append(buildPreviewPublishToggle(state, locked), countEl);
   topRow.append(main, aside);
   header.append(topRow);
-
-  if (state.pages.length > 0 && state.showPreviewPublish && state.statusChecking) {
-    const statusRow = el('div', 'bulk-pp-pages-header-status');
-    statusRow.id = 'bulk-pp-pages-header-status';
-    const done = state.statusProgressDone;
-    const total = state.statusProgressTotal || state.pages.length;
-    statusRow.append(el(
-      'span',
-      'bulk-pp-pages-header-status-text',
-      `Checking preview & publish (${done}/${total})`,
-    ));
-    const stopBtn = el('button', 'bulk-pp-pages-action-link', 'Stop');
-    stopBtn.type = 'button';
-    stopBtn.addEventListener('click', () => state.onCancelStatus());
-    statusRow.append(stopBtn);
-    header.append(statusRow);
-  } else if (state.pages.length > 0 && state.showPreviewPublish && state.statusFetched) {
-    const statusRow = el('div', 'bulk-pp-pages-header-status');
-    statusRow.id = 'bulk-pp-pages-header-status';
-    statusRow.append(el(
-      'span',
-      'bulk-pp-pages-header-status-text bulk-pp-pages-header-status-on',
-      'Preview & publish shown',
-    ));
-    const refreshBtn = el('button', 'bulk-pp-pages-action-link', 'Refresh');
-    refreshBtn.type = 'button';
-    refreshBtn.disabled = locked;
-    refreshBtn.addEventListener('click', () => { void state.onLoadStatus(); });
-    statusRow.append(refreshBtn);
-    header.append(statusRow);
-  }
 
   return header;
 }
@@ -1070,6 +1057,42 @@ function resetFetchStatusOption(state) {
 }
 
 /**
+ * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
+ * @param {string[]} helixPaths
+ */
+function deploymentCountsForPaths(platformStatus, helixPaths) {
+  /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
+  const statusMap = {};
+  helixPaths.forEach((path) => {
+    statusMap[path] = platformStatus[path] || {};
+  });
+  const pages = helixPaths.map((helixPath) => ({ helixPath }));
+  const { live, preview, none } = countStatusBreakdown(statusMap, pages);
+  return { live, previewOnly: preview, none, total: helixPaths.length };
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {string[]} helixPaths
+ * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
+ */
+function finishStatusFetchWithModal(state, helixPaths, platformStatus) {
+  const root = /** @type {HTMLElement | null} */ (state.root);
+  if (!root || !isStatusFetchModalOpen()) {
+    if (root) render(root, state);
+    return;
+  }
+  const counts = deploymentCountsForPaths(platformStatus, helixPaths);
+  showStatusFetchCompleteModal({
+    ...counts,
+    onClose: () => {
+      closeProgressModal(root);
+      render(root, state);
+    },
+  });
+}
+
+/**
  * @param {ReturnType<typeof createAppState>} state
  */
 function finishProgressModal(state) {
@@ -1088,7 +1111,6 @@ function finishProgressModal(state) {
 function render(root, state) {
   const listWrapBefore = document.getElementById('bulk-pp-page-list-wrap');
   const savedListScroll = listWrapBefore ? listWrapBefore.scrollTop : null;
-  const savedWindowY = window.scrollY;
 
   const {
     org, site, ref, folderPath, loading, error, status, statusType, jobDetail,
@@ -1108,6 +1130,7 @@ function render(root, state) {
     && folderSearchDraft.length < SEARCH_MIN_LEN;
 
   root.replaceChildren();
+  root.classList.add('bulk-pp-shell');
   root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
   const selectionCount = getActiveSelectionCount(state);
   const hasWorkspace = !contentLoading && !error
@@ -1133,7 +1156,7 @@ function render(root, state) {
   header.append(headerInner);
   root.append(header);
 
-  const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content');
+  const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content bulk-pp-panel-fill');
   const contentHead = el('div', 'bulk-pp-panel-head');
   const contentHeadMain = el('div', 'bulk-pp-panel-head-main');
   contentHeadMain.append(
@@ -1258,7 +1281,7 @@ function render(root, state) {
     controls.append(buildPagesSelectionRow(state, { visiblePages, statusChecking }));
     pagesSection.append(controls);
 
-    const pageWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-pages');
+    const pageWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-pages bulk-pp-list-wrap-fill');
     pageWrap.id = 'bulk-pp-page-list-wrap';
     const pageList = el('ul', 'bulk-pp-list');
     pageList.id = 'bulk-pp-page-list';
@@ -1322,7 +1345,6 @@ function render(root, state) {
       const listWrap = document.getElementById('bulk-pp-page-list-wrap');
       if (listWrap) listWrap.scrollTop = savedListScroll;
     }
-    if (savedWindowY > 0) window.scrollTo(0, savedWindowY);
   });
 }
 
@@ -1385,19 +1407,35 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     resetFetchStatusOption(state);
     state.status = null;
     state.statusType = 'info';
-    const root = /** @type {HTMLElement | null} */ (state.root);
-    if (root) render(root, state);
+    refreshDeploymentUi(state);
+    finishStatusFetchWithModal(state, pathsToCheck, platformStatus);
   }).catch((statusErr) => {
     if (statusErr instanceof DOMException && statusErr.name === 'AbortError') {
       state.statusAbort = null;
       state.statusFetchStartedAt = null;
       resetFetchStatusOption(state);
-      if (state.statusProgressDone > 0) {
+      const root = /** @type {HTMLElement | null} */ (state.root);
+      const checked = state.statusProgressDone;
+      const total = state.statusProgressTotal;
+      if (checked > 0) {
         persistCurrentPlatformStatus(state);
         state.statusFetched = true;
-        const root = /** @type {HTMLElement | null} */ (state.root);
-        if (root) render(root, state);
+        refreshDeploymentUi(state);
       }
+      if (root && isStatusFetchModalOpen()) {
+        showStatusFetchCancelledModal({
+          message: checked > 0
+            ? `Stopped after ${checked} of ${total} pages. Partial results are shown in the list.`
+            : 'Status check cancelled.',
+          onClose: () => {
+            if (checked === 0) state.showPreviewPublish = false;
+            closeProgressModal(root);
+            render(root, state);
+          },
+        });
+        return;
+      }
+      if (root) render(root, state);
       return;
     }
     state.statusChecking = false;
@@ -1406,6 +1444,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     resetFetchStatusOption(state);
 
     const hadProgress = state.statusProgressDone > 0;
+    const root = /** @type {HTMLElement | null} */ (state.root);
     if (hadProgress) {
       persistCurrentPlatformStatus(state);
       state.statusFetched = true;
@@ -1422,13 +1461,24 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       state.statusType = 'info';
     } else {
       state.statusFetched = false;
+      state.showPreviewPublish = false;
       state.statusCheckFailed = true;
       state.statusError = messageFromApiError(statusErr, 'Status check failed.', 'status');
       state.status = state.statusError;
       state.statusType = 'error';
     }
     console.warn('[bulk-pp] platform status failed', statusErr);
-    const root = /** @type {HTMLElement | null} */ (state.root);
+    if (root && isStatusFetchModalOpen()) {
+      showStatusFetchErrorModal({
+        message: state.statusError || 'Status check failed.',
+        hint: permissionErrorHint(statusErr),
+        onClose: () => {
+          closeProgressModal(root);
+          render(root, state);
+        },
+      });
+      return;
+    }
     if (root) render(root, state);
   });
 }
@@ -1490,6 +1540,20 @@ async function main() {
       state.statusPanelNote = 'Status check stopped.';
     }
     const root = /** @type {HTMLElement | null} */ (state.root);
+    if (root && isStatusFetchModalOpen()) {
+      refreshDeploymentUi(state);
+      showStatusFetchCancelledModal({
+        message: checked > 0
+          ? `Stopped after ${checked} of ${total} pages. Partial results are shown in the list.`
+          : 'Status check cancelled.',
+        onClose: () => {
+          if (checked === 0) state.showPreviewPublish = false;
+          closeProgressModal(root);
+          render(root, state);
+        },
+      });
+      return;
+    }
     if (root) render(root, state);
   };
 
@@ -1511,6 +1575,7 @@ async function main() {
 
   state.onNavigate = async (targetPath) => {
     if (state.contentLoading) return;
+    closeProgressModal(/** @type {HTMLElement} */ (app));
     resetPagesViewState(state);
     clearPagesStatusDisplay(state);
 
@@ -1526,6 +1591,7 @@ async function main() {
     if (state.statusChecking || state.contentLoading) return;
     const next = enabled ? 'tree' : 'folder';
     if (state.pageScope === next) return;
+    closeProgressModal(/** @type {HTMLElement} */ (app));
     state.showPreviewPublish = false;
     state.pageScope = next;
     clearPagesStatusDisplay(state);
@@ -1534,15 +1600,32 @@ async function main() {
 
   state.onTogglePreviewPublish = async (enabled) => {
     if (state.contentLoading) return;
-    if (enabled) {
-      if (state.pages.length === 0) return;
-      state.showPreviewPublish = true;
-      await state.onLoadStatus();
+    const appRoot = /** @type {HTMLElement} */ (app);
+    if (!enabled) {
+      if (state.statusChecking) {
+        state.onCancelStatus();
+        return;
+      }
+      closeProgressModal(appRoot);
+      state.showPreviewPublish = false;
+      clearPagesStatusDisplay(state);
+      render(appRoot, state);
       return;
     }
-    state.showPreviewPublish = false;
-    clearPagesStatusDisplay(state);
-    render(/** @type {HTMLElement} */ (app), state);
+    if (state.pages.length === 0) return;
+
+    const pageCount = state.pages.length;
+    openStatusFetchConfirmModal(appRoot, pageCount, {
+      onCancel: () => {
+        closeProgressModal(appRoot);
+        render(appRoot, state);
+      },
+      onConfirm: () => {
+        state.showPreviewPublish = true;
+        transitionStatusModalToProgress(appRoot, state, () => state.onCancelStatus());
+        void state.onLoadStatus();
+      },
+    });
   };
 
   state.onLoadStatus = async () => {
