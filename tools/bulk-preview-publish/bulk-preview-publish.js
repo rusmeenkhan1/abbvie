@@ -205,7 +205,7 @@ function createPanel(title, extraClass = '') {
 function formatPagesSectionSubtitle(folderPath, pageScope) {
   const location = displayFolderPath(folderPath) || 'Site root';
   if (pageScope === 'tree') {
-    return `${location} · including all subdirectories`;
+    return `${location} — includes subfolders`;
   }
   return location;
 }
@@ -220,11 +220,8 @@ function buildPagesSectionHead(state, count) {
   const icon = el('span', 'bulk-pp-section-icon bulk-pp-section-icon-pages');
   icon.setAttribute('aria-hidden', 'true');
   const copyWrap = el('div', 'bulk-pp-section-title-copy');
-  const titleText = state.pageScope === 'tree'
-    ? 'Pages in this directory and subdirectories'
-    : 'Pages in the current directory';
   copyWrap.append(
-    el('h3', 'bulk-pp-section-title', titleText),
+    el('h3', 'bulk-pp-section-title', 'Pages'),
     el('p', 'bulk-pp-section-subtitle', formatPagesSectionSubtitle(state.folderPath, state.pageScope)),
   );
   titleWrap.append(icon, copyWrap);
@@ -759,11 +756,7 @@ function patchPagesFilterControls(root, state) {
   });
 
   const filterNote = root.querySelector('.bulk-pp-pages-filter-note');
-  if (filterNote) {
-    filterNote.textContent = state.pageScope === 'tree'
-      ? 'Filters apply to all pages under this directory'
-      : 'Filters apply to pages in this directory only';
-  }
+  if (filterNote) filterNote.remove();
 }
 
 /**
@@ -771,20 +764,8 @@ function patchPagesFilterControls(root, state) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function patchPagesStatusLoading(root, state) {
+  patchPagesHeaderActions(root, state);
   const host = root.querySelector('#bulk-pp-pages-status-loading');
-  if (state.statusChecking && state.pages.length > 0) {
-    const next = buildPagesStatusLoadingRow(state);
-    if (host) {
-      host.replaceWith(next);
-      return;
-    }
-    const controls = root.querySelector('.bulk-pp-pages-controls');
-    const selectionRow = root.querySelector('.bulk-pp-pages-selection-row');
-    if (controls && selectionRow) {
-      controls.insertBefore(next, selectionRow);
-    }
-    return;
-  }
   if (host) host.remove();
 }
 
@@ -803,26 +784,6 @@ function refreshDeploymentUi(state) {
     buildPageRow,
   );
   syncSelectionUI(root, state);
-}
-
-/**
- * @param {ReturnType<typeof createAppState>} state
- */
-function buildPagesStatusLoadingRow(state) {
-  const row = el('div', 'bulk-pp-pages-status-loading');
-  row.id = 'bulk-pp-pages-status-loading';
-  const done = state.statusProgressDone;
-  const total = state.statusProgressTotal || state.pages.length;
-  row.append(el(
-    'span',
-    'bulk-pp-pages-status-text',
-    `Loading deployment status… ${done} of ${total}`,
-  ));
-  const cancelBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Stop');
-  cancelBtn.type = 'button';
-  cancelBtn.addEventListener('click', () => state.onCancelStatus());
-  row.append(cancelBtn);
-  return row;
 }
 
 /**
@@ -856,87 +817,80 @@ function buildPagesSelectionRow(state, { visiblePages, statusChecking }) {
  * @param {ReturnType<typeof createAppState>} state
  * @param {boolean} workspaceLocked
  */
-function buildPagesViewOptions(state, workspaceLocked) {
-  const row = el('div', 'bulk-pp-pages-view-options');
-  const controlsLocked = workspaceLocked || state.contentLoading;
+function buildPagesHeaderActions(state, workspaceLocked) {
+  const bar = el('div', 'bulk-pp-pages-header-actions');
+  bar.id = 'bulk-pp-pages-header-actions';
+  const locked = workspaceLocked || state.contentLoading;
+  const parts = [];
 
-  const scopeSegment = el('div', 'bulk-pp-pages-scope-segment');
-  scopeSegment.setAttribute('role', 'radiogroup');
-  scopeSegment.setAttribute('aria-label', 'Page scope');
-
-  /**
-   * @param {'folder'|'tree'} value
-   * @param {string} label
-   */
-  const makeScopeBtn = (value, label) => {
-    const btn = el('button', 'bulk-pp-pages-scope-btn', label);
-    btn.type = 'button';
-    btn.setAttribute('role', 'radio');
-    btn.setAttribute('aria-checked', state.pageScope === value ? 'true' : 'false');
-    if (state.pageScope === value) btn.classList.add('bulk-pp-pages-scope-btn-active');
-    btn.disabled = controlsLocked;
-    btn.addEventListener('click', () => {
-      void state.onScopeChange(value);
-    });
-    return btn;
-  };
-
-  scopeSegment.append(
-    makeScopeBtn('folder', 'This folder'),
-    makeScopeBtn('tree', 'All subfolders'),
+  const scopeBtn = el(
+    'button',
+    `bulk-pp-pages-action-link${state.pageScope === 'tree' ? ' bulk-pp-pages-action-link-active' : ''}`,
+    state.pageScope === 'tree' ? 'Subfolders included' : 'Include subfolders',
   );
+  scopeBtn.type = 'button';
+  scopeBtn.disabled = locked;
+  scopeBtn.addEventListener('click', () => {
+    void state.onScopeChange(state.pageScope === 'tree' ? 'folder' : 'tree');
+  });
+  parts.push(scopeBtn);
 
-  const actions = el('div', 'bulk-pp-pages-view-actions');
-
-  if (!state.statusFetched && !state.statusChecking && state.pages.length > 0) {
-    const loadBtn = el(
-      'button',
-      'bulk-pp-btn bulk-pp-btn-text bulk-pp-btn-load-status',
-      'Load deployment status',
-    );
-    loadBtn.type = 'button';
-    loadBtn.disabled = controlsLocked;
-    loadBtn.addEventListener('click', () => { void state.onLoadStatus(); });
-    actions.append(loadBtn);
-  } else if (state.statusFetched && !state.statusChecking && state.pages.length > 0) {
-    const refreshBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Refresh status');
-    refreshBtn.type = 'button';
-    refreshBtn.disabled = controlsLocked;
-    refreshBtn.addEventListener('click', () => { void state.onLoadStatus(); });
-    actions.append(refreshBtn);
+  if (state.pages.length > 0) {
+    if (state.statusChecking) {
+      const done = state.statusProgressDone;
+      const total = state.statusProgressTotal || state.pages.length;
+      parts.push(el(
+        'span',
+        'bulk-pp-pages-action-muted',
+        `Checking preview & publish (${done}/${total})`,
+      ));
+      const stopBtn = el('button', 'bulk-pp-pages-action-link', 'Stop');
+      stopBtn.type = 'button';
+      stopBtn.addEventListener('click', () => state.onCancelStatus());
+      parts.push(stopBtn);
+    } else if (state.statusFetched) {
+      parts.push(el('span', 'bulk-pp-pages-action-muted bulk-pp-pages-action-on', 'Preview & publish shown'));
+      const refreshBtn = el('button', 'bulk-pp-pages-action-link', 'Refresh');
+      refreshBtn.type = 'button';
+      refreshBtn.disabled = locked;
+      refreshBtn.addEventListener('click', () => { void state.onLoadStatus(); });
+      parts.push(refreshBtn);
+    } else {
+      const showBtn = el('button', 'bulk-pp-pages-action-link bulk-pp-pages-action-link-primary', 'Show preview & publish');
+      showBtn.type = 'button';
+      showBtn.disabled = locked;
+      showBtn.addEventListener('click', () => { void state.onLoadStatus(); });
+      parts.push(showBtn);
+    }
   }
 
-  const autoLabel = el('label', 'bulk-pp-pages-auto-status');
-  const autoCheck = document.createElement('input');
-  autoCheck.type = 'checkbox';
-  autoCheck.id = 'bulk-pp-auto-load-status';
-  autoCheck.checked = state.autoLoadStatus;
-  autoCheck.disabled = controlsLocked;
-  autoLabel.append(
-    autoCheck,
-    document.createTextNode(' Load status when opening folders'),
-  );
-  autoCheck.addEventListener('change', () => {
-    state.autoLoadStatus = autoCheck.checked;
-    saveViewPreferences({
-      pageScope: state.pageScope,
-      autoLoadStatus: state.autoLoadStatus,
-    });
+  parts.forEach((part, index) => {
+    if (index > 0) bar.append(el('span', 'bulk-pp-pages-action-sep', '·'));
+    bar.append(part);
   });
+  return bar;
+}
 
-  const topRow = el('div', 'bulk-pp-pages-view-options-top');
-  topRow.append(scopeSegment, actions);
-  row.append(topRow, autoLabel);
-  return row;
+/**
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function patchPagesHeaderActions(root, state) {
+  const host = root.querySelector('#bulk-pp-pages-header-actions');
+  if (!host) return;
+  const workspaceLocked = state.statusChecking && !state.statusFetched;
+  host.replaceWith(buildPagesHeaderActions(state, workspaceLocked));
 }
 
 /**
  * @param {ReturnType<typeof createAppState>} state
- * @param {{ visiblePages: { helixPath: string }[], statusChecking: boolean }} opts
+ * @param {string | number} pageCountLabel
+ * @param {boolean} workspaceLocked
  */
-function buildPagesHeader(state, pageCountLabel) {
+function buildPagesHeader(state, pageCountLabel, workspaceLocked) {
   const header = el('div', 'bulk-pp-pages-header');
   header.append(buildPagesSectionHead(state, pageCountLabel));
+  header.append(buildPagesHeaderActions(state, workspaceLocked));
   return header;
 }
 
@@ -1154,7 +1108,7 @@ function render(root, state) {
   const contentHeadMain = el('div', 'bulk-pp-panel-head-main');
   contentHeadMain.append(
     el('h2', null, 'Site content'),
-    el('p', 'bulk-pp-panel-subtitle', 'Browse folders on the left. Pages load instantly — adjust view options on the right.'),
+    el('p', 'bulk-pp-panel-subtitle', 'Browse folders, select pages, then preview or publish.'),
   );
   contentHead.append(contentHeadMain);
   contentPanel.append(contentHead);
@@ -1229,8 +1183,7 @@ function render(root, state) {
     const pageCountLabel = searchDraft && !searchTooShort
       ? `${visiblePages.length} of ${state.pages.length}`
       : String(state.pages.length);
-    pagesSection.append(buildPagesHeader(state, pageCountLabel));
-    pagesSection.append(buildPagesViewOptions(state, workspaceLocked));
+    pagesSection.append(buildPagesHeader(state, pageCountLabel, workspaceLocked));
 
     const controls = el('div', 'bulk-pp-pages-controls');
     const showDeploymentFilters = statusFetched;
@@ -1268,21 +1221,8 @@ function render(root, state) {
 
     if (showDeploymentFilters) {
       const filterMeta = el('div', 'bulk-pp-pages-filter-meta');
-      filterMeta.append(
-        buildStatusLegend(),
-        el(
-          'p',
-          'bulk-pp-pages-filter-note',
-          pageScope === 'tree'
-            ? 'Filters apply to all pages under this directory'
-            : 'Filters apply to pages in this directory only',
-        ),
-      );
+      filterMeta.append(buildStatusLegend());
       controls.append(filterMeta);
-    }
-
-    if (statusChecking && state.pages.length > 0) {
-      controls.append(buildPagesStatusLoadingRow(state));
     }
 
     controls.append(buildPagesSelectionRow(state, { visiblePages, statusChecking }));
@@ -1573,6 +1513,11 @@ async function main() {
 
   state.onLoadStatus = async () => {
     if (state.statusChecking || state.contentLoading || state.pages.length === 0) return;
+    state.autoLoadStatus = true;
+    saveViewPreferences({
+      pageScope: state.pageScope,
+      autoLoadStatus: true,
+    });
     const location = displayFolderPath(state.folderPath) || 'site root';
     const helixPaths = state.pages.map((p) => p.helixPath);
     hydratePlatformStatusFromCache(state, helixPaths);
