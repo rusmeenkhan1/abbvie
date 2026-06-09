@@ -27,10 +27,6 @@ import {
   removePathsFromStatusCache,
 } from './lib/status-cache.js';
 import {
-  loadViewPreferences,
-  saveViewPreferences,
-} from './lib/view-preferences.js';
-import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
@@ -81,6 +77,7 @@ import {
   isStatusLoaded,
   resetWorkspace,
   SEARCH_MIN_LEN,
+  resetPagesViewState,
   selectAllVisible,
 } from './lib/state.js';
 import { el } from './lib/dom.js';
@@ -212,9 +209,8 @@ function formatPagesSectionSubtitle(folderPath, pageScope) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
- * @param {string | number} count
  */
-function buildPagesSectionHead(state, count) {
+function buildPagesSectionHead(state) {
   const head = el('div', 'bulk-pp-section-head');
   const titleWrap = el('div', 'bulk-pp-section-title-wrap');
   const icon = el('span', 'bulk-pp-section-icon bulk-pp-section-icon-pages');
@@ -225,9 +221,7 @@ function buildPagesSectionHead(state, count) {
     el('p', 'bulk-pp-section-subtitle', formatPagesSectionSubtitle(state.folderPath, state.pageScope)),
   );
   titleWrap.append(icon, copyWrap);
-  const countEl = el('span', 'bulk-pp-section-count', String(count));
-  countEl.id = 'bulk-pp-page-count';
-  head.append(titleWrap, countEl);
+  head.append(titleWrap);
   return head;
 }
 
@@ -715,6 +709,7 @@ function formatSelectionBarText(count) {
  */
 function applyOperationWorkspaceReset(state) {
   clearPageWorkspaceAfterOperation(state);
+  clearPagesStatusDisplay(state);
   const root = /** @type {HTMLElement | null} */ (state.root);
   if (!root) return;
 
@@ -760,11 +755,42 @@ function patchPagesFilterControls(root, state) {
 }
 
 /**
+ * Clears in-memory preview/publish indicators (checkbox off or folder change).
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function clearPagesStatusDisplay(state) {
+  if (state.statusChecking) {
+    persistCurrentPlatformStatus(state);
+    cancelStatusCheck(state, false);
+    state.statusChecking = false;
+  }
+  state.statusFetched = false;
+  state.platformStatus = {};
+  state.statusCheckFailed = false;
+  state.statusError = null;
+  state.statusPanelNote = null;
+  resetFetchStatusOption(state);
+}
+
+/**
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function patchPagesHeader(root, state) {
+  const host = root.querySelector('.bulk-pp-pages-header');
+  if (!host) return;
+  const countEl = root.querySelector('#bulk-pp-page-count');
+  const pageCountLabel = countEl?.textContent || String(state.pages.length);
+  const workspaceLocked = state.statusChecking && !state.statusFetched;
+  host.replaceWith(buildPagesHeader(state, pageCountLabel, workspaceLocked));
+}
+
+/**
  * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
  */
 function patchPagesStatusLoading(root, state) {
-  patchPagesHeaderActions(root, state);
+  patchPagesHeader(root, state);
   const host = root.querySelector('#bulk-pp-pages-status-loading');
   if (host) host.remove();
 }
@@ -815,82 +841,94 @@ function buildPagesSelectionRow(state, { visiblePages, statusChecking }) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
- * @param {boolean} workspaceLocked
- */
-function buildPagesHeaderActions(state, workspaceLocked) {
-  const bar = el('div', 'bulk-pp-pages-header-actions');
-  bar.id = 'bulk-pp-pages-header-actions';
-  const locked = workspaceLocked || state.contentLoading;
-  const parts = [];
-
-  const scopeBtn = el(
-    'button',
-    `bulk-pp-pages-action-link${state.pageScope === 'tree' ? ' bulk-pp-pages-action-link-active' : ''}`,
-    state.pageScope === 'tree' ? 'Subfolders included' : 'Include subfolders',
-  );
-  scopeBtn.type = 'button';
-  scopeBtn.disabled = locked;
-  scopeBtn.addEventListener('click', () => {
-    void state.onScopeChange(state.pageScope === 'tree' ? 'folder' : 'tree');
-  });
-  parts.push(scopeBtn);
-
-  if (state.pages.length > 0) {
-    if (state.statusChecking) {
-      const done = state.statusProgressDone;
-      const total = state.statusProgressTotal || state.pages.length;
-      parts.push(el(
-        'span',
-        'bulk-pp-pages-action-muted',
-        `Checking preview & publish (${done}/${total})`,
-      ));
-      const stopBtn = el('button', 'bulk-pp-pages-action-link', 'Stop');
-      stopBtn.type = 'button';
-      stopBtn.addEventListener('click', () => state.onCancelStatus());
-      parts.push(stopBtn);
-    } else if (state.statusFetched) {
-      parts.push(el('span', 'bulk-pp-pages-action-muted bulk-pp-pages-action-on', 'Preview & publish shown'));
-      const refreshBtn = el('button', 'bulk-pp-pages-action-link', 'Refresh');
-      refreshBtn.type = 'button';
-      refreshBtn.disabled = locked;
-      refreshBtn.addEventListener('click', () => { void state.onLoadStatus(); });
-      parts.push(refreshBtn);
-    } else {
-      const showBtn = el('button', 'bulk-pp-pages-action-link bulk-pp-pages-action-link-primary', 'Show preview & publish');
-      showBtn.type = 'button';
-      showBtn.disabled = locked;
-      showBtn.addEventListener('click', () => { void state.onLoadStatus(); });
-      parts.push(showBtn);
-    }
-  }
-
-  parts.forEach((part, index) => {
-    if (index > 0) bar.append(el('span', 'bulk-pp-pages-action-sep', '·'));
-    bar.append(part);
-  });
-  return bar;
-}
-
-/**
- * @param {HTMLElement} root
- * @param {ReturnType<typeof createAppState>} state
- */
-function patchPagesHeaderActions(root, state) {
-  const host = root.querySelector('#bulk-pp-pages-header-actions');
-  if (!host) return;
-  const workspaceLocked = state.statusChecking && !state.statusFetched;
-  host.replaceWith(buildPagesHeaderActions(state, workspaceLocked));
-}
-
-/**
- * @param {ReturnType<typeof createAppState>} state
  * @param {string | number} pageCountLabel
  * @param {boolean} workspaceLocked
  */
 function buildPagesHeader(state, pageCountLabel, workspaceLocked) {
   const header = el('div', 'bulk-pp-pages-header');
-  header.append(buildPagesSectionHead(state, pageCountLabel));
-  header.append(buildPagesHeaderActions(state, workspaceLocked));
+  const locked = workspaceLocked || state.contentLoading;
+
+  const topRow = el('div', 'bulk-pp-pages-header-top');
+  const main = el('div', 'bulk-pp-pages-header-main');
+  main.append(buildPagesSectionHead(state));
+
+  const aside = el('div', 'bulk-pp-pages-header-aside');
+  const statusCheck = el('input');
+  statusCheck.type = 'checkbox';
+  statusCheck.id = 'bulk-pp-show-preview-publish';
+  statusCheck.checked = state.showPreviewPublish;
+  statusCheck.disabled = locked || state.pages.length === 0;
+  statusCheck.addEventListener('change', () => {
+    void state.onTogglePreviewPublish(statusCheck.checked);
+  });
+  const statusLabel = el('label', 'bulk-pp-pages-status-check');
+  statusLabel.htmlFor = 'bulk-pp-show-preview-publish';
+  statusLabel.append(
+    statusCheck,
+    document.createTextNode(' Show preview & publish'),
+  );
+
+  const countEl = el('span', 'bulk-pp-section-count', String(pageCountLabel));
+  countEl.id = 'bulk-pp-page-count';
+  aside.append(statusLabel, countEl);
+  topRow.append(main, aside);
+  header.append(topRow);
+
+  const scopeRow = el('div', 'bulk-pp-pages-header-scope');
+  if (state.pageScope === 'folder') {
+    const subBtn = el(
+      'button',
+      'bulk-pp-btn bulk-pp-btn-secondary',
+      'Include pages from subfolders',
+    );
+    subBtn.type = 'button';
+    subBtn.disabled = locked;
+    subBtn.addEventListener('click', () => { void state.onIncludeSubfolders(); });
+    scopeRow.append(subBtn);
+  } else {
+    const folderOnlyBtn = el(
+      'button',
+      'bulk-pp-btn bulk-pp-btn-secondary',
+      'This folder only',
+    );
+    folderOnlyBtn.type = 'button';
+    folderOnlyBtn.disabled = locked;
+    folderOnlyBtn.addEventListener('click', () => { void state.onFolderScopeOnly(); });
+    scopeRow.append(folderOnlyBtn);
+  }
+  header.append(scopeRow);
+
+  if (state.pages.length > 0 && state.showPreviewPublish && state.statusChecking) {
+    const statusRow = el('div', 'bulk-pp-pages-header-status');
+    statusRow.id = 'bulk-pp-pages-header-status';
+    const done = state.statusProgressDone;
+    const total = state.statusProgressTotal || state.pages.length;
+    statusRow.append(el(
+      'span',
+      'bulk-pp-pages-header-status-text',
+      `Checking preview & publish (${done}/${total})`,
+    ));
+    const stopBtn = el('button', 'bulk-pp-pages-action-link', 'Stop');
+    stopBtn.type = 'button';
+    stopBtn.addEventListener('click', () => state.onCancelStatus());
+    statusRow.append(stopBtn);
+    header.append(statusRow);
+  } else if (state.pages.length > 0 && state.showPreviewPublish && state.statusFetched) {
+    const statusRow = el('div', 'bulk-pp-pages-header-status');
+    statusRow.id = 'bulk-pp-pages-header-status';
+    statusRow.append(el(
+      'span',
+      'bulk-pp-pages-header-status-text bulk-pp-pages-header-status-on',
+      'Preview & publish shown',
+    ));
+    const refreshBtn = el('button', 'bulk-pp-pages-action-link', 'Refresh');
+    refreshBtn.type = 'button';
+    refreshBtn.disabled = locked;
+    refreshBtn.addEventListener('click', () => { void state.onLoadStatus(); });
+    statusRow.append(refreshBtn);
+    header.append(statusRow);
+  }
+
   return header;
 }
 
@@ -1186,7 +1224,7 @@ function render(root, state) {
     pagesSection.append(buildPagesHeader(state, pageCountLabel, workspaceLocked));
 
     const controls = el('div', 'bulk-pp-pages-controls');
-    const showDeploymentFilters = statusFetched;
+    const showDeploymentFilters = state.showPreviewPublish && statusFetched;
 
     const toolbarRow = el('div', 'bulk-pp-pages-toolbar-row');
     if (!showDeploymentFilters) toolbarRow.classList.add('bulk-pp-pages-toolbar-row-search-only');
@@ -1438,9 +1476,6 @@ async function main() {
   const state = createAppState(ctx);
   state.root = app;
   resetWorkspace(state);
-  const viewPrefs = loadViewPreferences();
-  state.pageScope = viewPrefs.pageScope;
-  state.autoLoadStatus = viewPrefs.autoLoadStatus;
   const urlParams = new URLSearchParams(window.location.search);
   const urlRef = urlParams.get('ref');
   if (urlRef) state.ref = urlRef;
@@ -1484,11 +1519,8 @@ async function main() {
 
   state.onNavigate = async (targetPath) => {
     if (state.contentLoading) return;
-    if (state.statusChecking) {
-      persistCurrentPlatformStatus(state);
-      cancelStatusCheck(state, false);
-      state.statusChecking = false;
-    }
+    resetPagesViewState(state);
+    clearPagesStatusDisplay(state);
 
     state.folderPath = resolveContentFolderPath(targetPath);
     state.pageSearch = '';
@@ -1498,26 +1530,38 @@ async function main() {
     await state.onFetch(true);
   };
 
-  state.onScopeChange = async (scope) => {
+  state.onIncludeSubfolders = async () => {
     if (state.statusChecking || state.contentLoading) return;
-    const next = scope === 'tree' ? 'tree' : 'folder';
-    if (state.pageScope === next) return;
-    state.pageScope = next;
-    saveViewPreferences({
-      pageScope: next,
-      autoLoadStatus: state.autoLoadStatus,
-    });
-    cancelStatusCheck(state, false);
+    state.showPreviewPublish = false;
+    state.pageScope = 'tree';
+    clearPagesStatusDisplay(state);
     await state.onFetch(true);
+  };
+
+  state.onFolderScopeOnly = async () => {
+    if (state.statusChecking || state.contentLoading) return;
+    state.showPreviewPublish = false;
+    state.pageScope = 'folder';
+    clearPagesStatusDisplay(state);
+    await state.onFetch(true);
+  };
+
+  state.onTogglePreviewPublish = async (enabled) => {
+    if (state.contentLoading) return;
+    if (enabled) {
+      if (state.pages.length === 0) return;
+      state.showPreviewPublish = true;
+      await state.onLoadStatus();
+      return;
+    }
+    state.showPreviewPublish = false;
+    clearPagesStatusDisplay(state);
+    render(/** @type {HTMLElement} */ (app), state);
   };
 
   state.onLoadStatus = async () => {
     if (state.statusChecking || state.contentLoading || state.pages.length === 0) return;
-    state.autoLoadStatus = true;
-    saveViewPreferences({
-      pageScope: state.pageScope,
-      autoLoadStatus: true,
-    });
+    state.showPreviewPublish = true;
     const location = displayFolderPath(state.folderPath) || 'site root';
     const helixPaths = state.pages.map((p) => p.helixPath);
     hydratePlatformStatusFromCache(state, helixPaths);
@@ -1554,7 +1598,7 @@ async function main() {
 
     syncUrlPath(state.ref, state.folderPath);
     cancelStatusCheck(state, false);
-    const loadWithStatus = state.autoLoadStatus;
+    const loadWithStatus = state.showPreviewPublish;
     state.contentLoading = true;
     state.error = null;
     state.statusCancelled = false;
@@ -1669,7 +1713,6 @@ async function main() {
     const confirmed = await confirmBulkRun(topic, paths.length);
     if (!confirmed) return;
 
-    clearPageWorkspaceAfterOperation(state);
     applyOperationWorkspaceReset(state);
 
     const appRoot = /** @type {HTMLElement} */ (app);
@@ -1796,7 +1839,6 @@ async function main() {
     const ok = await confirmDestructiveAction(action, paths.length);
     if (!ok) return;
 
-    clearPageWorkspaceAfterOperation(state);
     applyOperationWorkspaceReset(state);
 
     const appRoot = /** @type {HTMLElement} */ (app);

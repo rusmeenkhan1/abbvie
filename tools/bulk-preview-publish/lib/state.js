@@ -30,6 +30,8 @@ export function createAppState(ctx) {
     pageFilter: 'all',
     pageSearch: '',
     folderSearch: '',
+    /** When true, user opted in to preview/publish indicators for the current folder view. */
+    showPreviewPublish: false,
     /** When true, deployment status loads automatically whenever a folder is opened. */
     autoLoadStatus: false,
     /** @deprecated transient flag — use autoLoadStatus */
@@ -84,6 +86,7 @@ export function resetWorkspace(state) {
   state.folderSearch = '';
   state.fetchStatus = false;
   state.autoLoadStatus = false;
+  state.showPreviewPublish = false;
   state.statusFetched = false;
   state.platformStatus = {};
   state.statusCheckFailed = false;
@@ -146,7 +149,16 @@ export function cancelStatusCheck(state, setMessage = true) {
 }
 
 /**
- * Clears selection, filters, and search after a page operation starts.
+ * Resets page scope and the preview/publish checkbox (e.g. when opening another folder).
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function resetPagesViewState(state) {
+  state.showPreviewPublish = false;
+  state.pageScope = 'folder';
+}
+
+/**
+ * Clears selection, filters, search, and the preview/publish checkbox after a page operation starts.
  * @param {ReturnType<typeof createAppState>} state
  */
 export function clearPageWorkspaceAfterOperation(state) {
@@ -154,6 +166,7 @@ export function clearPageWorkspaceAfterOperation(state) {
   state.pageFilter = 'all';
   state.pageSearch = '';
   state.folderSearch = '';
+  state.showPreviewPublish = false;
 }
 
 /**
@@ -174,7 +187,7 @@ export function buildStatusMap(state) {
  */
 export function isStatusLoaded(state) {
   if (state.statusCheckFailed) return false;
-  return Boolean(state.statusFetched && state.pages.length > 0);
+  return Boolean(state.showPreviewPublish && state.statusFetched && state.pages.length > 0);
 }
 
 /**
