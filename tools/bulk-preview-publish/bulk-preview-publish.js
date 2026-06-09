@@ -851,6 +851,7 @@ function refreshDeploymentUi(state) {
   if (isStatusFetchModalOpen()) {
     updateStatusFetchModal(state);
   }
+  patchDeploymentToolbar(root, state, state.statusChecking && !state.statusFetched);
   patchPagesStatusLoading(root, state);
   patchPagesFilterControls(root, state);
   patchPageSearchResults(
@@ -1034,7 +1035,7 @@ async function runRemovePartitionJob(state, daFetch, partition, paths, phaseLabe
 
 function buildStatusLegend() {
   const legend = el('div', 'bulk-pp-status-legend');
-  legend.setAttribute('aria-label', 'Status key');
+  legend.setAttribute('aria-label', 'Deployment status key');
   [
     ['untouched', 'Not previewed'],
     ['previewed', 'Preview only'],
@@ -1047,6 +1048,115 @@ function buildStatusLegend() {
     legend.append(item);
   });
   return legend;
+}
+
+/** @returns {HTMLElement} */
+function buildLockIcon() {
+  const icon = el('span', 'bulk-pp-lock-icon');
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = '<svg viewBox="0 0 24 24" focusable="false"><path d="M17 10h-1V7a4 4 0 1 0-8 0v3H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-3 0h-4V7a2 2 0 1 1 4 0v3Z"/></svg>';
+  return icon;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function deploymentToolbarTooltipText(state) {
+  if (isStatusLoaded(state)) return '';
+  if (state.showPreviewPublish && state.statusChecking) {
+    return 'Fetching deployment status. Filters unlock when the check completes.';
+  }
+  return 'Toggle on Preview & publish to fetch deployment status and unlock filters.';
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {string} pageFilter
+ * @param {boolean} interactionsLocked
+ * @returns {{ panel: HTMLElement, filterSelect: HTMLSelectElement | null }}
+ */
+function buildDeploymentToolbarPanel(state, pageFilter, interactionsLocked) {
+  const unlocked = isStatusLoaded(state);
+  const panel = el(
+    'div',
+    `bulk-pp-deployment-toolbar${unlocked ? ' bulk-pp-deployment-toolbar-unlocked' : ' bulk-pp-deployment-toolbar-locked'}`,
+  );
+  panel.id = 'bulk-pp-deployment-toolbar';
+  if (!unlocked) {
+    panel.tabIndex = 0;
+  }
+
+  const content = el('div', 'bulk-pp-deployment-toolbar-content');
+  const title = el('span', 'bulk-pp-deployment-toolbar-title', 'Deployment status');
+  content.append(title);
+
+  const controls = el('div', 'bulk-pp-deployment-toolbar-controls');
+  const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
+  filterField.append(el('label', null, 'Filter'));
+  const filterSelect = document.createElement('select');
+  filterSelect.id = 'bulk-pp-page-filter';
+  filterSelect.disabled = !unlocked || interactionsLocked;
+  PAGE_FILTERS.forEach(([value, label]) => {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    if (value === (pageFilter || 'all')) opt.selected = true;
+    filterSelect.append(opt);
+  });
+  filterField.append(filterSelect);
+  controls.append(filterField, buildStatusLegend());
+  content.append(controls);
+  panel.append(content);
+
+  if (!unlocked) {
+    const lockBadge = el('span', 'bulk-pp-deployment-lock-badge');
+    lockBadge.append(buildLockIcon(), el('span', 'bulk-pp-deployment-lock-label', 'Locked'));
+    panel.append(lockBadge);
+
+    const tooltip = el('div', 'bulk-pp-deployment-toolbar-tooltip');
+    tooltip.id = 'bulk-pp-deployment-toolbar-tooltip';
+    tooltip.setAttribute('role', 'tooltip');
+    tooltip.textContent = deploymentToolbarTooltipText(state);
+    panel.append(tooltip);
+    panel.setAttribute('aria-describedby', tooltip.id);
+  }
+
+  return { panel, filterSelect };
+}
+
+/**
+ * @param {HTMLSelectElement | null} filterSelect
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function bindDeploymentFilterSelect(filterSelect, root, state) {
+  filterSelect?.addEventListener('change', () => {
+    if (!filterSelect || filterSelect.disabled) return;
+    state.pageFilter = filterSelect.value;
+    patchPageSearchResults(
+      root,
+      state,
+      { org: state.org, site: state.site, ref: state.ref },
+      buildPageRow,
+    );
+  });
+}
+
+/**
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {boolean} interactionsLocked
+ */
+function patchDeploymentToolbar(root, state, interactionsLocked) {
+  const host = root.querySelector('#bulk-pp-deployment-toolbar');
+  if (!host) return;
+  const { panel, filterSelect } = buildDeploymentToolbarPanel(
+    state,
+    String(state.pageFilter || 'all'),
+    interactionsLocked,
+  );
+  host.replaceWith(panel);
+  bindDeploymentFilterSelect(filterSelect, root, state);
 }
 
 /**
@@ -1240,10 +1350,8 @@ function render(root, state) {
     pagesSection.append(buildPagesHeader(state, pageCountLabel, workspaceLocked));
 
     const controls = el('div', 'bulk-pp-pages-controls');
-    const showDeploymentFilters = state.showPreviewPublish && statusFetched;
 
     const toolbarRow = el('div', 'bulk-pp-pages-toolbar-row');
-    if (!showDeploymentFilters) toolbarRow.classList.add('bulk-pp-pages-toolbar-row-search-only');
     const { wrap: searchField, input: searchInput } = buildSearchField(
       'bulk-pp-page-search',
       'Find a page',
@@ -1254,25 +1362,12 @@ function render(root, state) {
     searchField.classList.add('bulk-pp-pages-search-field');
     toolbarRow.append(searchField);
 
-    /** @type {HTMLSelectElement | null} */
-    let filterSelect = null;
-    if (showDeploymentFilters) {
-      const toolbarRight = el('div', 'bulk-pp-pages-toolbar-right');
-      const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
-      filterField.append(el('label', null, 'Filter by deployment'));
-      filterSelect = document.createElement('select');
-      filterSelect.id = 'bulk-pp-page-filter';
-      PAGE_FILTERS.forEach(([value, label]) => {
-        const opt = document.createElement('option');
-        opt.value = value;
-        opt.textContent = label;
-        if (value === (pageFilter || 'all')) opt.selected = true;
-        filterSelect.append(opt);
-      });
-      filterField.append(filterSelect);
-      toolbarRight.append(filterField, buildStatusLegend());
-      toolbarRow.append(toolbarRight);
-    }
+    const { panel: deploymentToolbar, filterSelect } = buildDeploymentToolbarPanel(
+      state,
+      String(pageFilter || 'all'),
+      workspaceLocked,
+    );
+    toolbarRow.append(deploymentToolbar);
     controls.append(toolbarRow);
 
     controls.append(buildPagesSelectionRow(state, { visiblePages, statusChecking }));
@@ -1310,11 +1405,7 @@ function render(root, state) {
     workspace.append(contentGrid);
     contentBody.append(workspace);
 
-    filterSelect?.addEventListener('change', () => {
-      if (!filterSelect) return;
-      state.pageFilter = filterSelect.value;
-      patchPageSearchResults(root, state, { org, site, ref }, buildPageRow);
-    });
+    bindDeploymentFilterSelect(filterSelect, root, state);
     bindSearchInput(searchInput, state, 'page', () => {
       patchPageSearchResults(root, state, { org, site, ref }, buildPageRow);
     });
