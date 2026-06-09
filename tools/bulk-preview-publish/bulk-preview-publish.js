@@ -122,29 +122,19 @@ const WORKFLOW_STEPS = [
 /** @typedef {import('./lib/state.js').PageOperationId} PageOperationId */
 
 /** @type {{ id: PageOperationId, label: string }[]} */
-const PRIMARY_SELECTION_OPS = [
+const SELECTION_STRIP_OPS = [
   { id: 'preview', label: 'Preview' },
   { id: 'live', label: 'Publish' },
 ];
 
-/** @type {{ group: string, items: { id: PageOperationId, label: string }[] }[]} */
+/** @type {{ id: PageOperationId, label: string }[]} */
 const MORE_SELECTION_OPS = [
-  {
-    group: 'Remove',
-    items: [
-      { id: 'unpreview', label: 'Remove preview' },
-      { id: 'unpublish', label: 'Remove from live' },
-      { id: 'delete', label: 'Delete from DA' },
-    ],
-  },
-  {
-    group: 'Open',
-    items: [
-      { id: 'open-da', label: 'Open in Document Authoring' },
-      { id: 'open-preview', label: 'Open preview site' },
-      { id: 'open-live', label: 'Open live site' },
-    ],
-  },
+  { id: 'unpreview', label: 'Remove preview' },
+  { id: 'unpublish', label: 'Remove from live' },
+  { id: 'delete', label: 'Delete from DA' },
+  { id: 'open-da', label: 'Open in Document Authoring' },
+  { id: 'open-preview', label: 'Open preview site' },
+  { id: 'open-live', label: 'Open live site' },
 ];
 
 async function initSdk() {
@@ -668,7 +658,7 @@ function buildSelectionActionBar(state) {
   left.append(clearBtn, countEl);
 
   const actions = el('div', 'bulk-pp-selection-strip-actions');
-  PRIMARY_SELECTION_OPS.forEach(({ id, label }) => {
+  SELECTION_STRIP_OPS.forEach(({ id, label }) => {
     const btn = el('button', null, label);
     bindSelectionOpButton(btn, state, id);
     btn.disabled = blocked;
@@ -687,23 +677,18 @@ function buildSelectionActionBar(state) {
   menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', 'More page operations');
   const menuPanel = el('div', 'bulk-pp-selection-more-menu-panel');
-  MORE_SELECTION_OPS.forEach(({ group, items }) => {
-    const groupEl = el('div', 'bulk-pp-selection-more-group');
-    groupEl.append(el('span', 'bulk-pp-selection-more-group-label', group));
-    items.forEach(({ id, label }) => {
-      const item = el('button', 'bulk-pp-selection-more-item', label);
-      item.type = 'button';
-      item.setAttribute('role', 'menuitem');
-      if (id === 'delete') item.classList.add('bulk-pp-selection-more-item-danger');
-      item.disabled = blocked;
-      item.addEventListener('click', () => {
-        void runPageOperation(state, id);
-        moreBtn.setAttribute('aria-expanded', 'false');
-        menu.classList.remove('bulk-pp-selection-more-menu-open');
-      });
-      groupEl.append(item);
+  MORE_SELECTION_OPS.forEach(({ id, label }) => {
+    const item = el('button', 'bulk-pp-selection-more-item', label);
+    item.type = 'button';
+    item.setAttribute('role', 'menuitem');
+    if (id === 'delete') item.classList.add('bulk-pp-selection-more-item-danger');
+    item.disabled = blocked;
+    item.addEventListener('click', () => {
+      void runPageOperation(state, id);
+      moreBtn.setAttribute('aria-expanded', 'false');
+      menu.classList.remove('bulk-pp-selection-more-menu-open');
     });
-    menuPanel.append(groupEl);
+    menuPanel.append(item);
   });
   menu.append(menuPanel);
 
