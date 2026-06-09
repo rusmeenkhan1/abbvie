@@ -79,13 +79,20 @@ export function showConfirmModal(opts) {
 }
 
 /**
+ * @typedef {{ scope: 'folder'|'tree', withStatus: boolean }} FolderLoadChoice
+ */
+
+/**
  * Ask how to open a folder before loading its pages.
  * @param {string} folderLabel
- * @returns {Promise<'with-status'|'without-status'|null>}
+ * @returns {Promise<FolderLoadChoice | null>}
  */
 export function promptFolderLoadMode(folderLabel) {
   const location = folderLabel || 'Site root';
   return new Promise((resolve) => {
+    /** @type {'folder'|'tree'} */
+    let selectedScope = 'folder';
+
     const backdrop = el('div', 'bulk-pp-modal-backdrop');
     backdrop.setAttribute('role', 'presentation');
 
@@ -94,44 +101,103 @@ export function promptFolderLoadMode(folderLabel) {
     dialog.setAttribute('aria-modal', 'true');
     dialog.setAttribute('aria-labelledby', 'bulk-pp-modal-title');
 
-    const head = el('div', 'bulk-pp-modal-head');
-    const titleWrap = el('div', 'bulk-pp-modal-title-wrap');
-    titleWrap.append(el('h2', 'bulk-pp-modal-title', 'Open folder'));
-    head.append(titleWrap);
+    const head = el('div', 'bulk-pp-modal-choice-head');
+    const titleBlock = el('div', 'bulk-pp-modal-choice-title-block');
+    titleBlock.append(
+      el('h2', 'bulk-pp-modal-title', 'Open folder'),
+      el('p', 'bulk-pp-modal-choice-path', location),
+    );
+    const closeBtn = el('button', 'bulk-pp-modal-close');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.innerHTML = '<span aria-hidden="true">&times;</span>';
+    head.append(titleBlock, closeBtn);
     head.id = 'bulk-pp-modal-title';
 
     const content = el('div', 'bulk-pp-modal-body-wrap');
-    content.append(el(
-      'p',
-      'bulk-pp-modal-body',
-      `Choose how to load pages in ${location}.`,
-    ));
-    content.append(el(
-      'p',
-      'bulk-pp-modal-body bulk-pp-modal-body-muted',
-      'With deployment status checks preview and publish state from AEM (slower on large folders). Without status loads the page list immediately.',
-    ));
 
-    const actions = el('div', 'bulk-pp-modal-actions bulk-pp-modal-actions-choice');
-    const cancelBtn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-cancel', 'Cancel');
-    const withoutBtn = el(
-      'button',
-      'bulk-pp-modal-btn bulk-pp-modal-btn-ghost',
-      'Without deployment status',
+    const scopeGroup = el('div', 'bulk-pp-modal-scope');
+    scopeGroup.setAttribute('role', 'radiogroup');
+    scopeGroup.setAttribute('aria-label', 'Pages to include');
+    scopeGroup.append(el('span', 'bulk-pp-modal-scope-label', 'Pages to include'));
+
+    const scopeOptions = el('div', 'bulk-pp-modal-scope-options');
+
+    /**
+     * @param {'folder'|'tree'} value
+     * @param {string} title
+     * @param {string} hint
+     */
+    const makeScopeOption = (value, title, hint) => {
+      const option = el('label', 'bulk-pp-modal-scope-option');
+      const input = document.createElement('input');
+      input.type = 'radio';
+      input.name = 'bulk-pp-folder-scope';
+      input.value = value;
+      input.checked = value === 'folder';
+      input.className = 'bulk-pp-modal-scope-input';
+      const textWrap = el('span', 'bulk-pp-modal-scope-text');
+      textWrap.append(
+        el('span', 'bulk-pp-modal-scope-title', title),
+        el('span', 'bulk-pp-modal-scope-hint', hint),
+      );
+      option.append(input, textWrap);
+      input.addEventListener('change', () => {
+        if (input.checked) selectedScope = value;
+        syncScopeSelection();
+        updateScopeNote();
+      });
+      return option;
+    };
+
+    scopeOptions.append(
+      makeScopeOption('folder', 'This folder only', 'Pages stored directly here'),
+      makeScopeOption('tree', 'All subdirectories', 'Every page under this folder'),
     );
-    const withBtn = el(
-      'button',
-      'bulk-pp-modal-btn bulk-pp-modal-btn-confirm',
-      'With deployment status',
+    scopeGroup.append(scopeOptions);
+
+    const scopeNote = el(
+      'p',
+      'bulk-pp-modal-scope-note',
+      'Including subdirectories loads more pages and takes longer, especially with deployment status.',
     );
-    cancelBtn.type = 'button';
-    withoutBtn.type = 'button';
-    withBtn.type = 'button';
-    actions.append(cancelBtn, withoutBtn, withBtn);
+    scopeNote.hidden = true;
+
+    content.append(scopeGroup, scopeNote);
+
+    const actions = el('div', 'bulk-pp-modal-choice-actions');
+    const listBtn = el(
+      'button',
+      'bulk-pp-modal-choice-btn bulk-pp-modal-choice-btn-secondary',
+      'List pages',
+    );
+    const listWithStatusBtn = el(
+      'button',
+      'bulk-pp-modal-choice-btn bulk-pp-modal-choice-btn-primary',
+      'List pages with deployment status',
+    );
+    listBtn.type = 'button';
+    listWithStatusBtn.type = 'button';
+    actions.append(listBtn, listWithStatusBtn);
 
     dialog.append(head, content, actions);
     backdrop.append(dialog);
     document.body.append(backdrop);
+
+    const syncScopeSelection = () => {
+      scopeOptions.querySelectorAll('.bulk-pp-modal-scope-option').forEach((label) => {
+        if (!(label instanceof HTMLLabelElement)) return;
+        const input = label.querySelector('input');
+        label.classList.toggle(
+          'bulk-pp-modal-scope-option-selected',
+          input instanceof HTMLInputElement && input.checked,
+        );
+      });
+    };
+
+    const updateScopeNote = () => {
+      scopeNote.hidden = selectedScope !== 'tree';
+    };
 
     const close = (result) => {
       backdrop.remove();
@@ -143,14 +209,16 @@ export function promptFolderLoadMode(folderLabel) {
       if (e.key === 'Escape') close(null);
     };
 
-    cancelBtn.addEventListener('click', () => close(null));
-    withoutBtn.addEventListener('click', () => close('without-status'));
-    withBtn.addEventListener('click', () => close('with-status'));
+    closeBtn.addEventListener('click', () => close(null));
+    listBtn.addEventListener('click', () => close({ scope: selectedScope, withStatus: false }));
+    listWithStatusBtn.addEventListener('click', () => close({ scope: selectedScope, withStatus: true }));
     backdrop.addEventListener('click', (e) => {
       if (e.target === backdrop) close(null);
     });
     document.addEventListener('keydown', onKey);
-    withBtn.focus();
+    syncScopeSelection();
+    updateScopeNote();
+    listBtn.focus();
   });
 }
 

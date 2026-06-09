@@ -1391,15 +1391,6 @@ async function main() {
     });
   };
 
-  state.onScopeChange = async (scope) => {
-    if (state.statusChecking || state.contentLoading) return;
-    const next = scope === 'tree' ? 'tree' : 'folder';
-    if (state.pageScope === next) return;
-    state.pageScope = next;
-    cancelStatusCheck(state, false);
-    await state.onFetch(false);
-  };
-
   state.onNavigate = async (targetPath) => {
     if (state.statusChecking || state.contentLoading) return;
     cancelStatusCheck(state, false);
@@ -1409,7 +1400,8 @@ async function main() {
     const choice = await promptFolderLoadMode(folderLabel);
     if (!choice) return;
 
-    state.fetchStatus = choice === 'with-status';
+    state.fetchStatus = choice.withStatus;
+    state.pageScope = choice.scope;
     state.folderPath = resolvedPath;
     state.pageSearch = '';
     state.folderSearch = '';
