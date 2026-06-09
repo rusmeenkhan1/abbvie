@@ -949,15 +949,11 @@ function buildPageScopeRow(state, contentLoading, statusChecking) {
  * @param {ReturnType<typeof createAppState>} state
  * @param {{ visiblePages: { helixPath: string }[], statusChecking: boolean }} opts
  */
-function buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking }) {
-  const header = el('div', 'bulk-pp-pages-header');
-  const left = el('div', 'bulk-pp-pages-header-left');
-  left.append(buildPagesSectionHead(state, pageCountLabel));
-
-  const selectionRow = el('div', 'bulk-pp-selection-row');
+function buildPagesSelectionRow(state, { visiblePages, statusChecking }) {
+  const row = el('div', 'bulk-pp-pages-selection-row');
   const selectionPill = el('span', 'bulk-pp-selection-pill', formatSelectionPillText(state));
   selectionPill.id = 'bulk-pp-selection-pill';
-  selectionRow.append(selectionPill);
+  row.append(selectionPill);
 
   const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Select all');
   const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Clear');
@@ -971,9 +967,17 @@ function buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking 
     || getActiveSelectionCount(state) === 0;
   selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
   selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
-  selectionRow.append(selectAllBtn, selectNoneBtn);
-  left.append(selectionRow);
-  header.append(left);
+  row.append(selectAllBtn, selectNoneBtn);
+  return row;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {{ visiblePages: { helixPath: string }[], statusChecking: boolean }} opts
+ */
+function buildPagesHeader(state, pageCountLabel, { visiblePages, statusChecking }) {
+  const header = el('div', 'bulk-pp-pages-header');
+  header.append(buildPagesSectionHead(state, pageCountLabel));
   return header;
 }
 
@@ -1245,12 +1249,22 @@ function render(root, state) {
     }
 
     const controls = el('div', 'bulk-pp-pages-controls');
-    const filterRow = el('div', 'bulk-pp-pages-filter-row');
+    const filtersLocked = statusChecking || !statusFetched;
+
+    const toolbarRow = el('div', 'bulk-pp-pages-toolbar-row');
+    const { wrap: searchField, input: searchInput } = buildSearchField(
+      'bulk-pp-page-search',
+      'Find a page',
+      String(pageSearch || ''),
+      statusChecking,
+      searchHintText(pageSearch),
+    );
+    searchField.classList.add('bulk-pp-pages-search-field');
+
     const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
     filterField.append(el('label', null, 'Filter by deployment'));
     const filterSelect = document.createElement('select');
     filterSelect.id = 'bulk-pp-page-filter';
-    const filtersLocked = statusChecking || !statusFetched;
     filterSelect.disabled = filtersLocked;
     PAGE_FILTERS.forEach(([value, label]) => {
       const opt = document.createElement('option');
@@ -1264,8 +1278,11 @@ function render(root, state) {
       filterSelect.append(opt);
     });
     filterField.append(filterSelect);
-    filterRow.append(
-      filterField,
+    toolbarRow.append(searchField, filterField);
+    controls.append(toolbarRow);
+
+    const filterMeta = el('div', 'bulk-pp-pages-filter-meta');
+    filterMeta.append(
       buildStatusLegend(),
       el(
         'p',
@@ -1277,21 +1294,12 @@ function render(root, state) {
             : 'Filters apply to pages in this directory only',
       ),
     );
-    controls.append(filterRow);
+    controls.append(filterMeta);
 
-    const { wrap: searchField, input: searchInput } = buildSearchField(
-      'bulk-pp-page-search',
-      'Find a page',
-      String(pageSearch || ''),
-      statusChecking,
-      searchHintText(pageSearch),
-    );
-    const searchRow = el('div', 'bulk-pp-pages-search-row');
-    searchRow.append(searchField);
-    controls.append(searchRow);
+    controls.append(buildPagesSelectionRow(state, { visiblePages, statusChecking }));
     pagesSection.append(controls);
 
-    const pageWrap = el('div', 'bulk-pp-list-wrap');
+    const pageWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-pages');
     pageWrap.id = 'bulk-pp-page-list-wrap';
     const pageList = el('ul', 'bulk-pp-list');
     pageList.id = 'bulk-pp-page-list';
