@@ -885,7 +885,7 @@
   flex: 0 1 auto;
 }
 
-.bulk-pp-pages-status-check {
+.bulk-pp-pages-header-check {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -899,7 +899,7 @@
   white-space: nowrap;
 }
 
-.bulk-pp-pages-status-check input {
+.bulk-pp-pages-header-check input {
   width: 15px;
   height: 15px;
   margin: 0;
@@ -907,13 +907,9 @@
   cursor: pointer;
 }
 
-.bulk-pp-pages-status-check input:disabled {
+.bulk-pp-pages-header-check input:disabled {
   cursor: not-allowed;
   opacity: 0.55;
-}
-
-.bulk-pp-pages-header-scope {
-  margin-top: 12px;
 }
 
 .bulk-pp-pages-header-status {

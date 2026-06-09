@@ -202,7 +202,7 @@ function createPanel(title, extraClass = '') {
 function formatPagesSectionSubtitle(folderPath, pageScope) {
   const location = displayFolderPath(folderPath) || 'Site root';
   if (pageScope === 'tree') {
-    return `${location} — includes subfolders`;
+    return `${location} — includes subdirectories`;
   }
   return location;
 }
@@ -853,6 +853,22 @@ function buildPagesHeader(state, pageCountLabel, workspaceLocked) {
   main.append(buildPagesSectionHead(state));
 
   const aside = el('div', 'bulk-pp-pages-header-aside');
+
+  const scopeCheck = el('input');
+  scopeCheck.type = 'checkbox';
+  scopeCheck.id = 'bulk-pp-include-subdirectories';
+  scopeCheck.checked = state.pageScope === 'tree';
+  scopeCheck.disabled = locked;
+  scopeCheck.addEventListener('change', () => {
+    void state.onToggleIncludeSubdirectories(scopeCheck.checked);
+  });
+  const scopeLabel = el('label', 'bulk-pp-pages-header-check');
+  scopeLabel.htmlFor = 'bulk-pp-include-subdirectories';
+  scopeLabel.append(
+    scopeCheck,
+    document.createTextNode(' Include subdirectories'),
+  );
+
   const statusCheck = el('input');
   statusCheck.type = 'checkbox';
   statusCheck.id = 'bulk-pp-show-preview-publish';
@@ -861,7 +877,7 @@ function buildPagesHeader(state, pageCountLabel, workspaceLocked) {
   statusCheck.addEventListener('change', () => {
     void state.onTogglePreviewPublish(statusCheck.checked);
   });
-  const statusLabel = el('label', 'bulk-pp-pages-status-check');
+  const statusLabel = el('label', 'bulk-pp-pages-header-check');
   statusLabel.htmlFor = 'bulk-pp-show-preview-publish';
   statusLabel.append(
     statusCheck,
@@ -870,33 +886,9 @@ function buildPagesHeader(state, pageCountLabel, workspaceLocked) {
 
   const countEl = el('span', 'bulk-pp-section-count', String(pageCountLabel));
   countEl.id = 'bulk-pp-page-count';
-  aside.append(statusLabel, countEl);
+  aside.append(scopeLabel, statusLabel, countEl);
   topRow.append(main, aside);
   header.append(topRow);
-
-  const scopeRow = el('div', 'bulk-pp-pages-header-scope');
-  if (state.pageScope === 'folder') {
-    const subBtn = el(
-      'button',
-      'bulk-pp-btn bulk-pp-btn-secondary',
-      'Include pages from subfolders',
-    );
-    subBtn.type = 'button';
-    subBtn.disabled = locked;
-    subBtn.addEventListener('click', () => { void state.onIncludeSubfolders(); });
-    scopeRow.append(subBtn);
-  } else {
-    const folderOnlyBtn = el(
-      'button',
-      'bulk-pp-btn bulk-pp-btn-secondary',
-      'This folder only',
-    );
-    folderOnlyBtn.type = 'button';
-    folderOnlyBtn.disabled = locked;
-    folderOnlyBtn.addEventListener('click', () => { void state.onFolderScopeOnly(); });
-    scopeRow.append(folderOnlyBtn);
-  }
-  header.append(scopeRow);
 
   if (state.pages.length > 0 && state.showPreviewPublish && state.statusChecking) {
     const statusRow = el('div', 'bulk-pp-pages-header-status');
@@ -1530,18 +1522,12 @@ async function main() {
     await state.onFetch(true);
   };
 
-  state.onIncludeSubfolders = async () => {
+  state.onToggleIncludeSubdirectories = async (enabled) => {
     if (state.statusChecking || state.contentLoading) return;
+    const next = enabled ? 'tree' : 'folder';
+    if (state.pageScope === next) return;
     state.showPreviewPublish = false;
-    state.pageScope = 'tree';
-    clearPagesStatusDisplay(state);
-    await state.onFetch(true);
-  };
-
-  state.onFolderScopeOnly = async () => {
-    if (state.statusChecking || state.contentLoading) return;
-    state.showPreviewPublish = false;
-    state.pageScope = 'folder';
+    state.pageScope = next;
     clearPagesStatusDisplay(state);
     await state.onFetch(true);
   };
