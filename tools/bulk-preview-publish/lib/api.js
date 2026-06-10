@@ -47,6 +47,28 @@ const OPERATION_LABELS = {
   list: 'browse site content',
 };
 
+export const CONTENT_OPERATION_HUB_NAME = 'Content Operation Hub';
+
+/** Shown when the tool is opened outside DA (preview URLs, missing SDK token, etc.). */
+export const DA_AUTH_CONTEXT_MESSAGE =
+  `Sign in to Document Authoring (https://da.live) and open ${CONTENT_OPERATION_HUB_NAME} from Apps. Preview (.aem.page / .aem.live) URLs cannot authenticate.`;
+
+/** Shown when daFetch is unavailable at startup. */
+export const DA_LOGIN_REQUIRED_MESSAGE =
+  `Sign in to Document Authoring (https://da.live), then open ${CONTENT_OPERATION_HUB_NAME} from Apps.`;
+
+/** Shown when org/site context is missing. */
+export const DA_SITE_CONTEXT_MESSAGE =
+  `Open ${CONTENT_OPERATION_HUB_NAME} from your site in Document Authoring (https://da.live/app/your-org/your-site).`;
+
+/**
+ * @param {string} message
+ * @returns {boolean}
+ */
+export function isDaAccessError(message) {
+  return /document authoring|da\.live|content operation hub|preview.*cannot authenticate|not signed in|missing ims client|missing org or site/i.test(String(message || ''));
+}
+
 /**
  * @param {unknown} data
  * @param {number} status
@@ -62,13 +84,13 @@ export function formatAdminApiError(data, status, operation = '') {
   const opSuffix = opLabel ? ` to ${opLabel}` : '';
 
   if (/missing ims client id/i.test(raw)) {
-    return 'Open this tool from Document Authoring (https://da.live) — preview (.aem.live) URLs cannot authenticate.';
+    return DA_AUTH_CONTEXT_MESSAGE;
   }
   if (status === 401) {
     if (raw && !/unauthorized/i.test(raw)) {
-      return `${raw} Sign in at https://da.live and reopen this tool from Apps.`;
+      return `${raw} ${DA_LOGIN_REQUIRED_MESSAGE}`;
     }
-    return 'You are not signed in. Open this tool from Document Authoring (https://da.live) and sign in with Adobe IMS.';
+    return `You are not signed in. ${DA_LOGIN_REQUIRED_MESSAGE}`;
   }
   if (status === 403) {
     if (raw && !/^forbidden$/i.test(raw.trim())) {
@@ -175,7 +197,7 @@ function extractJobFailureDetail(job) {
 export function assertAdminContext(org, site, ref) {
   if (!org || !site) {
     throw new Error(
-      `Missing org or site for AEM Admin API (got org="${org}", site="${site}"). Open from da.live/app/{org}/{site}/…`,
+      `Missing org or site for AEM Admin API (got org="${org}", site="${site}"). ${DA_SITE_CONTEXT_MESSAGE}`,
     );
   }
 }
@@ -1119,7 +1141,7 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
         }
         if (err instanceof TypeError) {
           throw new Error(
-            'Network or CORS error reaching AEM Admin API. Open this tool from https://da.live (Apps), not a .aem.live tab.',
+            `Network or CORS error reaching AEM Admin API. ${DA_AUTH_CONTEXT_MESSAGE}`,
           );
         }
         throw err;

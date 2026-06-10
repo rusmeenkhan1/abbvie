@@ -11,6 +11,9 @@ import {
   resolveJobOutcome,
   runBulkRemoveJob,
   startBulkJob,
+  DA_LOGIN_REQUIRED_MESSAGE,
+  DA_SITE_CONTEXT_MESSAGE,
+  isDaAccessError,
 } from './lib/api.js';
 import {
   displayFolderPath,
@@ -177,6 +180,29 @@ function buildSelectionOpIcon(operationId) {
   icon.setAttribute('aria-hidden', 'true');
   icon.innerHTML = SELECTION_OP_ICONS[operationId] || '';
   return icon;
+}
+
+function buildDaAccessErrorPanel(message) {
+  const wrap = el('div', 'bulk-pp-da-access-error');
+  wrap.append(
+    el('h3', 'bulk-pp-da-access-error-title', 'Sign in to Document Authoring'),
+    el('p', 'bulk-pp-da-access-error-lead', message),
+  );
+  const steps = el('ol', 'bulk-pp-da-access-error-steps');
+  [
+    'Go to da.live and sign in with your Adobe account.',
+    'Open your site app from Apps or Files.',
+    `Launch ${APP_TITLE} from the site tools menu.`,
+  ].forEach((text) => steps.append(el('li', null, text)));
+  wrap.append(steps);
+  const link = document.createElement('a');
+  link.className = 'bulk-pp-btn bulk-pp-btn-confirm bulk-pp-da-access-error-link';
+  link.href = 'https://da.live';
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = 'Open Document Authoring';
+  wrap.append(link);
+  return wrap;
 }
 
 async function initSdk() {
@@ -1404,7 +1430,11 @@ function render(root, state) {
     loading.append(el('p', 'bulk-pp-list-empty', 'Fetching content…'));
     contentBody.append(loading);
   } else if (error) {
-    contentBody.append(el('p', 'bulk-pp-list-empty bulk-pp-list-empty-error', error));
+    if (isDaAccessError(error)) {
+      contentBody.append(buildDaAccessErrorPanel(error));
+    } else {
+      contentBody.append(el('p', 'bulk-pp-list-empty bulk-pp-list-empty-error', error));
+    }
   } else if (state.pages.length === 0 && state.folders.length === 0 && !statusChecking) {
     contentBody.append(el(
       'p',
@@ -1873,7 +1903,7 @@ async function main() {
     }
 
     if (!state.org || !state.site) {
-      state.error = 'Missing org or site in DA context. Open this app from Document Authoring.';
+      state.error = `Missing org or site in DA context. ${DA_SITE_CONTEXT_MESSAGE}`;
       render(app, state);
       return;
     }
@@ -2255,14 +2285,16 @@ async function main() {
   };
 
   if (!daFetch) {
-    state.error = `Open ${APP_TITLE} from Document Authoring (https://da.live → Apps).`;
+    state.error = DA_LOGIN_REQUIRED_MESSAGE;
+    state.status = state.error;
     state.statusType = 'error';
     render(app, state);
     return;
   }
 
   if (!ctx.org || !ctx.site) {
-    state.error = 'Missing org or site from DA context. Open this tool from Document Authoring.';
+    state.error = DA_SITE_CONTEXT_MESSAGE;
+    state.status = state.error;
     state.statusType = 'error';
     render(app, state);
     return;
