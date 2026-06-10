@@ -16,18 +16,21 @@ import { el } from './dom.js';
 function syncPageRowDaLinks(root, state) {
   const multi = getActiveSelectionCount(state) > 1;
   const locked = state.statusChecking;
-  root.querySelectorAll('.bulk-pp-row-menu-btn').forEach((btn) => {
-    if (!(btn instanceof HTMLButtonElement)) return;
+  root.querySelectorAll('.bulk-pp-btn-open-da').forEach((el) => {
+    if (!(el instanceof HTMLAnchorElement)) return;
+    const href = el.dataset.href || '';
     if (locked || multi) {
-      btn.classList.add('bulk-pp-row-menu-btn-disabled');
-      btn.disabled = true;
-      btn.title = multi
+      el.classList.add('bulk-pp-btn-open-da-disabled');
+      el.setAttribute('aria-disabled', 'true');
+      el.removeAttribute('href');
+      el.title = multi
         ? 'Use More → Open in Document Authoring when multiple pages are selected'
         : 'Unavailable while status is loading';
     } else {
-      btn.classList.remove('bulk-pp-row-menu-btn-disabled');
-      btn.disabled = false;
-      btn.title = 'Open in Document Authoring';
+      el.classList.remove('bulk-pp-btn-open-da-disabled');
+      el.removeAttribute('aria-disabled');
+      if (href) el.href = href;
+      el.title = 'Open this page in Document Authoring';
     }
   });
 }
