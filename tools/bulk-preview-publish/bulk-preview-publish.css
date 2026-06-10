@@ -930,11 +930,11 @@ html:has(.bulk-pp-body) {
   color: #2c2c2c;
 }
 
-/* —— Pages header —— */
+/* —— Pages header (title + status summary) —— */
 .bulk-pp-pages-header {
-  padding: 12px 16px;
+  padding: 12px 16px 8px;
   background: #fff;
-  border-bottom: 1px solid #eaeaea;
+  border-bottom: none;
 }
 
 .bulk-pp-pages-header-top {
@@ -942,22 +942,22 @@ html:has(.bulk-pp-body) {
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px 16px;
+  gap: 10px 16px;
 }
 
 .bulk-pp-pages-header-main {
-  flex: 1 1 240px;
+  flex: 1 1 200px;
   min-width: 0;
 }
 
 .bulk-pp-pages-header-aside {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
-  gap: 12px 16px;
-  flex: 0 1 auto;
-  padding-top: 2px;
+  flex: 1 1 280px;
+  max-width: min(100%, 440px);
+  min-width: 0;
 }
 
 .bulk-pp-pages-header-check {
@@ -1090,8 +1090,8 @@ html:has(.bulk-pp-body) {
   align-items: center;
   gap: 8px 12px;
   margin: 0;
-  padding: 12px 0 14px;
-  border-top: 1px solid var(--pp-border);
+  padding: 8px 0 10px;
+  border-top: 1px solid rgb(7 29 73 / 8%);
 }
 
 .bulk-pp-selection-row {
@@ -1772,19 +1772,20 @@ html:has(.bulk-pp-body) {
   margin: 0;
 }
 
-/* —— Pages controls (summary, search, filter, legend, selection) —— */
+/* —— Pages controls (search, filter, legend, selection) —— */
 .bulk-pp-pages-controls {
   margin: 0;
-  padding: 14px 20px 0;
-  background: var(--pp-surface-subtle);
-  border-top: none;
+  padding: 0 16px;
+  background: #fff;
+  border-bottom: 1px solid #eaeaea;
 }
 
-.bulk-pp-pages-summary {
+.bulk-pp-pages-header .bulk-pp-pages-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
-  margin-bottom: 14px;
+  width: 100%;
+  margin: 0;
   border: 1px solid var(--pp-border);
   border-radius: var(--pp-radius-sm);
   background: var(--pp-border);
@@ -1801,15 +1802,15 @@ html:has(.bulk-pp-body) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-height: 48px;
-  padding: 8px 10px;
+  gap: 1px;
+  min-height: 40px;
+  padding: 5px 6px;
   background: #fff;
   text-align: center;
 }
 
 .bulk-pp-pages-summary-value {
-  font-size: 1.0625rem;
+  font-size: 0.9375rem;
   font-weight: 700;
   line-height: 1.1;
   color: var(--pp-navy);
@@ -1845,7 +1846,8 @@ html:has(.bulk-pp-body) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: end;
-  gap: 16px 20px;
+  gap: 12px 16px;
+  padding-top: 2px;
 }
 
 .bulk-pp-pages-toolbar-row .bulk-pp-pages-search-field,
@@ -1904,8 +1906,8 @@ html:has(.bulk-pp-body) {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px 14px;
-  margin-top: 8px;
+  gap: 8px 12px;
+  margin-top: 4px;
 }
 
 .bulk-pp-pages-legend-row .bulk-pp-status-legend {
@@ -2778,14 +2780,15 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-search-hint {
   display: block;
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: 0.75rem;
   color: var(--pp-text-subtle);
-  min-height: 1.1em;
+  min-height: 0;
   transition: color 0.15s ease;
 }
 
 .bulk-pp-search-hint:not([hidden]) {
+  min-height: 1.1em;
   color: var(--pp-text-muted);
 }
 
@@ -4168,8 +4171,14 @@ html:has(.bulk-pp-body) {
     max-width: none;
   }
 
-  .bulk-pp-pages-summary {
+  .bulk-pp-pages-header .bulk-pp-pages-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: none;
+  }
+
+  .bulk-pp-pages-header-aside {
+    max-width: none;
+    width: 100%;
   }
 
   .bulk-pp-pages-legend-row {

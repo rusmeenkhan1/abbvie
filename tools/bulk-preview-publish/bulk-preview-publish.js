@@ -902,10 +902,8 @@ function clearPagesStatusDisplay(state) {
 function patchPagesHeader(root, state) {
   const host = root.querySelector('.bulk-pp-pages-header');
   if (!host) return;
-  const countEl = root.querySelector('#bulk-pp-page-count');
-  const pageCountLabel = countEl?.textContent || String(state.pages.length);
   const workspaceLocked = state.statusChecking && !state.statusFetched;
-  host.replaceWith(buildPagesHeader(state, pageCountLabel, workspaceLocked));
+  host.replaceWith(buildPagesHeader(state, workspaceLocked));
 }
 
 /**
@@ -968,19 +966,22 @@ function buildPagesSelectionRow(state, { visiblePages, statusChecking }) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
- * @param {string | number} pageCountLabel
  * @param {boolean} workspaceLocked
  */
-function buildPagesHeader(state, pageCountLabel, workspaceLocked) {
+function buildPagesHeader(state, workspaceLocked) {
   const header = el('div', 'bulk-pp-pages-header');
   const topRow = el('div', 'bulk-pp-pages-header-top');
   const main = el('div', 'bulk-pp-pages-header-main');
   main.append(buildPagesSectionHead(state, workspaceLocked));
 
   const aside = el('div', 'bulk-pp-pages-header-aside');
-  const countEl = el('span', 'bulk-pp-section-count', String(pageCountLabel));
-  countEl.id = 'bulk-pp-page-count';
-  aside.append(countEl);
+  if (state.pages.length > 0) {
+    aside.append(buildPagesStatusSummary(state));
+  } else {
+    const countEl = el('span', 'bulk-pp-section-count', '0');
+    countEl.id = 'bulk-pp-page-count';
+    aside.append(countEl);
+  }
   topRow.append(main, aside);
   header.append(topRow);
 
@@ -1124,9 +1125,6 @@ function buildStatusLegend() {
   return legend;
 }
 
-/**
- * @param {ReturnType<typeof createAppState>} state
- */
 /**
  * @param {ReturnType<typeof createAppState>} state
  */
@@ -1396,16 +1394,9 @@ function render(root, state) {
     });
 
     const pagesSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-pages');
-    const pageCountLabel = searchDraft && !searchTooShort
-      ? `${visiblePages.length} of ${state.pages.length}`
-      : String(state.pages.length);
-    pagesSection.append(buildPagesHeader(state, pageCountLabel, workspaceLocked));
+    pagesSection.append(buildPagesHeader(state, workspaceLocked));
 
     const controls = el('div', 'bulk-pp-pages-controls');
-
-    if (state.pages.length > 0) {
-      controls.append(buildPagesStatusSummary(state));
-    }
 
     const toolbarRow = el('div', 'bulk-pp-pages-toolbar-row');
     const { wrap: searchField, input: searchInput } = buildSearchField(
