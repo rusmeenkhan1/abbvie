@@ -79,6 +79,7 @@ import {
 import {
   cancelBulkJob,
   cancelStatusCheck,
+  cancelStatusRevalidate,
   clearPageWorkspaceAfterOperation,
   createAppState,
   formatSelectionPillText,
@@ -1134,7 +1135,7 @@ function buildPagesStatusSummary(state) {
     state.platformStatus,
     helixPaths,
   );
-  const loading = state.statusChecking && !state.statusFetched;
+  const loading = (state.statusChecking && !state.statusFetched) || state.statusRevalidating;
   const strip = el('div', `bulk-pp-pages-summary${loading ? ' bulk-pp-pages-summary-loading' : ''}`);
   strip.id = 'bulk-pp-pages-summary';
   strip.setAttribute('aria-label', 'Deployment summary for pages in this view');
@@ -1421,8 +1422,14 @@ function render(root, state) {
       const legendRow = el('div', 'bulk-pp-pages-legend-row');
       legendRow.id = 'bulk-pp-pages-legend-row';
       legendRow.append(buildStatusLegend());
-      if (statusChecking) {
-        legendRow.append(el('span', 'bulk-pp-pages-status-hint', 'Updating status…'));
+      if (statusChecking || state.statusRevalidating) {
+        legendRow.append(el(
+          'span',
+          'bulk-pp-pages-status-hint',
+          state.statusRevalidating && !statusChecking
+            ? 'Refreshing status…'
+            : 'Updating status…',
+        ));
       }
       controls.append(legendRow);
     }
@@ -1499,6 +1506,65 @@ function render(root, state) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
+ * @param {string[]} pathsToCheck
+ */
+function pathsMatchCurrentPages(state, pathsToCheck) {
+  if (state.pages.length !== pathsToCheck.length) return false;
+  const current = new Set(state.pages.map((p) => p.helixPath));
+  return pathsToCheck.every((path) => current.has(path));
+}
+
+/**
+ * Show cached status immediately, then refresh from the API without blocking the UI.
+ * Picks up preview/publish changes made directly in DA.
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {Function | null} daFetch
+ * @param {string[]} pathsToCheck
+ */
+async function revalidateCachedStatusInBackground(state, daFetch, pathsToCheck) {
+  if (!daFetch || pathsToCheck.length === 0) return;
+
+  cancelStatusRevalidate(state);
+  const controller = new AbortController();
+  state.statusRevalidateAbort = controller;
+  state.statusRevalidating = true;
+  refreshDeploymentUi(state);
+
+  try {
+    const fresh = await fetchPlatformStatusForPaths(
+      daFetch,
+      state.org,
+      state.site,
+      state.ref,
+      pathsToCheck,
+      (partial) => {
+        if (!pathsMatchCurrentPages(state, pathsToCheck)) return;
+        state.platformStatus = { ...state.platformStatus, ...partial };
+        refreshDeploymentUi(state);
+      },
+      { signal: controller.signal },
+    );
+    if (controller.signal.aborted || !pathsMatchCurrentPages(state, pathsToCheck)) return;
+    commitPlatformStatus(state, { ...state.platformStatus, ...fresh });
+    state.statusCheckFailed = false;
+    state.statusError = null;
+    const root = /** @type {HTMLElement | null} */ (state.root);
+    refreshDeploymentUi(state);
+    if (root) render(root, state);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return;
+    console.warn('[bulk-pp] background status revalidate failed', err);
+  } finally {
+    if (state.statusRevalidateAbort === controller) {
+      state.statusRevalidateAbort = null;
+    }
+    state.statusRevalidating = false;
+    refreshDeploymentUi(state);
+  }
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
  * @param {Function | null} daFetch
  * @param {string[]} pathsToCheck
  * @param {string} location
@@ -1544,6 +1610,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusType = 'info';
     refreshDeploymentUi(state);
     if (root) render(root, state);
+    void revalidateCachedStatusInBackground(state, daFetch, pathsToCheck);
     return;
   }
 

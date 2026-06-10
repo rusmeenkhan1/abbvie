@@ -193,11 +193,11 @@ Whenever pages load (folder navigation, scope change, or first open), deployment
 
 | Situation | Behavior |
 |-----------|----------|
-| **All pages cached** (localStorage) | Status appears instantly — no API call, no progress modal |
+| **All pages cached** (localStorage) | Cached status appears instantly, then **silently re-fetches** from the API in the background (no modal) |
 | **Some pages cached** | Cached rows show immediately; only missing pages are fetched (progress modal opens) |
 | **Nothing cached** | Full fetch with progress modal |
 
-Navigating or changing scope clears in-memory status, then rehydrates from **localStorage** before deciding what still needs to be fetched.
+Navigating or changing scope clears in-memory status, rehydrates from **localStorage**, then fetches anything still missing. A full cache hit still triggers a **background refresh** so preview/publish done directly in DA is picked up without slowing folder navigation.
 
 ### localStorage cache
 
@@ -210,7 +210,7 @@ Per-page deployment status is stored in the browser under `bulk-pp-deployment-st
 | **Written** | After each successful fetch, partial stop, or bulk preview/publish job |
 | **Read** | On every folder open — avoids re-fetching when navigating back |
 
-To force a fresh check for a folder, hard-refresh the tool or wait for entries to expire. Status changed outside this tool (e.g. directly in DA) may stay stale until cache expires or you revisit after a successful refetch.
+Entries expire after 7 days. When you open a folder, cached data is shown first and then refreshed in the background — changes made directly in DA are usually reflected within a few seconds. If the background refresh fails (offline, rate limit), cached values are kept until the next visit.
 
 ### Progress modal
 
@@ -619,7 +619,7 @@ After preview, publish, or destructive jobs initiated by this tool, status is re
 | 429 rate limit | Wait and reload the folder (navigate away and back) to retry. |
 | Stop didn’t undo work | Expected — server jobs continue; modal explains this. |
 | Delete partial failure | Per-path errors reported (up to 3 samples in UI). |
-| External DA preview/publish | Cached status may be stale for up to 7 days; hard-refresh or wait for cache expiry. |
+| External DA preview/publish | Usually corrected by background refresh on next folder open; if refresh fails, cache may be stale until the next successful fetch. |
 
 ### Boot and content errors
 

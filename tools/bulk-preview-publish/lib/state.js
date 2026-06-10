@@ -42,6 +42,8 @@ export function createAppState(ctx) {
     statusCheckFailed: false,
     statusError: null,
     statusChecking: false,
+    /** True while silently refreshing cached deployment status from the API. */
+    statusRevalidating: false,
     statusCancelled: false,
     statusProgressDone: 0,
     statusProgressTotal: 0,
@@ -51,6 +53,8 @@ export function createAppState(ctx) {
     statusPanelNote: null,
     /** @type {AbortController | null} */
     statusAbort: null,
+    /** @type {AbortController | null} */
+    statusRevalidateAbort: null,
     /** @type {AbortController | null} */
     jobAbort: null,
     /** @type {number | null} */
@@ -92,6 +96,7 @@ export function resetWorkspace(state) {
   state.statusCheckFailed = false;
   state.statusError = null;
   state.statusChecking = false;
+  state.statusRevalidating = false;
   state.statusCancelled = false;
   state.statusProgressDone = 0;
   state.statusProgressTotal = 0;
@@ -127,9 +132,21 @@ export function cancelBulkJob(state, setMessage = true) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
+ */
+export function cancelStatusRevalidate(state) {
+  if (state.statusRevalidateAbort) {
+    state.statusRevalidateAbort.abort();
+    state.statusRevalidateAbort = null;
+  }
+  state.statusRevalidating = false;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
  * @param {boolean} [setMessage]
  */
 export function cancelStatusCheck(state, setMessage = true) {
+  cancelStatusRevalidate(state);
   if (state.statusAbort) {
     state.statusAbort.abort();
     state.statusAbort = null;
