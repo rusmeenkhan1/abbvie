@@ -143,6 +143,20 @@ export function hasCompleteCachedStatus(org, site, ref, helixPaths) {
 }
 
 /**
+ * Helix paths with no fresh cached deployment status.
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ * @returns {string[]}
+ */
+export function getUncachedHelixPaths(org, site, ref, helixPaths) {
+  if (helixPaths.length === 0) return [];
+  const siteCache = getSiteCache(org, site, ref);
+  return helixPaths.filter((path) => !isFreshEntry(siteCache[path]));
+}
+
+/**
  * @param {string} org
  * @param {string} site
  * @param {string} ref

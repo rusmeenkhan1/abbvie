@@ -24,6 +24,7 @@ import {
 import {
   buildOptimisticStatusPatch,
   commitPlatformStatus,
+  getUncachedHelixPaths,
   hasCompleteCachedStatus,
   hydratePlatformStatusFromCache,
   persistCurrentPlatformStatus,
@@ -926,7 +927,7 @@ function refreshDeploymentUi(state) {
   if (isStatusFetchModalOpen()) {
     updateStatusFetchModal(state);
   }
-  patchDeploymentToolbar(root, state, state.contentLoading);
+  patchPagesStatusSummary(root, state);
   patchPagesStatusLoading(root, state);
   patchPagesFilterControls(root, state);
   patchPageSearchResults(
@@ -1126,13 +1127,18 @@ function buildStatusLegend() {
 /**
  * @param {ReturnType<typeof createAppState>} state
  */
-function buildDeploymentSummaryStrip(state) {
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function buildPagesStatusSummary(state) {
   const helixPaths = state.pages.map((p) => p.helixPath);
   const { live, previewOnly, none, total } = deploymentCountsForPaths(
     state.platformStatus,
     helixPaths,
   );
-  const strip = el('div', 'bulk-pp-deployment-summary');
+  const loading = state.statusChecking && !state.statusFetched;
+  const strip = el('div', `bulk-pp-pages-summary${loading ? ' bulk-pp-pages-summary-loading' : ''}`);
+  strip.id = 'bulk-pp-pages-summary';
   strip.setAttribute('aria-label', 'Deployment summary for pages in this view');
 
   /** @type {[string, number, string][]} */
@@ -1143,26 +1149,13 @@ function buildDeploymentSummaryStrip(state) {
     ['total', total, 'Total in view'],
   ];
   items.forEach(([mod, value, label]) => {
-    const item = el('div', `bulk-pp-deployment-summary-item bulk-pp-deployment-summary-${mod}`);
+    const item = el('div', `bulk-pp-pages-summary-item bulk-pp-pages-summary-${mod}`);
     item.append(
-      el('span', 'bulk-pp-deployment-summary-value', String(value)),
-      el('span', 'bulk-pp-deployment-summary-label', label),
+      el('span', 'bulk-pp-pages-summary-value', String(value)),
+      el('span', 'bulk-pp-pages-summary-label', label),
     );
     strip.append(item);
   });
-  return strip;
-}
-
-/** @returns {HTMLElement} */
-function buildDeploymentSummaryPlaceholder() {
-  const strip = el('div', 'bulk-pp-deployment-summary bulk-pp-deployment-summary-placeholder');
-  const cell = el('div', 'bulk-pp-deployment-summary-placeholder-cell');
-  cell.append(el(
-    'span',
-    'bulk-pp-deployment-summary-placeholder-text',
-    'Summary appears while deployment status loads.',
-  ));
-  strip.append(cell);
   return strip;
 }
 
@@ -1170,45 +1163,25 @@ function buildDeploymentSummaryPlaceholder() {
  * @param {ReturnType<typeof createAppState>} state
  * @param {string} pageFilter
  * @param {boolean} contentLoading
- * @returns {{ panel: HTMLElement, filterSelect: HTMLSelectElement | null }}
+ * @returns {{ filterField: HTMLElement, filterSelect: HTMLSelectElement }}
  */
-function buildDeploymentToolbarPanel(state, pageFilter, contentLoading) {
-  const hasSummary = state.statusFetched || state.statusChecking;
-  const panel = el('div', 'bulk-pp-deployment-toolbar bulk-pp-deployment-toolbar-unlocked');
-  panel.id = 'bulk-pp-deployment-toolbar';
-
-  const content = el('div', 'bulk-pp-deployment-toolbar-content');
-  const head = el('div', 'bulk-pp-deployment-toolbar-head');
-  head.append(el('span', 'bulk-pp-deployment-toolbar-title', 'Deployment status'));
-  if (state.statusChecking) {
-    head.append(el('span', 'bulk-pp-deployment-fetching-badge', 'Fetching…'));
-  } else if (state.statusFetched) {
-    head.append(el('span', 'bulk-pp-deployment-active-badge', 'Active'));
-  }
-  content.append(head);
-
-  const controls = el('div', 'bulk-pp-deployment-toolbar-controls');
-  const filterField = el('div', 'bulk-pp-field bulk-pp-field-filter');
-  filterField.append(el('label', null, 'Filter by status'));
+function buildPagesFilterField(state, pageFilter, contentLoading) {
+  const filterField = el('div', 'bulk-pp-pages-filter-field bulk-pp-field-filter');
+  const label = el('label', 'bulk-pp-search-label', 'Filter by status');
+  label.htmlFor = 'bulk-pp-page-filter';
   const filterSelect = document.createElement('select');
   filterSelect.id = 'bulk-pp-page-filter';
+  filterSelect.className = 'bulk-pp-filter-select';
   filterSelect.disabled = contentLoading;
-  PAGE_FILTERS.forEach(([value, label]) => {
+  PAGE_FILTERS.forEach(([value, labelText]) => {
     const opt = document.createElement('option');
     opt.value = value;
-    opt.textContent = label;
+    opt.textContent = labelText;
     if (value === (pageFilter || 'all')) opt.selected = true;
     filterSelect.append(opt);
   });
-  filterField.append(filterSelect);
-  controls.append(filterField, buildStatusLegend());
-  content.append(controls);
-
-  content.append(hasSummary ? buildDeploymentSummaryStrip(state) : buildDeploymentSummaryPlaceholder());
-
-  panel.append(content);
-
-  return { panel, filterSelect };
+  filterField.append(label, filterSelect);
+  return { filterField, filterSelect };
 }
 
 /**
@@ -1232,18 +1205,11 @@ function bindDeploymentFilterSelect(filterSelect, root, state) {
 /**
  * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
- * @param {boolean} contentLoading
  */
-function patchDeploymentToolbar(root, state, contentLoading) {
-  const host = root.querySelector('#bulk-pp-deployment-toolbar');
-  if (!host) return;
-  const { panel, filterSelect } = buildDeploymentToolbarPanel(
-    state,
-    String(state.pageFilter || 'all'),
-    contentLoading,
-  );
-  host.replaceWith(panel);
-  bindDeploymentFilterSelect(filterSelect, root, state);
+function patchPagesStatusSummary(root, state) {
+  const host = root.querySelector('#bulk-pp-pages-summary');
+  if (!host || state.pages.length === 0) return;
+  host.replaceWith(buildPagesStatusSummary(state));
 }
 
 /**
@@ -1437,6 +1403,10 @@ function render(root, state) {
 
     const controls = el('div', 'bulk-pp-pages-controls');
 
+    if (state.pages.length > 0) {
+      controls.append(buildPagesStatusSummary(state));
+    }
+
     const toolbarRow = el('div', 'bulk-pp-pages-toolbar-row');
     const { wrap: searchField, input: searchInput } = buildSearchField(
       'bulk-pp-page-search',
@@ -1448,13 +1418,23 @@ function render(root, state) {
     searchField.classList.add('bulk-pp-pages-search-field');
     toolbarRow.append(searchField);
 
-    const { panel: deploymentToolbar, filterSelect } = buildDeploymentToolbarPanel(
+    const { filterField, filterSelect } = buildPagesFilterField(
       state,
       String(pageFilter || 'all'),
       state.contentLoading,
     );
-    toolbarRow.append(deploymentToolbar);
+    toolbarRow.append(filterField);
     controls.append(toolbarRow);
+
+    if (state.pages.length > 0) {
+      const legendRow = el('div', 'bulk-pp-pages-legend-row');
+      legendRow.id = 'bulk-pp-pages-legend-row';
+      legendRow.append(buildStatusLegend());
+      if (statusChecking) {
+        legendRow.append(el('span', 'bulk-pp-pages-status-hint', 'Updating status…'));
+      }
+      controls.append(legendRow);
+    }
 
     controls.append(buildPagesSelectionRow(state, { visiblePages, statusChecking }));
     pagesSection.append(controls);
@@ -1559,7 +1539,34 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
   }
 
   const root = /** @type {HTMLElement | null} */ (state.root);
-  if (root) {
+  hydratePlatformStatusFromCache(state, pathsToCheck);
+
+  if (hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)) {
+    state.statusChecking = false;
+    state.statusFetched = true;
+    state.statusProgressDone = pathsToCheck.length;
+    state.statusProgressTotal = pathsToCheck.length;
+    state.statusAbort = null;
+    state.statusFetchStartedAt = null;
+    resetFetchStatusOption(state);
+    state.status = null;
+    state.statusType = 'info';
+    refreshDeploymentUi(state);
+    if (root) render(root, state);
+    return;
+  }
+
+  const pathsToFetch = getUncachedHelixPaths(
+    state.org,
+    state.site,
+    state.ref,
+    pathsToCheck,
+  );
+  const cachedCount = pathsToCheck.length - pathsToFetch.length;
+  state.statusProgressDone = cachedCount;
+  state.statusProgressTotal = pathsToCheck.length;
+
+  if (pathsToFetch.length > 0 && root) {
     openStatusFetchModal(root, state, () => state.onCancelStatus());
   }
   refreshDeploymentUi(state);
@@ -1569,17 +1576,17 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.org,
     state.site,
     state.ref,
-    pathsToCheck,
-    (partial, done, total) => {
-      state.platformStatus = { ...partial };
-      state.statusProgressDone = done;
-      state.statusProgressTotal = total;
+    pathsToFetch,
+    (partial, done) => {
+      state.platformStatus = { ...state.platformStatus, ...partial };
+      state.statusProgressDone = cachedCount + done;
+      state.statusProgressTotal = pathsToCheck.length;
       refreshDeploymentUi(state);
     },
     { signal: state.statusAbort.signal },
   ).then((platformStatus) => {
     if (state.statusAbort?.signal.aborted) return;
-    commitPlatformStatus(state, platformStatus);
+    commitPlatformStatus(state, { ...state.platformStatus, ...platformStatus });
     state.statusChecking = false;
     state.statusFetched = true;
     state.statusAbort = null;

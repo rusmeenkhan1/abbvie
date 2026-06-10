@@ -85,7 +85,7 @@ Related messages:
 │  │ Directories         │ Pages                                      ││
 │  │  breadcrumb         │  path subtitle · scope · page count        ││
 │  │  folder search      │  page count                                ││
-│  │  folder list        │  search · deployment panel · selection row ││
+│  │  folder list        │  status summary · search/filter · legend   ││
 │  │                     │  page list (Name · Modified · DA · dot)    ││
 │  └─────────────────────┴────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────────┘
@@ -169,7 +169,9 @@ Right column — main working area for the current folder scope.
 | Element | ID | Purpose |
 |---------|-----|---------|
 | **Find a page** | `#bulk-pp-page-search` | Minimum **3 characters**; matches name and path |
-| **Deployment status panel** | `#bulk-pp-deployment-toolbar` | Filter, legend, summary (always available) |
+| **Status summary** | `#bulk-pp-pages-summary` | Published / preview / not deployed / total counts |
+| **Filter by status** | `#bulk-pp-page-filter` | Right-aligned, parallel to page search |
+| **Status legend** | `#bulk-pp-pages-legend-row` | Color key above the page list |
 | **Selection row** | — | Selection pill + **Select all** / **Clear** |
 
 **Empty states**
@@ -187,9 +189,28 @@ Deployment status answers: *Has this page been previewed on `.aem.page`? Publish
 
 ### How it loads
 
-Whenever pages load (folder navigation, scope change, or first open), deployment status is fetched **automatically** for all pages in the current list. A progress modal opens immediately while the check runs.
+Whenever pages load (folder navigation, scope change, or first open), deployment status is resolved **automatically** for all pages in the current list.
 
-Navigating or changing scope clears in-memory status and starts a new fetch for the new page set.
+| Situation | Behavior |
+|-----------|----------|
+| **All pages cached** (localStorage) | Status appears instantly — no API call, no progress modal |
+| **Some pages cached** | Cached rows show immediately; only missing pages are fetched (progress modal opens) |
+| **Nothing cached** | Full fetch with progress modal |
+
+Navigating or changing scope clears in-memory status, then rehydrates from **localStorage** before deciding what still needs to be fetched.
+
+### localStorage cache
+
+Per-page deployment status is stored in the browser under `bulk-pp-deployment-status-v1`, keyed by **org · site · ref · helix path**.
+
+| Detail | Value |
+|--------|-------|
+| **TTL** | 7 days per path |
+| **Cap** | 8,000 paths per site |
+| **Written** | After each successful fetch, partial stop, or bulk preview/publish job |
+| **Read** | On every folder open — avoids re-fetching when navigating back |
+
+To force a fresh check for a folder, hard-refresh the tool or wait for entries to expire. Status changed outside this tool (e.g. directly in DA) may stay stale until cache expires or you revisit after a successful refetch.
 
 ### Progress modal
 
@@ -223,16 +244,16 @@ Row tooltips: *Published*, *only previewed*, *not previewed*.
 
 ### While status is loading
 
-- Status dots update as each page is checked
-- Deployment panel shows **Fetching…** badge; filter and legend stay available
-- Summary grid fills in as results arrive
+- Cached pages show status immediately; remaining pages update as each is checked
+- Summary grid and row dots fill in as results arrive
+- Filter and legend stay available
 
 ### After a successful run
 
-- `statusFetched` is true
-- Deployment panel shows **Active** badge, filter, legend, and summary grid
+- `statusFetched` is true; results persisted to localStorage
+- Summary, filter, legend, and row dots reflect full status
 - **Modified** column on page rows shows latest preview/publish timestamp
-- Partial results kept if you stop mid-fetch
+- Partial results kept if you stop mid-fetch (also saved to localStorage)
 
 ### API behavior (summary)
 
@@ -243,19 +264,17 @@ Row tooltips: *Published*, *only previewed*, *not previewed*.
 
 ---
 
-## Deployment status panel
+## Pages status controls
 
-Always visible in the Pages controls row (`#bulk-pp-deployment-toolbar`).
+Integrated into the Pages panel — no separate deployment card.
 
-| State | UI |
-|-------|-----|
-| **Idle** (no pages or not yet started) | Filter and legend available; placeholder summary text |
-| **Fetching…** | Filter and legend available; summary updates as results arrive |
-| **Active** | Filter by status, color legend, full summary counts |
+| Row | Content |
+|-----|---------|
+| **Summary** (`#bulk-pp-pages-summary`) | Published · Preview only · Not deployed · Total in view |
+| **Toolbar** | **Find a page** (left) · **Filter by status** (right) |
+| **Legend** | Color key, right-aligned above the list |
 
-Summary grid: **Published** · **Preview only** · **Not deployed** · **Total in view**
-
-Filters and legend apply only to pages in the **current loaded list** (respecting folder vs tree scope, search, and filter).
+Summary counts update live while status is fetching. Filter and legend apply to the **current loaded list** (folder vs tree scope, search, and filter).
 
 ---
 
@@ -600,7 +619,7 @@ After preview, publish, or destructive jobs initiated by this tool, status is re
 | 429 rate limit | Wait and reload the folder (navigate away and back) to retry. |
 | Stop didn’t undo work | Expected — server jobs continue; modal explains this. |
 | Delete partial failure | Per-path errors reported (up to 3 samples in UI). |
-| External DA preview/publish | Status won’t update until you navigate or reload the folder. |
+| External DA preview/publish | Cached status may be stale for up to 7 days; hard-refresh or wait for cache expiry. |
 
 ### Boot and content errors
 
