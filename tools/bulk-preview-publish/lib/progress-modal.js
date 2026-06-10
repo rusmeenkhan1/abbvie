@@ -90,7 +90,7 @@ function openProgressModal(appRoot, kind, opts) {
   const backdrop = el('div', 'bulk-pp-modal-backdrop bulk-pp-status-modal-backdrop');
   backdrop.setAttribute('role', 'presentation');
 
-  const dialog = el('div', 'bulk-pp-modal bulk-pp-status-modal');
+  const dialog = el('div', 'bulk-pp-modal bulk-pp-status-modal bulk-pp-status-modal-progress');
   dialog.setAttribute('role', 'dialog');
   dialog.setAttribute('aria-modal', 'true');
   dialog.setAttribute('aria-labelledby', ids.title);
@@ -158,7 +158,8 @@ function hideHeaderCancel() {
  */
 function setHeadTitle(text) {
   if (!modalRef) return;
-  const title = modalRef.backdrop.querySelector('.bulk-pp-status-modal-title');
+  const title = modalRef.backdrop.querySelector('.bulk-pp-modal-title')
+    || modalRef.backdrop.querySelector('.bulk-pp-status-modal-title');
   if (title) title.textContent = text;
 }
 
@@ -184,6 +185,56 @@ function buildStatusProgressBody(ids, intro) {
 }
 
 /**
+ * @param {() => void} onClick
+ */
+function buildModalCloseButton(onClick) {
+  const btn = el('button', 'bulk-pp-modal-close bulk-pp-status-fetch-close');
+  btn.type = 'button';
+  btn.setAttribute('aria-label', 'Close');
+  btn.innerHTML = '<span aria-hidden="true">&times;</span>';
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+/**
+ * @param {string} scopeLabel
+ * @param {string} [etaText]
+ */
+function buildStatusFetchStatsCallout(scopeLabel, etaText) {
+  const wrap = el('div', 'bulk-pp-status-fetch-callout');
+  const pagesStat = el('div', 'bulk-pp-status-fetch-stat');
+  pagesStat.append(
+    el('span', 'bulk-pp-status-fetch-stat-value', scopeLabel),
+    el('span', 'bulk-pp-status-fetch-stat-label', 'In this view'),
+  );
+  wrap.append(pagesStat);
+  if (etaText) {
+    const etaStat = el('div', 'bulk-pp-status-fetch-stat');
+    etaStat.append(
+      el('span', 'bulk-pp-status-fetch-stat-value', etaText),
+      el('span', 'bulk-pp-status-fetch-stat-label', 'Estimated time'),
+    );
+    wrap.append(etaStat);
+  }
+  return wrap;
+}
+
+/**
+ * @param {HTMLElement | null} dialog
+ */
+function prepareStatusModalForProgress(dialog) {
+  if (!dialog) return;
+  dialog.classList.remove('bulk-pp-status-fetch-confirm');
+  dialog.classList.add('bulk-pp-status-modal', 'bulk-pp-status-modal-progress');
+  const closeBtn = dialog.querySelector('.bulk-pp-status-fetch-close');
+  if (closeBtn instanceof HTMLElement) closeBtn.hidden = true;
+  const pathEl = dialog.querySelector('.bulk-pp-modal-choice-path');
+  if (pathEl instanceof HTMLElement) pathEl.hidden = true;
+  const actions = dialog.querySelector('.bulk-pp-status-fetch-actions');
+  if (actions) actions.remove();
+}
+
+/**
  * @param {HTMLElement | null} appRoot
  * @param {number} pageCount
  * @param {{ onConfirm: () => void, onCancel: () => void }} handlers
@@ -193,45 +244,62 @@ export function openStatusFetchConfirmModal(appRoot, pageCount, handlers) {
   const ids = modalIds('status');
   const noun = pageCount === 1 ? '1 page' : `${pageCount} pages`;
   const etaText = formatStatusFetchEta(pageCount);
-  const intro = etaText
-    ? `Check preview and publish status for ${noun} in this view? This may take about ${etaText}.`
-    : `Check preview and publish status for ${noun} in this view?`;
 
   const backdrop = el('div', 'bulk-pp-modal-backdrop bulk-pp-status-modal-backdrop');
   backdrop.setAttribute('role', 'presentation');
 
-  const dialog = el('div', 'bulk-pp-modal bulk-pp-status-modal');
+  const dialog = el('div', 'bulk-pp-modal bulk-pp-modal-choice bulk-pp-status-fetch-confirm');
   dialog.setAttribute('role', 'dialog');
   dialog.setAttribute('aria-modal', 'true');
   dialog.setAttribute('aria-labelledby', ids.title);
 
-  const head = el('div', 'bulk-pp-status-modal-head');
-  const titleEl = el('h2', 'bulk-pp-status-modal-title', 'Load preview & publish status?');
+  const head = el('div', 'bulk-pp-modal-choice-head');
+  const titleBlock = el('div', 'bulk-pp-modal-choice-title-block');
+  const titleEl = el('h2', 'bulk-pp-modal-title', 'Fetch deployment status?');
   titleEl.id = ids.title;
-  head.append(titleEl);
-
-  const cancelBtn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-stop bulk-pp-status-modal-cancel', 'Cancel');
-  cancelBtn.type = 'button';
-  cancelBtn.id = ids.cancel;
-  cancelBtn.addEventListener('click', handlers.onCancel);
-  head.append(cancelBtn);
-
-  const body = el('div', 'bulk-pp-status-modal-body');
-  body.id = ids.body;
-  body.append(
-    el('p', 'bulk-pp-status-modal-intro', intro),
-    el(
-      'p',
-      'bulk-pp-status-modal-hint',
-      'Status dots and deployment filters will appear on page rows after the check completes.',
-    ),
-    actionRow([
-      cancelActionBtn('Cancel', handlers.onCancel),
-      confirmActionBtn('Check status', handlers.onConfirm),
-    ]),
+  titleBlock.append(
+    titleEl,
+    el('p', 'bulk-pp-modal-choice-path', noun),
   );
 
-  dialog.append(head, body);
+  const cancelBtn = el(
+    'button',
+    'bulk-pp-modal-btn bulk-pp-modal-btn-stop bulk-pp-status-modal-cancel',
+    'Stop',
+  );
+  cancelBtn.type = 'button';
+  cancelBtn.id = ids.cancel;
+  cancelBtn.hidden = true;
+  cancelBtn.title = 'Stop the status check (requests already sent may still complete)';
+  cancelBtn.addEventListener('click', handlers.onCancel);
+
+  head.append(titleBlock, buildModalCloseButton(handlers.onCancel), cancelBtn);
+
+  const body = el('div', 'bulk-pp-modal-body-wrap');
+  body.id = ids.body;
+  body.append(
+    el(
+      'p',
+      'bulk-pp-modal-choice-lead',
+      'Checks preview and live deployment state for each page in this view. Results unlock filters, legends, and row indicators.',
+    ),
+    buildStatusFetchStatsCallout(noun, etaText),
+  );
+
+  const notes = el('ul', 'bulk-pp-status-fetch-notes');
+  [
+    'Status dots appear on each page row when complete',
+    'Deployment filters and summary unlock automatically',
+  ].forEach((text) => notes.append(el('li', null, text)));
+  body.append(notes);
+
+  const actions = el('div', 'bulk-pp-modal-choice-actions bulk-pp-status-fetch-actions');
+  actions.append(
+    cancelActionBtn('Not now', handlers.onCancel),
+    confirmActionBtn('Fetch deployment status', handlers.onConfirm),
+  );
+
+  dialog.append(head, body, actions);
   backdrop.append(dialog);
   document.body.append(backdrop);
   modalRef = { kind: 'status', backdrop, panel: body, ids };
@@ -248,7 +316,10 @@ export function transitionStatusModalToProgress(appRoot, state, onCancel) {
     openStatusFetchModal(appRoot, state, onCancel);
     return;
   }
-  const { ids, panel } = modalRef;
+  const { ids, panel, backdrop } = modalRef;
+  const dialog = backdrop.querySelector('.bulk-pp-modal');
+  prepareStatusModalForProgress(dialog instanceof HTMLElement ? dialog : null);
+
   setHeadTitle('Fetching deployment status');
   const cancelBtn = document.getElementById(ids.cancel);
   if (cancelBtn instanceof HTMLButtonElement) {
@@ -260,10 +331,11 @@ export function transitionStatusModalToProgress(appRoot, state, onCancel) {
       nextCancel.addEventListener('click', onCancel);
     }
   }
+
   const etaText = formatStatusFetchEta(state.statusProgressTotal);
   const intro = etaText
-    ? `Checking preview and publish status from AEM. Estimated time: ${etaText}.`
-    : 'Checking preview and publish status from AEM.';
+    ? `Checking deployment status from AEM. Estimated time: ${etaText}.`
+    : 'Checking deployment status from AEM.';
   replacePanel(panel, buildStatusProgressBody(ids, intro));
   setAppModalOpen(appRoot);
   updateStatusFetchModal(state);
@@ -276,7 +348,7 @@ export function transitionStatusModalToProgress(appRoot, state, onCancel) {
  */
 export function openStatusFetchModal(appRoot, state, onCancel) {
   const etaText = formatStatusFetchEta(state.statusProgressTotal);
-  const base = 'Checking preview and publish status from AEM. Use Stop to end the check — requests already sent may still complete.';
+  const base = 'Checking deployment status from AEM. Use Stop to end the check — requests already sent may still complete.';
   const intro = etaText
     ? `${base} Estimated time: ${etaText}.`
     : base;
@@ -524,7 +596,7 @@ export function showStatusFetchCompleteModal(opts) {
   panel.classList.add('bulk-pp-status-modal-complete-body');
   replacePanel(panel, [
     el('p', 'bulk-pp-status-modal-success-icon', '✓'),
-    el('h3', 'bulk-pp-status-modal-complete-title', 'Status check complete'),
+    el('h3', 'bulk-pp-status-modal-complete-title', 'Deployment status loaded'),
     buildDeploymentBreakdownSummary({ live, previewOnly, none, total }),
     el(
       'p',
@@ -544,11 +616,11 @@ export function showStatusFetchCancelledModal(opts) {
   if (!modalRef || modalRef.kind !== 'status') return;
   const { message, onClose } = opts;
   replacePanel(modalRef.panel, [
-    el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-stopped-title', 'Status check stopped'),
+    el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-stopped-title', 'Deployment status fetch stopped'),
     el('p', 'bulk-pp-status-modal-summary', message),
     actionRow([closeActionBtn(onClose)]),
   ]);
-  setHeadTitle('Check stopped');
+  setHeadTitle('Fetch stopped');
   hideHeaderCancel();
 }
 
@@ -559,7 +631,7 @@ export function showStatusFetchErrorModal(opts) {
   if (!modalRef || modalRef.kind !== 'status') return;
   const { message, onClose, hint = '' } = opts;
   const body = [
-    el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-error-title', 'Status check failed'),
+    el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-error-title', 'Could not fetch deployment status'),
     el('p', 'bulk-pp-status-modal-summary bulk-pp-status-modal-error', message),
   ];
   if (hint) {
@@ -567,7 +639,7 @@ export function showStatusFetchErrorModal(opts) {
   }
   body.push(actionRow([closeActionBtn(onClose)]));
   replacePanel(modalRef.panel, body);
-  setHeadTitle('Could not load status');
+  setHeadTitle('Fetch failed');
   hideHeaderCancel();
 }
 

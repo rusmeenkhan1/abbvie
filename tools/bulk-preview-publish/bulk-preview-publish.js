@@ -125,7 +125,7 @@ const STATUS_COLOR = {
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 
-const APP_TITLE = 'Content Deployment Hub';
+const APP_TITLE = 'Content Operation Hub';
 const APP_DESCRIPTION = 'Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level.';
 
 /** @typedef {import('./lib/state.js').PageOperationId} PageOperationId */
@@ -258,15 +258,15 @@ function buildPreviewPublishToggle(state, locked) {
   btn.id = 'bulk-pp-preview-publish-toggle';
   btn.setAttribute('role', 'switch');
   btn.setAttribute('aria-checked', on ? 'true' : 'false');
-  btn.setAttribute('aria-label', 'Preview and publish status');
+  btn.setAttribute('aria-label', 'Fetch deployment status');
   btn.disabled = locked || state.pages.length === 0;
   btn.title = on
-    ? 'Hide preview and publish status'
-    : 'Load preview and publish status for listed pages';
+    ? 'Hide deployment status'
+    : 'Fetch deployment status for listed pages';
 
   const track = el('span', 'bulk-pp-toggle-track');
   track.append(el('span', 'bulk-pp-toggle-thumb'));
-  btn.append(track, el('span', 'bulk-pp-toggle-label', 'Preview & publish'));
+  btn.append(track, el('span', 'bulk-pp-toggle-label', 'Fetch deployment status'));
   btn.addEventListener('click', () => {
     void state.onTogglePreviewPublish(!state.showPreviewPublish);
   });
@@ -1069,7 +1069,7 @@ function deploymentToolbarTooltipText(state) {
   if (state.showPreviewPublish && state.statusChecking) {
     return 'Fetching deployment status. Filters unlock when the check completes.';
   }
-  return 'Toggle on Preview & publish to fetch deployment status and unlock filters.';
+  return 'Turn on Fetch deployment status to load indicators and unlock filters.';
 }
 
 /**
@@ -1099,6 +1099,19 @@ function buildDeploymentSummaryStrip(state) {
     );
     strip.append(item);
   });
+  return strip;
+}
+
+/** @returns {HTMLElement} */
+function buildDeploymentSummaryPlaceholder() {
+  const strip = el('div', 'bulk-pp-deployment-summary bulk-pp-deployment-summary-placeholder');
+  const cell = el('div', 'bulk-pp-deployment-summary-placeholder-cell');
+  cell.append(el(
+    'span',
+    'bulk-pp-deployment-summary-placeholder-text',
+    'Summary appears after fetch deployment status completes.',
+  ));
+  strip.append(cell);
   return strip;
 }
 
@@ -1148,9 +1161,7 @@ function buildDeploymentToolbarPanel(state, pageFilter, interactionsLocked) {
   controls.append(filterField, buildStatusLegend());
   content.append(controls);
 
-  if (unlocked) {
-    content.append(buildDeploymentSummaryStrip(state));
-  }
+  content.append(unlocked ? buildDeploymentSummaryStrip(state) : buildDeploymentSummaryPlaceholder());
 
   panel.append(content);
 
@@ -1457,6 +1468,11 @@ function render(root, state) {
   }
   contentPanel.append(contentBody);
   root.append(contentPanel);
+
+  const actionSpacer = el('div', 'bulk-pp-action-strip-spacer');
+  actionSpacer.setAttribute('aria-hidden', 'true');
+  if (!hasWorkspace) actionSpacer.hidden = true;
+  root.append(actionSpacer);
   root.append(buildSelectionActionBar(state));
 
   if (status && !statusChecking && statusType === 'error') {

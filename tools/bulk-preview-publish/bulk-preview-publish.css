@@ -1,4 +1,4 @@
-/* Content Deployment Hub — executive workspace UI (AbbVie-aligned) */
+/* Content Operation Hub — executive workspace UI (AbbVie-aligned) */
 
 .bulk-pp-body {
   margin: 0;
@@ -93,6 +93,19 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp.bulk-pp-shell {
   min-height: 0;
+  flex: 1 1 auto;
+  height: 100%;
+}
+
+.bulk-pp-action-strip-spacer {
+  flex: 0 0 56px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.bulk-pp.bulk-pp-has-selection-bar,
+.bulk-pp.bulk-pp-reserve-action-bar {
+  padding-bottom: 0;
 }
 
 .bulk-pp-header {
@@ -100,7 +113,7 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-panel-fill {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -118,14 +131,6 @@ html:has(.bulk-pp-body) {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-}
-
-.bulk-pp.bulk-pp-has-selection-bar {
-  padding-bottom: 72px;
-}
-
-.bulk-pp.bulk-pp-reserve-action-bar:not(.bulk-pp-has-selection-bar) {
-  padding-bottom: 72px;
 }
 
 .bulk-pp *,
@@ -1229,7 +1234,7 @@ html:has(.bulk-pp-body) {
   left: 50%;
   z-index: 850;
   width: min(100%, 1360px);
-  padding: 0 28px;
+  padding: 0 16px;
   box-sizing: border-box;
   transform: translateX(-50%);
   pointer-events: none;
@@ -1661,6 +1666,7 @@ html:has(.bulk-pp-body) {
   position: relative;
   flex: 1 1 460px;
   min-width: min(100%, 400px);
+  min-height: 172px;
   margin-left: auto;
   padding: 0;
   border: 1px solid var(--pp-border);
@@ -1808,12 +1814,34 @@ html:has(.bulk-pp-body) {
   line-height: 1;
 }
 
+.bulk-pp-deployment-summary-placeholder {
+  grid-template-columns: 1fr;
+  min-height: 52px;
+}
+
+.bulk-pp-deployment-summary-placeholder-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  background: var(--pp-surface-subtle);
+}
+
+.bulk-pp-deployment-summary-placeholder-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--pp-text-subtle);
+  text-align: center;
+}
+
 .bulk-pp-deployment-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   background: var(--pp-border);
   border-top: 1px solid var(--pp-border);
+  min-height: 52px;
 }
 
 .bulk-pp-deployment-summary-item {
@@ -2478,9 +2506,9 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-toggle-label {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
   white-space: nowrap;
 }
 
@@ -2954,6 +2982,143 @@ html:has(.bulk-pp-body) {
 .bulk-pp-modal-choice-btn:focus-visible {
   outline: 2px solid var(--pp-modal-blue);
   outline-offset: 2px;
+}
+
+/* —— Fetch deployment status confirm modal —— */
+.bulk-pp-status-fetch-confirm {
+  width: min(100%, 440px);
+}
+
+.bulk-pp-status-fetch-confirm .bulk-pp-modal-body-wrap {
+  padding-bottom: 6px;
+}
+
+.bulk-pp-status-fetch-callout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0 14px;
+}
+
+.bulk-pp-status-fetch-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 68px;
+  padding: 12px 10px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid var(--pp-modal-border);
+  text-align: center;
+}
+
+.bulk-pp-status-fetch-stat-value {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--pp-modal-navy);
+  font-variant-numeric: tabular-nums;
+}
+
+.bulk-pp-status-fetch-stat-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.25;
+  color: var(--pp-modal-muted);
+}
+
+.bulk-pp-status-fetch-notes {
+  margin: 0;
+  padding: 0 0 0 18px;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--pp-modal-muted);
+  text-align: left;
+}
+
+.bulk-pp-status-fetch-notes li + li {
+  margin-top: 5px;
+}
+
+.bulk-pp-status-fetch-actions {
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 18px;
+  margin-top: 4px;
+  border-top: 1px solid var(--pp-modal-border);
+}
+
+.bulk-pp-status-fetch-actions .bulk-pp-modal-btn {
+  min-width: 7.5rem;
+}
+
+.bulk-pp-status-fetch-confirm .bulk-pp-status-modal-cancel {
+  display: none;
+}
+
+.bulk-pp-modal.bulk-pp-status-modal-progress.bulk-pp-modal-choice {
+  padding: 0;
+  overflow: hidden;
+  width: min(100%, 440px);
+}
+
+.bulk-pp-status-modal-progress.bulk-pp-modal-choice .bulk-pp-modal-choice-head {
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--pp-modal-border);
+}
+
+.bulk-pp-status-modal-progress .bulk-pp-status-fetch-close {
+  display: none;
+}
+
+.bulk-pp-status-modal-progress .bulk-pp-status-modal-cancel {
+  display: inline-flex;
+  flex-shrink: 0;
+  min-width: 5.5rem;
+}
+
+.bulk-pp-status-modal-progress .bulk-pp-modal-body-wrap {
+  padding: 18px 22px 22px;
+}
+
+.bulk-pp-status-modal-progress .bulk-pp-modal-body-wrap .bulk-pp-progress-track {
+  margin: 14px 0 10px;
+}
+
+.bulk-pp-status-modal-complete-body.bulk-pp-modal-body-wrap {
+  padding: 8px 22px 22px;
+}
+
+.bulk-pp-status-modal-progress .bulk-pp-status-modal-intro {
+  margin: 0 0 14px;
+  text-align: left;
+}
+
+.bulk-pp-status-modal-progress .bulk-pp-progress-label,
+.bulk-pp-status-modal-progress .bulk-pp-progress-eta {
+  text-align: left;
+}
+
+@media (width <= 480px) {
+  .bulk-pp-status-fetch-callout {
+    grid-template-columns: 1fr;
+  }
+
+  .bulk-pp-status-fetch-actions {
+    flex-direction: column-reverse;
+  }
+
+  .bulk-pp-status-fetch-actions .bulk-pp-modal-btn {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .bulk-pp-modal-warning {
@@ -3834,8 +3999,18 @@ html:has(.bulk-pp-body) {
 }
 
 /* —— Status —— */
+.bulk-pp > .bulk-pp-status {
+  position: fixed;
+  left: 50%;
+  bottom: 64px;
+  z-index: 840;
+  width: min(calc(100% - 32px), calc(1360px - 32px));
+  margin: 0;
+  transform: translateX(-50%);
+  box-shadow: var(--pp-shadow-md);
+}
+
 .bulk-pp-status {
-  margin-top: 8px;
   padding: 14px 18px;
   border-radius: var(--pp-radius-sm);
   font-size: 0.9rem;
@@ -3956,8 +4131,12 @@ html:has(.bulk-pp-body) {
   }
 
   .bulk-pp.bulk-pp-has-selection-bar,
-  .bulk-pp.bulk-pp-reserve-action-bar:not(.bulk-pp-has-selection-bar) {
-    padding-bottom: 120px;
+  .bulk-pp.bulk-pp-reserve-action-bar {
+    padding-bottom: 0;
+  }
+
+  .bulk-pp-action-strip-spacer {
+    flex-basis: 64px;
   }
 
   .bulk-pp-pages-header-top {
