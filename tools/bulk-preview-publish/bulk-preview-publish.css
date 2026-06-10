@@ -2490,11 +2490,39 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-pages-status-progress {
+  position: relative;
+  z-index: 5;
   margin: 0 16px 10px;
   padding: 12px 14px;
   border: 1px solid rgb(0 102 245 / 18%);
   border-radius: var(--pp-radius-sm);
   background: linear-gradient(180deg, rgb(0 102 245 / 5%) 0%, #fff 100%);
+  box-shadow: 0 2px 10px rgb(7 29 73 / 6%);
+}
+
+/* Lock workspace while deployment status is fetching — progress bar stays interactive */
+.bulk-pp-status-fetch-active .bulk-pp-header,
+.bulk-pp-status-fetch-active .bulk-pp-panel-content > .bulk-pp-panel-head,
+.bulk-pp-status-fetch-active .bulk-pp-content-section-folders,
+.bulk-pp-status-fetch-active .bulk-pp-pages-header,
+.bulk-pp-status-fetch-active .bulk-pp-pages-controls,
+.bulk-pp-status-fetch-active .bulk-pp-list-wrap-pages,
+.bulk-pp-status-fetch-active #bulk-pp-selection-bar {
+  filter: blur(3px);
+  opacity: 0.48;
+  pointer-events: none;
+  user-select: none;
+}
+
+.bulk-pp-status-fetch-active .bulk-pp-pages-status-progress {
+  filter: none;
+  opacity: 1;
+  pointer-events: auto;
+  user-select: auto;
+}
+
+.bulk-pp-status-fetch-active .bulk-pp-content-section-pages {
+  position: relative;
 }
 
 .bulk-pp-pages-status-progress-head {

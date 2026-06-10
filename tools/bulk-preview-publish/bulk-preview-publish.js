@@ -904,6 +904,7 @@ function refreshDeploymentUi(state) {
   const root = /** @type {HTMLElement | null} */ (state.root);
   if (!root) return;
   patchPagesStatusProgressBar(root, state);
+  syncStatusFetchLockUi(root, state);
   patchPagesStatusSummary(root, state);
   patchPagesStatusLoading(root, state);
   patchPagesFilterControls(root, state);
@@ -1178,6 +1179,23 @@ function shouldShowStatusProgressBar(state) {
 /**
  * @param {ReturnType<typeof createAppState>} state
  */
+function isStatusFetchLockActive(state) {
+  return state.statusChecking && state.statusProgressTotal > 0;
+}
+
+/**
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function syncStatusFetchLockUi(root, state) {
+  const locked = isStatusFetchLockActive(state);
+  root.classList.toggle('bulk-pp-status-fetch-active', locked);
+  root.setAttribute('aria-busy', locked ? 'true' : 'false');
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
 function buildPagesStatusProgressBar(state) {
   const bar = el('div', 'bulk-pp-pages-status-progress');
   bar.id = 'bulk-pp-pages-status-progress';
@@ -1357,6 +1375,7 @@ function render(root, state) {
   root.replaceChildren();
   root.classList.add('bulk-pp-shell');
   root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
+  syncStatusFetchLockUi(root, state);
   const hasWorkspace = !contentLoading && !error
     && (state.pages.length > 0 || state.folders.length > 0 || statusChecking);
   const header = el('header', 'bulk-pp-header');
@@ -1476,7 +1495,7 @@ function render(root, state) {
     const { filterField, filterSelect } = buildPagesFilterField(
       state,
       String(pageFilter || 'all'),
-      state.contentLoading,
+      state.contentLoading || workspaceLocked,
     );
     toolbarRow.append(filterField);
     controls.append(toolbarRow);
