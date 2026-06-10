@@ -3269,6 +3269,14 @@ html:has(.bulk-pp-body) {
   min-width: 5.5rem;
 }
 
+.bulk-pp-status-modal-complete .bulk-pp-status-modal-cancel {
+  display: none !important;
+}
+
+.bulk-pp-status-modal-complete.bulk-pp-modal-choice .bulk-pp-modal-choice-head {
+  border-bottom: 1px solid var(--pp-modal-border);
+}
+
 .bulk-pp-status-modal-progress .bulk-pp-modal-body-wrap {
   padding: 18px 22px 22px;
 }

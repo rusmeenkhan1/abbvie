@@ -150,7 +150,25 @@ function setProgressBar(ids, done, total) {
 function hideHeaderCancel() {
   if (!modalRef) return;
   const cancelBtn = document.getElementById(modalRef.ids.cancel);
-  if (cancelBtn) cancelBtn.hidden = true;
+  if (cancelBtn instanceof HTMLElement) {
+    cancelBtn.hidden = true;
+    cancelBtn.style.display = 'none';
+  }
+}
+
+/**
+ * End of status fetch — remove Stop and exit progress chrome.
+ */
+function finalizeStatusFetchModalHead() {
+  if (!modalRef || modalRef.kind !== 'status') return;
+  const { backdrop, ids } = modalRef;
+  const dialog = backdrop.querySelector('.bulk-pp-modal');
+  if (dialog instanceof HTMLElement) {
+    dialog.classList.remove('bulk-pp-status-modal-progress');
+    dialog.classList.add('bulk-pp-status-modal-complete');
+  }
+  const cancelBtn = document.getElementById(ids.cancel);
+  if (cancelBtn) cancelBtn.remove();
 }
 
 /**
@@ -606,7 +624,7 @@ export function showStatusFetchCompleteModal(opts) {
     actionRow([closeActionBtn(onClose)]),
   ]);
   setHeadTitle('Deployment status ready');
-  hideHeaderCancel();
+  finalizeStatusFetchModalHead();
 }
 
 /**
@@ -621,7 +639,7 @@ export function showStatusFetchCancelledModal(opts) {
     actionRow([closeActionBtn(onClose)]),
   ]);
   setHeadTitle('Fetch stopped');
-  hideHeaderCancel();
+  finalizeStatusFetchModalHead();
 }
 
 /**
@@ -640,7 +658,7 @@ export function showStatusFetchErrorModal(opts) {
   body.push(actionRow([closeActionBtn(onClose)]));
   replacePanel(modalRef.panel, body);
   setHeadTitle('Fetch failed');
-  hideHeaderCancel();
+  finalizeStatusFetchModalHead();
 }
 
 /**
