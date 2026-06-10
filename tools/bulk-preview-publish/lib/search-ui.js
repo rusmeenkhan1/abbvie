@@ -47,16 +47,6 @@ function syncSelectionActionBar(root, state) {
   if (bar instanceof HTMLElement) {
     bar.hidden = count === 0;
   }
-  root.classList.toggle('bulk-pp-has-selection-bar', count > 0);
-  const hasWorkspaceSlot = Boolean(
-    root.querySelector('.bulk-pp-workspace') || root.querySelector('.bulk-pp-content-loading'),
-  );
-  root.classList.toggle('bulk-pp-reserve-action-bar', hasWorkspaceSlot);
-  const spacer = root.querySelector('.bulk-pp-action-strip-spacer');
-  if (spacer instanceof HTMLElement) {
-    spacer.hidden = !hasWorkspaceSlot;
-  }
-
   const countEl = root.querySelector('#bulk-pp-selection-count');
   if (countEl) countEl.textContent = count === 1 ? '1 page selected' : `${count} pages selected`;
 

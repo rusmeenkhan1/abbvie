@@ -1356,12 +1356,8 @@ function render(root, state) {
   root.replaceChildren();
   root.classList.add('bulk-pp-shell');
   root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
-  const selectionCount = getActiveSelectionCount(state);
   const hasWorkspace = !contentLoading && !error
     && (state.pages.length > 0 || state.folders.length > 0 || statusChecking);
-  root.classList.toggle('bulk-pp-reserve-action-bar', hasWorkspace);
-  root.classList.toggle('bulk-pp-has-selection-bar', selectionCount > 0);
-
   const header = el('header', 'bulk-pp-header');
   const headerInner = el('div', 'bulk-pp-header-inner');
   const headerBrand = el('div', 'bulk-pp-header-brand');
@@ -1383,10 +1379,7 @@ function render(root, state) {
   const contentPanel = el('section', 'bulk-pp-panel bulk-pp-panel-content bulk-pp-panel-fill');
   const contentHead = el('div', 'bulk-pp-panel-head');
   const contentHeadMain = el('div', 'bulk-pp-panel-head-main');
-  contentHeadMain.append(
-    el('h2', null, 'Site content'),
-    el('p', 'bulk-pp-panel-subtitle', 'Browse folders, select pages, then preview or publish.'),
-  );
+  contentHeadMain.append(el('h2', null, 'Site content'));
   contentHead.append(contentHeadMain);
   contentPanel.append(contentHead);
   const contentBody = el('div', 'bulk-pp-panel-body bulk-pp-content-body');
@@ -1527,10 +1520,6 @@ function render(root, state) {
   contentPanel.append(contentBody);
   root.append(contentPanel);
 
-  const actionSpacer = el('div', 'bulk-pp-action-strip-spacer');
-  actionSpacer.setAttribute('aria-hidden', 'true');
-  if (!hasWorkspace) actionSpacer.hidden = true;
-  root.append(actionSpacer);
   root.append(buildSelectionActionBar(state));
 
   if (status && !statusChecking && statusType === 'error') {
