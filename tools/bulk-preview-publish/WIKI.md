@@ -1,13 +1,53 @@
-# Content Operation Hub — Wiki
+# Content Operations Hub — Wiki
 
-Enterprise workspace for **AEM Edge Delivery** (Document Authoring). Browse folders and pages, fetch deployment status, run bulk preview/publish/removal operations, and open Document Authoring or environment URLs from one place.
+**Content Operations Hub** is an enterprise workspace inside **Adobe Document Authoring (DA)** for AEM Edge Delivery. Browse site folders, inspect deployment status, and run bulk preview, publish, removal, and delete operations from one place.
 
 | | |
 |---|---|
-| **Display name** | Content Operation Hub |
+| **Display name** | Content Operations Hub |
 | **Technical slug** | `bulk-preview-publish` (folder and URL path unchanged for compatibility) |
 | **Entry points** | `tools/bulk-preview-publish/index.html` · `tools/bulk-preview-publish.html` |
-| **Requires** | Document Authoring (DA) — Adobe IMS authentication via DA SDK |
+| **Requires** | Document Authoring — Adobe IMS authentication via the DA SDK |
+
+---
+
+## Features
+
+### Folder browsing
+Navigate the site tree with breadcrumbs, folder search, and AEM-style browse lists. Click any folder to drill down; the URL updates with `?path=` so you can bookmark or share a location.
+
+### Automatic page listing
+Pages in the current folder load automatically when you open the tool or change folders. No separate **Fetch** button — content appears as soon as you navigate.
+
+### Subdirectory scope
+Toggle **Include all subdirectories** to list pages only in the current folder, or recursively across the entire subtree. Useful for bulk work on a branch of the site without clicking into every folder.
+
+### Deployment status
+See whether each page has been previewed (`.aem.page`) or published (`.aem.live`). Status loads automatically whenever pages appear. A summary strip (Published · Preview only · Not deployed · Total) sits in the Pages header; each row shows a color dot and last modified timestamp.
+
+### Smart status cache
+Per-page status is stored in **localStorage** for fast back-and-forth navigation. Cached data shows instantly; the tool then **silently refreshes** from the API in the background so changes made directly in DA are picked up without blocking the UI.
+
+### Search and filter
+Search folders and pages by name (minimum 3 characters). Filter the page list by deployment state — never previewed, recently published, oldest previewed, and more. Filters work on the currently loaded page set.
+
+### Multi-select and bulk actions
+Select individual pages, **Select all** visible results, or **Clear** selection. A floating command bar appears when pages are selected with one-click **Preview** and **Publish**, plus a **More** menu for removal and open actions.
+
+### Bulk preview and publish
+Run preview or publish jobs on many pages at once. Progress is tracked in a modal with ETA. On success, copy or open preview/live URLs from the completion dialog.
+
+### Bulk removal and delete
+Remove preview, unpublish from live, or permanently delete pages from DA. Destructive actions use a two-step keyword confirmation (`unpreview`, `unpublish`, `delete`). Full delete runs a three-step pipeline: unpreview → unpublish → DA source delete.
+
+### Open in Document Authoring and environments
+Open selected pages in DA, on the preview site, or on the live site. Per-row **DA** buttons work for a single page; multi-select uses **More → Open**. Tab-open confirmations warn about popup blockers on large selections.
+
+### Progress and safety modals
+Status fetch and bulk jobs show progress with **Stop** / **Cancel** controls. Confirmations protect preview, publish, open-tabs, and destructive workflows. Stop cancels client-side tracking only — server work may continue.
+
+### URL sync and debug
+Folder path and branch (`ref`) sync to the browser URL. Debug query flags are available for bulk status API testing and troubleshooting.
 
 ---
 
@@ -18,22 +58,21 @@ Enterprise workspace for **AEM Edge Delivery** (Document Authoring). Browse fold
 3. [Navigation and content loading](#navigation-and-content-loading)
 4. [Folders (Directories)](#folders-directories)
 5. [Pages panel](#pages-panel)
-6. [Fetch deployment status](#fetch-deployment-status)
-7. [Deployment status panel](#deployment-status-panel)
-8. [Page list and browse UI](#page-list-and-browse-ui)
-9. [Page selection](#page-selection)
-10. [Selection command bar](#selection-command-bar)
-11. [Bulk preview and publish](#bulk-preview-and-publish)
-12. [Bulk removal and delete](#bulk-removal-and-delete)
-13. [Open URLs and Document Authoring](#open-urls-and-document-authoring)
-14. [Modals and confirmations](#modals-and-confirmations)
-15. [Cancel and stop behavior](#cancel-and-stop-behavior)
-16. [Per-row actions](#per-row-actions)
-17. [Status legend and filters](#status-legend-and-filters)
-18. [URL parameters and debug](#url-parameters-and-debug)
-19. [Technical reference](#technical-reference)
-20. [Limitations and troubleshooting](#limitations-and-troubleshooting)
-21. [Quick workflow reference](#quick-workflow-reference)
+6. [Deployment status](#deployment-status)
+7. [Page list](#page-list)
+8. [Page selection](#page-selection)
+9. [Selection command bar](#selection-command-bar)
+10. [Bulk preview and publish](#bulk-preview-and-publish)
+11. [Bulk removal and delete](#bulk-removal-and-delete)
+12. [Open URLs and Document Authoring](#open-urls-and-document-authoring)
+13. [Modals and confirmations](#modals-and-confirmations)
+14. [Cancel and stop behavior](#cancel-and-stop-behavior)
+15. [Per-row actions](#per-row-actions)
+16. [Status legend and filters](#status-legend-and-filters)
+17. [URL parameters and debug](#url-parameters-and-debug)
+18. [Technical reference](#technical-reference)
+19. [Limitations and troubleshooting](#limitations-and-troubleshooting)
+20. [Quick workflows](#quick-workflows)
 
 ---
 
@@ -43,34 +82,31 @@ Enterprise workspace for **AEM Edge Delivery** (Document Authoring). Browse fold
 
 1. Sign in to **Document Authoring** at [https://da.live](https://da.live).
 2. Open your site app: `https://da.live/app/{org}/{site}/…`
-3. Launch **Content Operation Hub** from the DA Apps menu (register the tool path `tools/bulk-preview-publish` in your DA Apps configuration).
+3. Launch **Content Operations Hub** from the DA Apps menu (register the tool path `tools/bulk-preview-publish` in your DA Apps configuration).
 
 The tool **cannot authenticate** when opened on `.aem.page` / `.aem.live` preview URLs or as a local file. It needs the DA SDK (`https://da.live/nx/utils/sdk.js`), which provides `daFetch` with Bearer tokens for AEM Admin APIs.
 
 ### Authentication errors
 
-If you open the tool outside DA, you see a structured error panel:
+If you are not signed in, a centered panel appears:
 
-- **Title:** Sign in to Document Authoring
-- **Message:** Sign in to Document Authoring (https://da.live) and open Content Operation Hub from Apps. Preview (.aem.page / .aem.live) URLs cannot authenticate.
-- **Steps:** sign in → open site app → launch Content Operation Hub
-- **Button:** Open Document Authoring → [https://da.live](https://da.live)
+- **Title:** Sign in required
+- **Message:** Sign in using the button in the top right, then reload this tool.
 
-Related messages:
+No duplicate error banner is shown at the bottom of the screen.
 
-| Situation | Message theme |
-|-----------|----------------|
-| SDK / `daFetch` unavailable | Sign in to DA, then open Content Operation Hub from Apps |
-| Missing org or site | Open from your site app (`da.live/app/your-org/your-site`) |
-| 401 / not signed in | You are not signed in — sign in and reopen from Apps |
-| Missing IMS client ID | Preview URLs cannot authenticate — use DA |
+| Situation | What to do |
+|-----------|------------|
+| SDK / `daFetch` unavailable | Sign in via the top-right button in DA, reload |
+| Missing org or site | Open from your site app in DA |
+| 401 / not signed in | Sign in via the top-right button, reload |
 
 ### First load
 
-- Shows **Loading Content Operation Hub…**
+- Shows **Loading Content Operations Hub…**
 - Resolves **org**, **site**, and **ref** (branch) from the DA app URL
-- Auto-loads content at the site root (or at `?path=` / `?ref=` if present in the URL)
-- On JS failure: **Content Operation Hub failed to start** — hard refresh (`Cmd+Shift+R` / `Ctrl+Shift+R`) after deploy
+- Auto-loads content at the site root (or at `?path=` / `?ref=` if present)
+- On JS failure: **Content Operations Hub failed to start** — hard refresh after deploy
 
 ---
 
@@ -83,10 +119,9 @@ Related messages:
 │  Site content                                                        │
 │  ┌─────────────────────┬────────────────────────────────────────────┐│
 │  │ Directories         │ Pages                                      ││
-│  │  breadcrumb         │  path subtitle · scope · page count        ││
-│  │  folder search      │  page count                                ││
-│  │  folder list        │  status summary · search/filter · legend   ││
-│  │                     │  page list (Name · Modified · DA · dot)    ││
+│  │  breadcrumb         │  title · path · scope    [status summary]  ││
+│  │  folder search      │  search · filter · legend · selection      ││
+│  │  folder list        │  page list (Name · Modified · DA · dot)    ││
 │  └─────────────────────┴────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────────┘
      [ Floating selection command bar when pages are selected ]
@@ -97,7 +132,7 @@ Related messages:
 | Element | Content |
 |---------|---------|
 | Eyebrow | Adobe Experience Manager · Edge Delivery |
-| Title | **Content Operation Hub** |
+| Title | **Content Operations Hub** |
 | Description | Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level. |
 | Badges | Current **org**, **site**, and **ref** (branch) |
 
@@ -114,7 +149,7 @@ Content loads automatically. There is no separate **Fetch** button.
 | **First open** | Lists folders and pages at site root (or `?path=`) |
 | **Click a folder** | Navigates deeper, updates URL `?path=`, reloads content |
 | **Breadcrumb segment** | Jump to ancestor folder |
-| **Include all subdirectories** | Switches page scope and reloads (see [Pages panel](#pages-panel)) |
+| **Include all subdirectories** | Switches page scope and reloads |
 
 ### URL sync
 
@@ -126,7 +161,7 @@ Content loads automatically. There is no separate **Fetch** button.
 | State | Folder navigation | Scope change |
 |-------|-------------------|--------------|
 | Page selection | Kept for paths still in the new list | Cleared on refetch |
-| Deployment status | Cleared (auto-refetches when pages load) | Cleared (auto-refetches) |
+| Deployment status | Cleared, then reloaded (cache + API) | Cleared, then reloaded |
 | Page filter | Reset to **All pages** | Reset to **All pages** |
 | Search queries | Cleared | Cleared |
 
@@ -139,15 +174,11 @@ Left column when subfolders exist or you are inside a subfolder.
 | Feature | Details |
 |---------|---------|
 | **Section title** | Directories + folder count |
-| **Breadcrumb** | **Site root** plus clickable segments (`›` separators). Current segment is plain text. Disabled while status is loading. |
+| **Breadcrumb** | **Site root** plus clickable segments (`›`). Current segment is plain text. Disabled while status is loading. |
 | **Find a folder** | `#bulk-pp-folder-search` — minimum **3 characters** to filter. **Escape** clears search. |
-| **Folder list** | AEM browse-style rows: folder icon + name. Click row or name to navigate. |
+| **Folder list** | AEM browse-style rows: folder icon + name. Click to navigate. |
 
-**Empty states**
-
-- Type at least 3 characters to search.
-- No folders match this search.
-- No subfolders here — pages in this folder are listed on the right.
+**Empty states:** no subfolders, no search matches, or type at least 3 characters to search.
 
 ---
 
@@ -155,143 +186,105 @@ Left column when subfolders exist or you are inside a subfolder.
 
 Right column — main working area for the current folder scope.
 
-### Pages header
+### Pages header (merged with status summary)
 
-| Element | ID / class | Purpose |
-|---------|------------|---------|
+| Element | ID | Purpose |
+|---------|-----|---------|
 | **Title** | — | Pages |
 | **Path subtitle** | — | Current folder path or **Site root** |
-| **Include all subdirectories** | `#bulk-pp-include-subdirectories` | **Off:** pages in this folder only. **On:** recursive list under the folder (`pageScope: tree`). |
-| **Page count** | `#bulk-pp-page-count` | Total pages, or **X of Y** when search/filter active |
+| **Include all subdirectories** | `#bulk-pp-include-subdirectories` | **Off:** this folder only. **On:** recursive tree (`pageScope: tree`). |
+| **Status summary** | `#bulk-pp-pages-summary` | Top-right: Published · Preview only · Not deployed · Total in view |
 
-### Controls row
+When no pages exist in scope, the summary is hidden and a simple count badge is shown instead.
+
+### Controls
 
 | Element | ID | Purpose |
 |---------|-----|---------|
 | **Find a page** | `#bulk-pp-page-search` | Minimum **3 characters**; matches name and path |
-| **Status summary** | `#bulk-pp-pages-summary` | Published / preview / not deployed / total counts |
 | **Filter by status** | `#bulk-pp-page-filter` | Right-aligned, parallel to page search |
-| **Status legend** | `#bulk-pp-pages-legend-row` | Color key above the page list |
-| **Selection row** | — | Selection pill + **Select all** / **Clear** |
+| **Status legend** | `#bulk-pp-pages-legend-row` | Color key above the list |
+| **Selection row** | — | `N selected out of M` · **Select all** · **Clear** |
 
-**Empty states**
-
-- No pages in this scope.
-- No pages match this search.
-- No pages match this filter.
-- No folders or pages in this location.
+**Empty states:** no pages in scope, no search matches, no filter matches, or empty folder.
 
 ---
 
-## Fetch deployment status
+## Deployment status
 
-Deployment status answers: *Has this page been previewed on `.aem.page`? Published on `.aem.live`?*
+Answers: *Has this page been previewed on `.aem.page`? Published on `.aem.live`?*
 
 ### How it loads
 
-Whenever pages load (folder navigation, scope change, or first open), deployment status is resolved **automatically** for all pages in the current list.
+Whenever pages load (folder navigation, scope change, or first open), status is resolved **automatically**.
 
 | Situation | Behavior |
 |-----------|----------|
-| **All pages cached** (localStorage) | Cached status appears instantly, then **silently re-fetches** from the API in the background (no modal) |
-| **Some pages cached** | Cached rows show immediately; only missing pages are fetched (progress modal opens) |
-| **Nothing cached** | Full fetch with progress modal |
+| **First open in session** | Content appears first; status loads inline (**Checking deployment status…**) — no blocking modal |
+| **All pages cached** | Cached status appears instantly, then **silently re-fetches** in the background (no modal) |
+| **Some pages cached** (after first load) | Cached rows show immediately; missing pages fetched (progress modal on folder change) |
+| **Nothing cached** (after first load) | Full fetch with progress modal when navigating folders |
 
-Navigating or changing scope clears in-memory status, rehydrates from **localStorage**, then fetches anything still missing. A full cache hit still triggers a **background refresh** so preview/publish done directly in DA is picked up without slowing folder navigation.
+Navigating clears in-memory status, rehydrates from **localStorage**, then fetches anything still missing. A full cache hit still triggers a **background refresh** so preview/publish done directly in DA is usually reflected within a few seconds.
 
 ### localStorage cache
 
-Per-page deployment status is stored in the browser under `bulk-pp-deployment-status-v1`, keyed by **org · site · ref · helix path**.
+Stored under `bulk-pp-deployment-status-v1`, keyed by **org · site · ref · helix path**.
 
 | Detail | Value |
 |--------|-------|
 | **TTL** | 7 days per path |
 | **Cap** | 8,000 paths per site |
-| **Written** | After each successful fetch, partial stop, or bulk preview/publish job |
-| **Read** | On every folder open — avoids re-fetching when navigating back |
+| **Written** | After successful fetch, partial stop, bulk jobs from this tool |
+| **Read** | On every folder open |
 
-Entries expire after 7 days. When you open a folder, cached data is shown first and then refreshed in the background — changes made directly in DA are usually reflected within a few seconds. If the background refresh fails (offline, rate limit), cached values are kept until the next visit.
+If background refresh fails (offline, rate limit), cached values are kept until the next successful fetch.
 
 ### Progress modal
 
-| Phase | Header title | Header actions |
-|-------|--------------|----------------|
+Shown only when pages still need to be fetched from the API (not for silent background refresh).
+
+| Phase | Header title | Actions |
+|-------|--------------|---------|
 | In progress | **Fetching deployment status** | **Stop** |
-| Complete | **Deployment status ready** | Stop removed — **Close** in body |
+| Complete | **Deployment status ready** | **Close** |
 | Stopped | **Fetch stopped** | **Close** |
 | Failed | **Fetch failed** | **Close** |
 
 Progress shows **N of M pages checked (P%)** with a runtime ETA.
 
-### Completion breakdown (modal + deployment panel)
+### Classification
 
-| Stat | Label |
-|------|-------|
-| Live | **Published (live)** |
-| Preview only | **Preview only** |
-| None | **neither previewed nor published** |
-| Total | **Total in view** |
-
-### Classification rules
-
-| Condition | Status | Dot color | Legend label |
-|-----------|--------|-----------|--------------|
+| Condition | Status | Dot | Legend |
+|-----------|--------|-----|--------|
 | `publishedAt` present | Published | Green `#15803d` | **Published** |
 | Only `previewedAt` | Preview only | Amber `#b45309` | **Preview only** |
 | Neither timestamp | Untouched | Red `#c9252d` | **Not previewed** |
 
-Row tooltips: *Published*, *only previewed*, *not previewed*.
+While loading, cached pages show status immediately; others update as checked. A subtle **Refreshing status…** or **Updating status…** hint may appear in the legend row.
 
-### While status is loading
+### API behavior
 
-- Cached pages show status immediately; remaining pages update as each is checked
-- Summary grid and row dots fill in as results arrive
-- Filter and legend stay available
-
-### After a successful run
-
-- `statusFetched` is true; results persisted to localStorage
-- Summary, filter, legend, and row dots reflect full status
-- **Modified** column on page rows shows latest preview/publish timestamp
-- Partial results kept if you stop mid-fetch (also saved to localStorage)
-
-### API behavior (summary)
-
-- Pages checked in parallel batches of **10**, **120 ms** pause between batches
-- For **≥ 3 pages**, bulk status API is used unless disabled via URL flags
+- Parallel batches of **10** pages, **120 ms** pause between batches
+- Bulk status API for **≥ 3 pages** unless disabled via URL flags
 - Per-page fallback when bulk mapping misses a path
-- Rate limit (**429**): wait and navigate again or change scope to retry
 
 ---
 
-## Pages status controls
+## Page list
 
-Integrated into the Pages panel — no separate deployment card.
-
-| Row | Content |
-|-----|---------|
-| **Summary** (`#bulk-pp-pages-summary`) | Published · Preview only · Not deployed · Total in view |
-| **Toolbar** | **Find a page** (left) · **Filter by status** (right) |
-| **Legend** | Color key, right-aligned above the list |
-
-Summary counts update live while status is fetching. Filter and legend apply to the **current loaded list** (folder vs tree scope, search, and filter).
-
----
-
-## Page list and browse UI
-
-AEM Assets–style browse list:
+AEM browse-style list:
 
 | Column | Content |
 |--------|---------|
 | Checkbox | Page selection |
-| Icon | Document (line art) |
+| Icon | Document |
 | **Name** | Relative page path |
-| **Modified** | Latest preview/publish date after status fetch (empty before fetch) |
+| **Modified** | Latest preview/publish date (after status load) |
 | **DA** | Open in Document Authoring (single page) |
 | Status dot | Deployment indicator |
 
-- **48px row height**, light dividers, subtle hover
+- **48px** row height, light dividers, subtle hover
 - Selected rows: light blue-gray background
 - List scrolls inside the panel; at least **5 rows** visible in typical layouts
 
@@ -301,29 +294,25 @@ AEM Assets–style browse list:
 
 | Control | ID | Behavior |
 |---------|-----|----------|
-| **Select all** | `#bulk-pp-select-all` | Selects all **currently visible** pages (respects search/filter) |
-| **Clear** | `#bulk-pp-select-none` | Clears all selection |
+| **Select all** | `#bulk-pp-select-all` | All **currently visible** pages (respects search/filter) |
+| **Clear** | `#bulk-pp-select-none` | Clears selection |
 | Row checkbox | `.bulk-pp-page-cb` | Toggle individual pages |
 
-### Selection pill (`#bulk-pp-selection-pill`)
+**Selection pill** (`#bulk-pp-selection-pill`): **`N selected out of M`**
 
-Format: **`N selected out of M`** (M = total pages in current scope)
-
-### Selection persistence
-
-- **Folder navigation:** selection kept for paths that still exist in the new page list
-- **Scope change / navigation reset:** selection and status may clear per rules above
-- Bulk actions only affect paths in the **current loaded page list** that are selected
+- **Folder navigation:** selection kept for paths still in the new list
+- **Scope change:** selection cleared on refetch
+- Bulk actions only affect selected paths in the **current loaded list**
 
 ---
 
 ## Selection command bar
 
-When one or more pages are selected, a **floating command bar** appears at the bottom of the viewport (magenta/pink theme). It overlays content and does not shrink the page list.
+Floating bar at the bottom when pages are selected (magenta/pink theme). Overlays content without shrinking the list.
 
 | Area | Content |
 |------|---------|
-| Left | Selection badge (count) · **Clear** |
+| Left | Selection badge · **Clear** |
 | Right | **Preview** · **Publish** · **More** ▾ |
 
 ### More menu
@@ -333,34 +322,25 @@ When one or more pages are selected, a **floating command bar** appears at the b
 | **Remove** | Remove preview · Remove from live · **Delete from DA** (danger) |
 | **Open** | Open in Document Authoring · Open preview site · Open live site |
 
-Bar ID: `#bulk-pp-selection-bar`. Disabled while content loading, status check in progress (before first results), or a job modal is open.
+Bar ID: `#bulk-pp-selection-bar`. Disabled during content load, status fetch (before first results), or an open job modal.
 
 ---
 
 ## Bulk preview and publish
 
-Triggered from the selection command bar: **Preview** or **Publish**.
+From the command bar: **Preview** or **Publish**.
 
-| Action | Confirmation | Job modal title |
-|--------|--------------|-----------------|
-| **Preview** | **Preview selected pages?** → **Preview selected** | Running bulk preview on N pages |
-| **Publish** | **Publish to production?** → **Publish to production** | Publishing N pages to production |
+| Action | Confirmation | Job modal |
+|--------|--------------|-----------|
+| **Preview** | **Preview selected pages?** | Running bulk preview on N pages |
+| **Publish** | **Publish to production?** | Publishing N pages to production |
 
 ### After success
 
 - Refreshes deployment status for affected paths
-- Job complete modal shows summary and, for preview/publish:
-  - **Copy URLs**
-  - **Open all (N)** with tab confirmation
-  - Clickable URL list
+- Complete modal: **Copy URLs**, **Open all (N)**, clickable URL list
 
-### Disabled when
-
-- No pages selected
-- Content or status loading (before status fetched)
-- A bulk job modal is open
-
-### Job completion
+### Job outcomes
 
 | Outcome | Modal title |
 |---------|-------------|
@@ -373,12 +353,7 @@ Triggered from the selection command bar: **Preview** or **Publish**.
 
 ## Bulk removal and delete
 
-From **More → Remove** on the selection command bar.
-
-All destructive actions use a **two-step confirmation**:
-
-1. **Keyword step** — type `unpreview`, `unpublish`, or `delete` exactly
-2. **Final step** — *This cannot be undone* with a danger confirm button
+From **More → Remove**. Two-step confirmation: type keyword, then confirm.
 
 | Action | Keyword | Final confirm |
 |--------|---------|---------------|
@@ -388,22 +363,19 @@ All destructive actions use a **two-step confirmation**:
 
 ### Delete from DA (3-step pipeline)
 
-Permanent removal. Runs in order:
+| Step | Action |
+|------|--------|
+| 1 | Bulk unpreview job |
+| 2 | Bulk unpublish job |
+| 3 | Sequential `DELETE` on `admin.da.live/source/…` |
 
-| Step | Label | Action |
-|------|-------|--------|
-| 1 | Step 1 of 3 · Unpreview | Bulk preview removal job |
-| 2 | Step 2 of 3 · Unpublish | Bulk live removal job |
-| 3 | Step 3 of 3 · Delete from DA | Sequential `DELETE` on `admin.da.live/source/…` |
-
-- Successfully deleted pages are removed from the UI list and selection
-- Job complete modal does **not** include preview/live URLs for destructive operations
+Deleted pages are removed from the UI list. Destructive complete modals do not include preview/live URLs.
 
 ---
 
 ## Open URLs and Document Authoring
 
-### From selection command bar → More → Open
+### From More → Open
 
 | Action | Opens |
 |--------|-------|
@@ -411,100 +383,65 @@ Permanent removal. Runs in order:
 | **Open preview site** | `{ref}--{site}--{org}.aem.page` |
 | **Open live site** | `{ref}--{site}--{org}.aem.live` |
 
-### From job complete modal (preview/publish)
+### From job complete modal
 
 - **Copy URLs** — newline-separated list
-- **Open all (N)** — same tab confirmation flow as bulk open
-
-### Open confirmation
-
-**Open URLs in new tabs?**
-
-- **Open N tab(s)** / **Cancel**
-- Warning at ≥ 5 tabs (browser limits)
-- Stronger warning at ≥ 20 tabs (popup blockers)
+- **Open all (N)** — tab confirmation (warnings at ≥ 5 and ≥ 20 tabs)
 
 ### Popup blocked
 
-> Your browser blocked new tabs. Allow pop-ups for this site, or use **Copy URLs** in the job complete modal.
+> Allow pop-ups for this site, or use **Copy URLs** in the job complete modal.
 
 ---
 
 ## Modals and confirmations
 
-### Standard confirm modal
+### Standard confirm
 
-Used for preview, publish, open tabs, and destructive final step.
-
-- **Escape** or backdrop click → cancel
-- Warning variant shows **!** icon
+Used for preview, publish, open tabs, and destructive final step. **Escape** or backdrop → cancel.
 
 ### Keyword destructive modal (step 1)
 
-| Action | Title |
-|--------|-------|
-| Remove preview | Remove preview for selected pages? |
-| Remove from live | Unpublish selected pages from production? |
-| Delete | Delete selected pages from Document Authoring? |
-
-- Input: **Type {keyword} to continue**
-- **Continue to confirmation** disabled until keyword matches (case-insensitive)
+Type `unpreview`, `unpublish`, or `delete` (case-insensitive) before the final danger confirm.
 
 ### Progress modals
 
-Shared layout: title, stop button (jobs and status fetch only while running), intro, progress bar, ETA.
-
-**Job stop labels:** Cancel job · Cancel unpreview · Cancel unpublish · Cancel delete
+Shared layout: title, stop/cancel while running, progress bar, ETA. Job stop labels: Cancel job · Cancel unpreview · Cancel unpublish · Cancel delete.
 
 ---
 
 ## Cancel and stop behavior
 
-> **Important:** Cancel / Stop controls **client-side tracking only**. Work already accepted by AEM Admin or DA may continue on the server.
+> **Important:** Stop / Cancel ends **client-side tracking only**. Server jobs may continue.
 
-### Stop (deployment status fetch)
-
-- Aborts in-flight status requests via `AbortController`
-- **Partial results kept** if any pages were already checked
-- Stop button **removed** from header when fetch completes, fails, or is stopped
-
-### Cancel job
-
-- Stops UI polling and closes tracking
-- Server job may still run to completion
-
-### Navigation during status
-
-- Changing folders or scope cancels status and clears deployment display
+| Control | Effect |
+|---------|--------|
+| **Stop** (status fetch) | Aborts requests; partial results kept and saved to cache |
+| **Cancel job** | Stops UI polling; server may still complete |
+| **Navigate away** | Cancels status fetch and background refresh |
 
 ---
 
 ## Per-row actions
 
-Each page row includes:
-
 | Element | Behavior |
 |---------|----------|
 | **Checkbox** | Add/remove from selection |
-| **Label** (relative path) | Clicking focuses the checkbox |
+| **Label** | Relative path; focuses checkbox |
 | **DA** | Open single page in Document Authoring |
-| **Status dot** | Visual indicator; `aria-label` from status |
-
-### DA button rules
+| **Status dot** | Visual indicator with `aria-label` |
 
 | Selection count | DA button |
 |-----------------|-----------|
 | 2+ selected | Disabled — use **More → Open in Document Authoring** |
-| 1 selected | Works for that row |
+| 1 selected | Enabled for that row |
 | Status loading (no results yet) | Disabled |
-
-Tooltip when disabled (multi-select): *Use More → Open in Document Authoring when multiple pages are selected*
 
 ---
 
 ## Status legend and filters
 
-### Legend (in deployment panel)
+### Legend (`#bulk-pp-pages-legend-row`)
 
 | Dot | Label |
 |-----|-------|
@@ -512,7 +449,7 @@ Tooltip when disabled (multi-select): *Use More → Open in Document Authoring w
 | Amber | Preview only |
 | Green | Published |
 
-### Filter by status (`#bulk-pp-page-filter`)
+### Filter (`#bulk-pp-page-filter`)
 
 | Value | Label |
 |-------|-------|
@@ -524,11 +461,7 @@ Tooltip when disabled (multi-select): *Use More → Open in Document Authoring w
 | `oldest-preview` | Oldest previewed |
 | `oldest-publish` | Oldest published |
 
-**Notes**
-
-- Locked until deployment status is fetched
-- Date-based filters sort by `previewedAt` / `publishedAt`
-- Changing folder, scope, or turning status off resets filter to **All pages**
+Filters apply to the current loaded list (folder vs tree scope). Search further narrows visible rows. Filter is always available — not locked behind status fetch.
 
 ---
 
@@ -536,7 +469,7 @@ Tooltip when disabled (multi-select): *Use More → Open in Document Authoring w
 
 | Parameter | Effect |
 |-----------|--------|
-| `ref` | Branch override (default from DA context, usually `main`) |
+| `ref` | Branch override (default from DA context) |
 | `path` | Initial folder path |
 | `debug` | Log bulk status failures; show job JSON in error UI |
 | `hardcodeIndex` | Test mode: only index page gets real status |
@@ -553,121 +486,103 @@ Example: `?path=/who-we-are&ref=feature-branch`
 
 ```
 tools/bulk-preview-publish/
-├── index.html              # Primary entry
-├── bulk-preview-publish.js # App shell, render, handlers
+├── index.html
+├── bulk-preview-publish.js   # App shell, render, handlers
 ├── bulk-preview-publish.css
-├── WIKI.md                 # This document
+├── WIKI.md
 └── lib/
-    ├── api.js              # DA list, bulk jobs, status, delete, auth messages
+    ├── api.js              # DA list, bulk jobs, status, delete, auth
     ├── modal.js            # Confirm & keyword modals
     ├── progress-modal.js   # Status & job progress UI
     ├── search-ui.js        # Search fields & row patches
     ├── page-history.js     # Status classification & filters
-    ├── paths.js            # Path normalization & DA delete paths
+    ├── paths.js            # Path normalization
     ├── urls.js             # Preview/live/DA URL builders
-    ├── state.js            # App state factory & search helpers
+    ├── state.js            # App state & helpers
+    ├── status-cache.js     # localStorage deployment cache
     ├── status-estimate.js  # ETA formatting
-    ├── status-cache.js     # Platform status cache
-    ├── dom.js              # DOM helpers
-    └── ui-utils.js         # Clipboard, button feedback, tab open
+    ├── dom.js
+    └── ui-utils.js         # Clipboard, tabs, button feedback
 ```
 
-### SDK and authentication
+### SDK and API
 
-- Dynamic import: `https://da.live/nx/utils/sdk.js` (8 s timeout)
-- `wrapDaFetch()` passes through SDK fetch for Admin API calls
-- Auth message constants: `DA_AUTH_CONTEXT_MESSAGE`, `DA_LOGIN_REQUIRED_MESSAGE`, `DA_SITE_CONTEXT_MESSAGE`
-- `isDaAccessError()` drives the structured sign-in panel in the content area
+- SDK: `https://da.live/nx/utils/sdk.js` (8 s timeout)
+- `admin.da.live` — list folders/pages, delete source documents
+- `admin.hlx.page` — preview, live, status, job polling
 
-### API hosts
+### Pages vs files
 
-| Host | Usage |
-|------|-------|
-| `https://admin.da.live` | List folders/pages, delete source documents |
-| `https://admin.hlx.page` | Preview, live, status, and job polling |
-
-### What counts as a “page”
-
-- Document entries (`index`, section pages, etc.)
-- **Excluded:** data/config files (`metadata`, `json`, spreadsheets, etc.)
-- Homepage paths normalize `/index` ↔ `/`
+Document entries (pages) are listed; data/config files (`metadata`, `json`, spreadsheets, etc.) are excluded. Homepage paths normalize `/index` ↔ `/`.
 
 ### Job polling
 
-- Up to **60** polls × **2 s** interval
-- Terminal states: `stopped`, `succeeded`, `failed`, `cancelled`, `timeout`
-- Timeout message: *timed out — check job status in DA*
-- Async forced when **> 5 paths** or delete operations
+Up to **60** polls × **2 s**. Terminal: `stopped`, `succeeded`, `failed`, `cancelled`, `timeout`. Async forced when **> 5 paths** or for delete.
 
-### Status refresh after tool jobs
+### Status refresh
 
-After preview, publish, or destructive jobs initiated by this tool, status is refreshed for affected paths via `fetchPlatformStatusForPaths`. Status does **not** auto-refresh when preview/publish happens outside this tool (e.g. directly in DA).
+- **From this tool:** status updated after preview, publish, and removal jobs
+- **From DA directly:** picked up on next folder open via background revalidate
+- **Cache key:** `bulk-pp-deployment-status-v1`
 
 ---
 
 ## Limitations and troubleshooting
 
-| Issue | Cause / mitigation |
-|-------|-------------------|
-| Tool won’t start | Sign in at [da.live](https://da.live) and open from Apps, not a preview URL. Hard refresh after deploy. |
-| Auth / IMS errors | Use the sign-in panel steps; open from `da.live/app/{org}/{site}`. |
-| Buttons disabled | Wait for content/status/job to finish; select at least one page. |
-| DA row button disabled | Select only one page, or use **More → Open in Document Authoring**. |
-| Command bar missing | Select at least one page in the list. |
-| Popup blocker | Allow pop-ups; use **Copy URLs** in job complete modal. |
-| Status slow on large trees | Use folder-only scope; stop fetch — partial results kept. |
-| 429 rate limit | Wait and reload the folder (navigate away and back) to retry. |
-| Stop didn’t undo work | Expected — server jobs continue; modal explains this. |
-| Delete partial failure | Per-path errors reported (up to 3 samples in UI). |
-| External DA preview/publish | Usually corrected by background refresh on next folder open; if refresh fails, cache may be stale until the next successful fetch. |
+| Issue | Mitigation |
+|-------|------------|
+| Tool won't start | Sign in at [da.live](https://da.live); open from Apps; hard refresh after deploy |
+| Old UI after deploy | Hard refresh (`Cmd+Shift+R` / `Ctrl+Shift+R`) — DA caches static assets |
+| Auth / IMS errors | Follow sign-in panel; open from `da.live/app/{org}/{site}` |
+| Buttons disabled | Wait for content/status/job; select at least one page |
+| DA row button disabled | Select one page, or use **More → Open in Document Authoring** |
+| Command bar missing | Select at least one page |
+| Popup blocker | Allow pop-ups; use **Copy URLs** |
+| Status slow on large trees | Use folder-only scope; stop fetch — partial results kept |
+| 429 rate limit | Wait; navigate away and back to retry |
+| Stop didn't undo work | Expected — server jobs continue |
+| External DA changes | Background refresh on folder open; brief stale window if refresh fails |
+| Delete partial failure | Per-path errors reported (up to 3 samples) |
 
-### Boot and content errors
+### Boot messages
 
 | Message | Meaning |
 |---------|---------|
-| Content Operation Hub failed to start | JS init error — check console, hard refresh |
-| Sign in to Document Authoring | Opened outside DA — follow panel steps |
-| No folders or pages in this location. | Empty folder or invalid path |
+| Content Operations Hub failed to start | JS init error — console + hard refresh |
+| Sign in to Document Authoring | Opened outside DA |
+| No folders or pages in this location. | Empty or invalid path |
 | Fetching content… | Content list in progress |
-
-### Deploy note
-
-After pushing code changes, users must hard refresh the DA tool URL (`Cmd+Shift+R` / `Ctrl+Shift+R`) to bypass cached assets.
 
 ---
 
-## Quick workflow reference
+## Quick workflows
 
 ### Preview several pages
 
-1. Navigate to the folder (breadcrumb or Directories list) — deployment status loads automatically
+1. Navigate to the folder — status loads automatically
 2. **Select all** or pick checkboxes
-4. **Preview** on the command bar → confirm
-5. Use **Copy URLs** or **Open all** in the complete modal
+3. **Preview** on the command bar → confirm
+4. **Copy URLs** or **Open all** in the complete modal
 
 ### Publish to production
 
-1. Select pages → **Publish** on the command bar
-2. Confirm **Publish to production**
-3. Wait for job modal → copy or open live URLs from complete modal
+1. Select pages → **Publish** → confirm
+2. Wait for job modal → copy or open live URLs
 
-### Check deployment status only
+### Review deployment status
 
-1. Navigate to the folder — status fetch starts automatically
-2. Wait for **Deployment status ready** (or use partial results while loading)
-3. Use filter, legend, summary, and row dots to review
+1. Open a folder — summary appears top-right; dots fill in as status resolves
+2. Use filter, legend, and row details to review
 
 ### Remove preview only
 
-1. Select pages → **More → Remove preview**
-2. Type `unpreview` → **Yes, remove preview**
+1. **More → Remove preview** → type `unpreview` → confirm
 
 ### Fully delete from DA
 
-1. Select pages → **More → Delete from DA**
-2. Type `delete` → **Yes, delete permanently**
-3. Monitor 3-step progress (unpreview → unpublish → DA source delete)
+1. **More → Delete from DA** → type `delete` → confirm
+2. Monitor 3-step progress (unpreview → unpublish → delete)
 
 ---
 
-*Last updated for Content Operation Hub (`tools/bulk-preview-publish`). Technical slug and paths remain `bulk-preview-publish` for backward compatibility.*
+*Content Operations Hub · `tools/bulk-preview-publish` · technical slug `bulk-preview-publish` for backward compatibility.*

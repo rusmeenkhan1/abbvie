@@ -23,6 +23,8 @@ export function createAppState(ctx) {
     pageScope: 'folder',
     loading: false,
     contentLoading: false,
+    /** True after the first successful content list load in this session. */
+    initialContentLoaded: false,
     error: null,
     status: null,
     statusType: 'info',
@@ -81,6 +83,7 @@ export function resetWorkspace(state) {
   state.pageScope = 'folder';
   state.loading = false;
   state.contentLoading = false;
+  state.initialContentLoaded = false;
   state.error = null;
   state.status = null;
   state.statusType = 'info';

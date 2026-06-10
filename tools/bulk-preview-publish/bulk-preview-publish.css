@@ -1,4 +1,4 @@
-/* Content Operation Hub — executive workspace UI (AbbVie-aligned) */
+/* Content Operations Hub — executive workspace UI (AbbVie-aligned) */
 
 .bulk-pp-body {
   margin: 0;
@@ -1090,8 +1090,7 @@ html:has(.bulk-pp-body) {
   align-items: center;
   gap: 8px 12px;
   margin: 0;
-  padding: 8px 0 10px;
-  border-top: 1px solid rgb(7 29 73 / 8%);
+  padding: 0 0 10px;
 }
 
 .bulk-pp-selection-row {
@@ -1845,25 +1844,28 @@ html:has(.bulk-pp-body) {
 .bulk-pp-pages-toolbar-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: end;
+  align-items: stretch;
   gap: 12px 16px;
   padding-top: 2px;
 }
 
 .bulk-pp-pages-toolbar-row .bulk-pp-pages-search-field,
 .bulk-pp-pages-toolbar-row .bulk-pp-pages-filter-field {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
   min-width: 0;
   margin: 0;
 }
 
-.bulk-pp-pages-toolbar-row .bulk-pp-search-label {
-  margin-bottom: 6px;
+.bulk-pp-pages-toolbar-row .bulk-pp-search-input,
+.bulk-pp-pages-toolbar-row .bulk-pp-filter-select {
+  min-height: 42px;
 }
 
 .bulk-pp-pages-filter-field {
-  justify-self: end;
   width: 100%;
-  max-width: 300px;
+  max-width: none;
 }
 
 .bulk-pp-filter-select {
@@ -1907,7 +1909,10 @@ html:has(.bulk-pp-body) {
   align-items: center;
   justify-content: flex-end;
   gap: 8px 12px;
-  margin-top: 4px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgb(7 29 73 / 8%);
 }
 
 .bulk-pp-pages-legend-row .bulk-pp-status-legend {
@@ -1993,46 +1998,29 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-da-access-error {
-  max-width: 36rem;
-  margin: 48px auto;
-  padding: 28px 32px;
-  text-align: left;
+  max-width: 28rem;
+  margin: 64px auto;
+  padding: 24px 28px;
+  text-align: center;
   background: #fff;
-  border: 1px solid var(--pp-error-border);
+  border: 1px solid var(--pp-border);
   border-radius: var(--pp-radius);
   box-shadow: var(--pp-shadow);
 }
 
 .bulk-pp-da-access-error-title {
-  margin: 0 0 10px;
-  font-size: 1.125rem;
+  margin: 0 0 8px;
+  font-size: 1.0625rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--pp-navy);
 }
 
 .bulk-pp-da-access-error-lead {
-  margin: 0 0 16px;
+  margin: 0;
   font-size: 0.9375rem;
-  line-height: 1.55;
-  color: var(--pp-error-text);
-}
-
-.bulk-pp-da-access-error-steps {
-  margin: 0 0 20px;
-  padding-left: 1.25rem;
-  font-size: 0.875rem;
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--pp-text-muted);
-}
-
-.bulk-pp-da-access-error-steps li + li {
-  margin-top: 6px;
-}
-
-.bulk-pp-da-access-error-link {
-  display: inline-flex;
-  text-decoration: none;
 }
 
 .bulk-pp-deployment-panel-host {
@@ -2488,8 +2476,64 @@ html:has(.bulk-pp-body) {
   gap: 0;
 }
 
-.bulk-pp-pages-scope-option {
-  margin-top: 7px;
+.bulk-pp-pages-scope-row {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 2px;
+}
+
+.bulk-pp-pages-header .bulk-pp-pages-breadcrumb {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgb(7 29 73 / 8%);
+}
+
+.bulk-pp-pages-status-progress {
+  margin: 0 16px 10px;
+  padding: 12px 14px;
+  border: 1px solid rgb(0 102 245 / 18%);
+  border-radius: var(--pp-radius-sm);
+  background: linear-gradient(180deg, rgb(0 102 245 / 5%) 0%, #fff 100%);
+}
+
+.bulk-pp-pages-status-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.bulk-pp-pages-status-progress-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--pp-navy);
+}
+
+.bulk-pp-pages-status-progress-stop {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+}
+
+.bulk-pp-pages-status-progress-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--pp-text-muted);
+}
+
+.bulk-pp-pages-status-progress-label {
+  font-variant-numeric: tabular-nums;
+}
+
+.bulk-pp-pages-status-progress-eta {
+  color: var(--pp-text-subtle);
 }
 
 .bulk-pp-pages-scope-check {
@@ -2642,7 +2686,11 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-section-icon-folders {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 16' fill='none' stroke='%235a6478' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M1 3.5h6.5L10 6h9v8.5H1z'/%3E%3Cpath d='M1 2h6.5L10 4.5h9'/%3E%3C/svg%3E");
+  background-color: rgb(0 102 245 / 10%);
+  border: 1px solid rgb(0 102 245 / 22%);
+  box-shadow: 0 1px 2px rgb(0 102 245 / 8%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 20' fill='none' stroke='%230066f5' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 6.5V17a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V6.5'/%3E%3Cpath d='M2 6.5 4.5 3.5h6L13 6.5h9'/%3E%3Cpath d='M9 10.5h6'/%3E%3C/svg%3E");
+  background-size: 22px;
 }
 
 .bulk-pp-section-icon-pages {
@@ -4167,7 +4215,6 @@ html:has(.bulk-pp-body) {
   }
 
   .bulk-pp-pages-filter-field {
-    justify-self: stretch;
     max-width: none;
   }
 

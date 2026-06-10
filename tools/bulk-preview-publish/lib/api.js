@@ -47,19 +47,21 @@ const OPERATION_LABELS = {
   list: 'browse site content',
 };
 
-export const CONTENT_OPERATION_HUB_NAME = 'Content Operation Hub';
+export const CONTENT_OPERATION_HUB_NAME = 'Content Operations Hub';
+
+/** Primary sign-in hint — DA profile / Sign in control is top-right in the shell. */
+export const DA_SIGN_IN_TOP_RIGHT_MESSAGE =
+  'Sign in using the button in the top right, then reload this tool.';
 
 /** Shown when the tool is opened outside DA (preview URLs, missing SDK token, etc.). */
-export const DA_AUTH_CONTEXT_MESSAGE =
-  `Sign in to Document Authoring (https://da.live) and open ${CONTENT_OPERATION_HUB_NAME} from Apps. Preview (.aem.page / .aem.live) URLs cannot authenticate.`;
+export const DA_AUTH_CONTEXT_MESSAGE = DA_SIGN_IN_TOP_RIGHT_MESSAGE;
 
 /** Shown when daFetch is unavailable at startup. */
-export const DA_LOGIN_REQUIRED_MESSAGE =
-  `Sign in to Document Authoring (https://da.live), then open ${CONTENT_OPERATION_HUB_NAME} from Apps.`;
+export const DA_LOGIN_REQUIRED_MESSAGE = DA_SIGN_IN_TOP_RIGHT_MESSAGE;
 
 /** Shown when org/site context is missing. */
 export const DA_SITE_CONTEXT_MESSAGE =
-  `Open ${CONTENT_OPERATION_HUB_NAME} from your site in Document Authoring (https://da.live/app/your-org/your-site).`;
+  `Open ${CONTENT_OPERATION_HUB_NAME} from your site app in Document Authoring.`;
 
 /**
  * @param {string} message
@@ -87,10 +89,7 @@ export function formatAdminApiError(data, status, operation = '') {
     return DA_AUTH_CONTEXT_MESSAGE;
   }
   if (status === 401) {
-    if (raw && !/unauthorized/i.test(raw)) {
-      return `${raw} ${DA_LOGIN_REQUIRED_MESSAGE}`;
-    }
-    return `You are not signed in. ${DA_LOGIN_REQUIRED_MESSAGE}`;
+    return DA_SIGN_IN_TOP_RIGHT_MESSAGE;
   }
   if (status === 403) {
     if (raw && !/^forbidden$/i.test(raw.trim())) {

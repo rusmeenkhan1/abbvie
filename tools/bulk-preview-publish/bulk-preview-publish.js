@@ -56,18 +56,13 @@ import {
   closeProgressModal,
   isJobModalOpen,
   isProgressModalOpen,
-  isStatusFetchModalOpen,
   openJobModal,
-  openStatusFetchModal,
   showJobCancelledModal,
   showJobCompleteModal,
   showJobErrorModal,
-  showStatusFetchCancelledModal,
-  showStatusFetchCompleteModal,
-  showStatusFetchErrorModal,
   updateJobModal,
-  updateStatusFetchModal,
 } from './lib/progress-modal.js';
+import { formatRuntimeStatusEta } from './lib/status-estimate.js';
 import {
   bindSearchInput,
   buildSearchField,
@@ -129,7 +124,7 @@ const STATUS_COLOR = {
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 
-const APP_TITLE = 'Content Operation Hub';
+const APP_TITLE = 'Content Operations Hub';
 const APP_DESCRIPTION = 'Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level.';
 
 /** @typedef {import('./lib/state.js').PageOperationId} PageOperationId */
@@ -183,26 +178,15 @@ function buildSelectionOpIcon(operationId) {
   return icon;
 }
 
-function buildDaAccessErrorPanel(message) {
+/**
+ * @param {string} [message]
+ */
+function buildDaAccessErrorPanel(message = DA_LOGIN_REQUIRED_MESSAGE) {
   const wrap = el('div', 'bulk-pp-da-access-error');
   wrap.append(
-    el('h3', 'bulk-pp-da-access-error-title', 'Sign in to Document Authoring'),
+    el('h3', 'bulk-pp-da-access-error-title', 'Sign in required'),
     el('p', 'bulk-pp-da-access-error-lead', message),
   );
-  const steps = el('ol', 'bulk-pp-da-access-error-steps');
-  [
-    'Go to da.live and sign in with your Adobe account.',
-    'Open your site app from Apps or Files.',
-    `Launch ${APP_TITLE} from the site tools menu.`,
-  ].forEach((text) => steps.append(el('li', null, text)));
-  wrap.append(steps);
-  const link = document.createElement('a');
-  link.className = 'bulk-pp-btn bulk-pp-btn-confirm bulk-pp-da-access-error-link';
-  link.href = 'https://da.live';
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  link.textContent = 'Open Document Authoring';
-  wrap.append(link);
   return wrap;
 }
 
@@ -269,22 +253,22 @@ function createPanel(title, extraClass = '') {
  * @param {boolean} workspaceLocked
  */
 function buildPagesSectionHead(state, workspaceLocked) {
-  const locked = workspaceLocked || state.contentLoading;
   const head = el('div', 'bulk-pp-section-head');
   const titleWrap = el('div', 'bulk-pp-section-title-wrap');
   const icon = el('span', 'bulk-pp-section-icon bulk-pp-section-icon-pages');
   icon.setAttribute('aria-hidden', 'true');
-  const copyWrap = el('div', 'bulk-pp-section-title-copy');
-  copyWrap.append(
-    el('h3', 'bulk-pp-section-title', 'Pages'),
-    el(
-      'p',
-      'bulk-pp-section-subtitle',
-      displayFolderPath(state.folderPath) || 'Site root',
-    ),
-  );
+  titleWrap.append(icon, el('h3', 'bulk-pp-section-title', 'Pages'));
+  head.append(titleWrap);
+  return head;
+}
 
-  const scopeRow = el('div', 'bulk-pp-pages-scope-option');
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {boolean} workspaceLocked
+ */
+function buildPagesScopeRow(state, workspaceLocked) {
+  const locked = workspaceLocked || state.contentLoading;
+  const scopeRow = el('div', 'bulk-pp-pages-scope-row');
   const scopeCheck = el('input');
   scopeCheck.type = 'checkbox';
   scopeCheck.id = 'bulk-pp-include-subdirectories';
@@ -300,11 +284,7 @@ function buildPagesSectionHead(state, workspaceLocked) {
     document.createTextNode(' Include all subdirectories'),
   );
   scopeRow.append(scopeLabel);
-  copyWrap.append(scopeRow);
-
-  titleWrap.append(icon, copyWrap);
-  head.append(titleWrap);
-  return head;
+  return scopeRow;
 }
 
 /**
@@ -923,9 +903,7 @@ function patchPagesStatusLoading(root, state) {
 function refreshDeploymentUi(state) {
   const root = /** @type {HTMLElement | null} */ (state.root);
   if (!root) return;
-  if (isStatusFetchModalOpen()) {
-    updateStatusFetchModal(state);
-  }
+  patchPagesStatusProgressBar(root, state);
   patchPagesStatusSummary(root, state);
   patchPagesStatusLoading(root, state);
   patchPagesFilterControls(root, state);
@@ -985,6 +963,14 @@ function buildPagesHeader(state, workspaceLocked) {
   }
   topRow.append(main, aside);
   header.append(topRow);
+
+  const breadcrumb = buildBreadcrumb(
+    state.folderPath,
+    (path) => state.onNavigate(path),
+    workspaceLocked,
+  );
+  breadcrumb.classList.add('bulk-pp-pages-breadcrumb');
+  header.append(breadcrumb, buildPagesScopeRow(state, workspaceLocked));
 
   return header;
 }
@@ -1166,11 +1152,10 @@ function buildPagesStatusSummary(state) {
  */
 function buildPagesFilterField(state, pageFilter, contentLoading) {
   const filterField = el('div', 'bulk-pp-pages-filter-field bulk-pp-field-filter');
-  const label = el('label', 'bulk-pp-search-label', 'Filter by status');
-  label.htmlFor = 'bulk-pp-page-filter';
   const filterSelect = document.createElement('select');
   filterSelect.id = 'bulk-pp-page-filter';
   filterSelect.className = 'bulk-pp-filter-select';
+  filterSelect.setAttribute('aria-label', 'Filter by status');
   filterSelect.disabled = contentLoading;
   PAGE_FILTERS.forEach(([value, labelText]) => {
     const opt = document.createElement('option');
@@ -1179,8 +1164,96 @@ function buildPagesFilterField(state, pageFilter, contentLoading) {
     if (value === (pageFilter || 'all')) opt.selected = true;
     filterSelect.append(opt);
   });
-  filterField.append(label, filterSelect);
+  filterField.append(filterSelect);
   return { filterField, filterSelect };
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function shouldShowStatusProgressBar(state) {
+  return state.statusChecking && state.statusProgressTotal > 0;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function buildPagesStatusProgressBar(state) {
+  const bar = el('div', 'bulk-pp-pages-status-progress');
+  bar.id = 'bulk-pp-pages-status-progress';
+
+  const head = el('div', 'bulk-pp-pages-status-progress-head');
+  head.append(el('span', 'bulk-pp-pages-status-progress-title', 'Fetching deployment status'));
+  const stopBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text bulk-pp-pages-status-progress-stop', 'Stop');
+  stopBtn.type = 'button';
+  stopBtn.addEventListener('click', () => state.onCancelStatus());
+  head.append(stopBtn);
+  bar.append(head);
+
+  const track = el('div', 'bulk-pp-progress-track');
+  const fill = el('div', 'bulk-pp-progress-fill');
+  fill.id = 'bulk-pp-pages-status-progress-fill';
+  track.append(fill);
+  bar.append(track);
+
+  const meta = el('div', 'bulk-pp-pages-status-progress-meta');
+  const label = el('span', 'bulk-pp-pages-status-progress-label', 'Starting…');
+  label.id = 'bulk-pp-pages-status-progress-label';
+  const eta = el('span', 'bulk-pp-pages-status-progress-eta', '');
+  eta.id = 'bulk-pp-pages-status-progress-eta';
+  meta.append(label, eta);
+  bar.append(meta);
+
+  updatePagesStatusProgressBar(bar, state);
+  return bar;
+}
+
+/**
+ * @param {HTMLElement} bar
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function updatePagesStatusProgressBar(bar, state) {
+  const done = state.statusProgressDone;
+  const total = state.statusProgressTotal;
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  const fill = bar.querySelector('#bulk-pp-pages-status-progress-fill');
+  if (fill instanceof HTMLElement) fill.style.width = `${pct}%`;
+  const label = bar.querySelector('#bulk-pp-pages-status-progress-label');
+  if (label) {
+    label.textContent = total > 0
+      ? `${done} of ${total} pages checked (${pct}%)`
+      : 'Starting…';
+  }
+  const eta = bar.querySelector('#bulk-pp-pages-status-progress-eta');
+  if (eta) {
+    const runtime = formatRuntimeStatusEta(
+      state.statusFetchStartedAt,
+      done,
+      total,
+    );
+    eta.textContent = runtime || '';
+  }
+}
+
+/**
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function patchPagesStatusProgressBar(root, state) {
+  const pagesSection = root.querySelector('.bulk-pp-content-section-pages');
+  if (!pagesSection) return;
+  let bar = root.querySelector('#bulk-pp-pages-status-progress');
+  const show = shouldShowStatusProgressBar(state);
+  if (!show) {
+    bar?.remove();
+    return;
+  }
+  if (!bar) {
+    bar = buildPagesStatusProgressBar(state);
+    pagesSection.insertBefore(bar, pagesSection.firstChild);
+    return;
+  }
+  updatePagesStatusProgressBar(bar, state);
 }
 
 /**
@@ -1239,21 +1312,8 @@ function deploymentCountsForPaths(platformStatus, helixPaths) {
  * @param {string[]} helixPaths
  * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
  */
-function finishStatusFetchWithModal(state, helixPaths) {
+function finishStatusFetch(state) {
   const root = /** @type {HTMLElement | null} */ (state.root);
-  const counts = deploymentCountsForPaths(state.platformStatus, helixPaths);
-
-  if (root && isStatusFetchModalOpen()) {
-    showStatusFetchCompleteModal({
-      ...counts,
-      onClose: () => {
-        closeProgressModal(root);
-        render(root, state);
-      },
-    });
-    return;
-  }
-
   if (root) render(root, state);
 }
 
@@ -1308,11 +1368,13 @@ function render(root, state) {
     el('p', 'bulk-pp-header-desc', APP_DESCRIPTION),
   );
   const headerMeta = el('div', 'bulk-pp-header-meta');
-  headerMeta.append(
-    el('span', 'bulk-pp-badge', org),
-    el('span', 'bulk-pp-badge bulk-pp-badge-muted', site),
-    el('span', 'bulk-pp-badge bulk-pp-badge-muted', ref),
-  );
+  const branchBadge = el('span', 'bulk-pp-badge bulk-pp-badge-muted', ref);
+  branchBadge.title = 'Branch';
+  const repoBadge = el('span', 'bulk-pp-badge bulk-pp-badge-muted', site);
+  repoBadge.title = 'Repository';
+  const orgBadge = el('span', 'bulk-pp-badge', org);
+  orgBadge.title = 'Organization';
+  headerMeta.append(branchBadge, repoBadge, orgBadge);
   headerInner.append(headerBrand, headerMeta);
   header.append(headerInner);
   root.append(header);
@@ -1358,7 +1420,7 @@ function render(root, state) {
 
     const { wrap: folderSearchField, input: folderSearchInput } = buildSearchField(
       'bulk-pp-folder-search',
-      'Find a folder',
+      'Search folder',
       String(folderSearch || ''),
       workspaceLocked,
       searchHintText(folderSearch),
@@ -1371,11 +1433,9 @@ function render(root, state) {
     const folderList = el('ul', 'bulk-pp-list');
     folderList.id = 'bulk-pp-folder-list';
     if (visibleFolders.length === 0) {
-      const folderEmptyMsg = folderSearchTooShort
-        ? `Type at least ${SEARCH_MIN_LEN} characters to search.`
-        : folderSearchDraft
-          ? 'No folders match this search.'
-          : 'No subfolders here — pages in this folder are listed on the right.';
+      const folderEmptyMsg = folderSearchDraft
+        ? 'No folders match this search.'
+        : 'No subfolders here — pages in this folder are listed on the right.';
       folderList.append(el('li', 'bulk-pp-list-empty', folderEmptyMsg));
     } else {
       visibleFolders.forEach((folder) => {
@@ -1395,6 +1455,9 @@ function render(root, state) {
     });
 
     const pagesSection = el('section', 'bulk-pp-content-section bulk-pp-content-section-pages');
+    if (shouldShowStatusProgressBar(state)) {
+      pagesSection.append(buildPagesStatusProgressBar(state));
+    }
     pagesSection.append(buildPagesHeader(state, workspaceLocked));
 
     const controls = el('div', 'bulk-pp-pages-controls');
@@ -1402,7 +1465,7 @@ function render(root, state) {
     const toolbarRow = el('div', 'bulk-pp-pages-toolbar-row');
     const { wrap: searchField, input: searchInput } = buildSearchField(
       'bulk-pp-page-search',
-      'Find a page',
+      'Search page',
       String(pageSearch || ''),
       workspaceLocked,
       searchHintText(pageSearch),
@@ -1423,13 +1486,12 @@ function render(root, state) {
       legendRow.id = 'bulk-pp-pages-legend-row';
       legendRow.append(buildStatusLegend());
       if (statusChecking || state.statusRevalidating) {
-        legendRow.append(el(
-          'span',
-          'bulk-pp-pages-status-hint',
-          state.statusRevalidating && !statusChecking
-            ? 'Refreshing status…'
-            : 'Updating status…',
-        ));
+        const hintText = state.statusRevalidating && !statusChecking
+          ? 'Refreshing status…'
+          : (statusChecking && !statusFetched
+            ? 'Checking deployment status…'
+            : 'Updating status…');
+        legendRow.append(el('span', 'bulk-pp-pages-status-hint', hintText));
       }
       controls.append(legendRow);
     }
@@ -1447,11 +1509,9 @@ function render(root, state) {
     if (state.pages.length === 0) {
       pageList.append(el('li', 'bulk-pp-list-empty', 'No pages in this scope.'));
     } else if (visiblePages.length === 0) {
-      const emptyMsg = searchTooShort
-        ? `Type at least ${SEARCH_MIN_LEN} characters to search.`
-        : searchDraft
-          ? 'No pages match this search.'
-          : 'No pages match this filter.';
+      const emptyMsg = searchDraft
+        ? 'No pages match this search.'
+        : 'No pages match this filter.';
       pageList.append(el('li', 'bulk-pp-list-empty', emptyMsg));
     } else {
       visiblePages.forEach((page) => {
@@ -1483,7 +1543,7 @@ function render(root, state) {
 
   root.append(buildSelectionActionBar(state));
 
-  if (status && !statusChecking && statusType === 'error') {
+  if (status && !statusChecking && statusType === 'error' && !isDaAccessError(status)) {
     const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType}`);
     statusEl.setAttribute('role', 'alert');
     statusEl.setAttribute('aria-live', 'polite');
@@ -1624,9 +1684,6 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
   state.statusProgressDone = cachedCount;
   state.statusProgressTotal = pathsToCheck.length;
 
-  if (pathsToFetch.length > 0 && root) {
-    openStatusFetchModal(root, state, () => state.onCancelStatus());
-  }
   refreshDeploymentUi(state);
 
   fetchPlatformStatusForPaths(
@@ -1655,7 +1712,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.status = null;
     state.statusType = 'info';
     refreshDeploymentUi(state);
-    finishStatusFetchWithModal(state, pathsToCheck);
+    finishStatusFetch(state);
   }).catch((statusErr) => {
     if (statusErr instanceof DOMException && statusErr.name === 'AbortError') {
       state.statusAbort = null;
@@ -1669,18 +1726,9 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
         state.statusFetched = true;
         refreshDeploymentUi(state);
       }
-      if (root && isStatusFetchModalOpen()) {
-        showStatusFetchCancelledModal({
-          message: checked > 0
-            ? `Stopped after ${checked} of ${total} pages. Partial results are shown in the list.`
-            : 'Status check cancelled.',
-          onClose: () => {
-            closeProgressModal(root);
-            render(root, state);
-          },
-        });
-        return;
-      }
+      state.statusPanelNote = checked > 0
+        ? `Stopped after ${checked} of ${total} pages. Partial results are shown.`
+        : 'Status check cancelled.';
       if (root) render(root, state);
       return;
     }
@@ -1713,17 +1761,6 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       state.statusType = 'error';
     }
     console.warn('[bulk-pp] platform status failed', statusErr);
-    if (root && isStatusFetchModalOpen()) {
-      showStatusFetchErrorModal({
-        message: state.statusError || 'Status check failed.',
-        hint: permissionErrorHint(statusErr),
-        onClose: () => {
-          closeProgressModal(root);
-          render(root, state);
-        },
-      });
-      return;
-    }
     if (root) render(root, state);
   });
 }
@@ -1785,19 +1822,9 @@ async function main() {
       state.statusPanelNote = 'Status check stopped.';
     }
     const root = /** @type {HTMLElement | null} */ (state.root);
-    if (root && isStatusFetchModalOpen()) {
-      refreshDeploymentUi(state);
-      showStatusFetchCancelledModal({
-        message: checked > 0
-          ? `Stopped after ${checked} of ${total} pages. Partial results are shown in the list.`
-          : 'Status check cancelled.',
-        onClose: () => {
-          closeProgressModal(root);
-          render(root, state);
-        },
-      });
-      return;
-    }
+    state.statusPanelNote = checked > 0
+      ? `Stopped after ${checked} of ${total} pages. Partial results are shown.`
+      : 'Status check cancelled.';
     if (root) render(root, state);
   };
 
@@ -1911,6 +1938,7 @@ async function main() {
       }
       const docCount = state.pages.length;
       const location = displayFolderPath(state.folderPath) || 'site root';
+      state.initialContentLoaded = true;
       state.contentLoading = false;
 
       if (docCount > 0) {
@@ -2236,16 +2264,16 @@ async function main() {
 
   if (!daFetch) {
     state.error = DA_LOGIN_REQUIRED_MESSAGE;
-    state.status = state.error;
-    state.statusType = 'error';
+    state.status = null;
+    state.statusType = 'info';
     render(app, state);
     return;
   }
 
   if (!ctx.org || !ctx.site) {
     state.error = DA_SITE_CONTEXT_MESSAGE;
-    state.status = state.error;
-    state.statusType = 'error';
+    state.status = null;
+    state.statusType = 'info';
     render(app, state);
     return;
   }

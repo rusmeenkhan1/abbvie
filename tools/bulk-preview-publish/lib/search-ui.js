@@ -67,16 +67,15 @@ function syncSelectionActionBar(root, state) {
  * @param {boolean} disabled
  * @param {string | null} hintText
  */
-export function buildSearchField(id, label, value, disabled, hintText) {
+export function buildSearchField(id, placeholder, value, disabled, hintText) {
   const wrap = el('div', 'bulk-pp-search-field');
-  const labelEl = el('label', 'bulk-pp-search-label', label);
-  labelEl.htmlFor = id;
   const inputWrap = el('div', 'bulk-pp-search-input-wrap');
   const input = document.createElement('input');
   input.type = 'search';
   input.id = id;
   input.className = 'bulk-pp-search-input';
-  input.placeholder = `Search by name (${SEARCH_MIN_LEN}+ characters)`;
+  input.placeholder = placeholder;
+  input.setAttribute('aria-label', placeholder);
   input.autocomplete = 'off';
   input.spellcheck = false;
   input.enterKeyHint = 'search';
@@ -87,7 +86,7 @@ export function buildSearchField(id, label, value, disabled, hintText) {
   hint.id = `${id}-hint`;
   if (!hintText) hint.hidden = true;
   else hint.textContent = hintText;
-  wrap.append(labelEl, inputWrap, hint);
+  wrap.append(inputWrap, hint);
   return { wrap, input, hint };
 }
 
@@ -96,9 +95,6 @@ export function buildSearchField(id, label, value, disabled, hintText) {
  */
 export function searchHintText(draft) {
   const q = String(draft || '').trim();
-  if (q.length > 0 && q.length < SEARCH_MIN_LEN) {
-    return `Type ${SEARCH_MIN_LEN - q.length} more character${q.length === SEARCH_MIN_LEN - 1 ? '' : 's'} to filter`;
-  }
   if (q.length >= SEARCH_MIN_LEN) {
     return `Filtering by “${q}”`;
   }
@@ -162,11 +158,9 @@ export function patchFolderSearchResults(root, state, buildFolderRow) {
   if (!list) return;
   list.replaceChildren();
   if (visibleFolders.length === 0) {
-    const emptyMsg = tooShort
-      ? `Type at least ${SEARCH_MIN_LEN} characters to search.`
-      : draft
-        ? 'No folders match this search.'
-        : 'No folders in this location.';
+    const emptyMsg = draft
+      ? 'No folders match this search.'
+      : 'No folders in this location.';
     list.append(el('li', 'bulk-pp-list-empty', emptyMsg));
   } else {
     visibleFolders.forEach((folder) => {
@@ -210,11 +204,9 @@ export function patchPageSearchResults(root, state, siteCtx, buildPageRow) {
   if (state.pages.length === 0) {
     list.append(el('li', 'bulk-pp-list-empty', 'No pages in this scope.'));
   } else if (visiblePages.length === 0) {
-    const emptyMsg = tooShort
-      ? `Type at least ${SEARCH_MIN_LEN} characters to search.`
-      : draft
-        ? 'No pages match this search.'
-        : 'No pages match this filter.';
+    const emptyMsg = draft
+      ? 'No pages match this search.'
+      : 'No pages match this filter.';
     list.append(el('li', 'bulk-pp-list-empty', emptyMsg));
   } else {
     visiblePages.forEach((page) => {
