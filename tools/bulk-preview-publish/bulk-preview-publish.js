@@ -324,6 +324,25 @@ function buildSectionHead(title, count, countId = '', variant = 'folders') {
   return head;
 }
 
+/**
+ * @param {{ showCheckbox?: boolean, columns: { label: string, className?: string }[] }} opts
+ */
+function buildBrowseListHead(opts) {
+  const { showCheckbox = false, columns } = opts;
+  const row = el('div', 'bulk-pp-browse-list-head');
+  row.setAttribute('role', 'row');
+  if (showCheckbox) {
+    row.append(el('span', 'bulk-pp-browse-list-head-cb', ''));
+  }
+  row.append(el('span', 'bulk-pp-browse-list-head-icon', ''));
+  columns.forEach(({ label, className = '' }) => {
+    const cell = el('span', `bulk-pp-browse-list-head-cell ${className}`.trim(), label);
+    cell.setAttribute('role', 'columnheader');
+    row.append(cell);
+  });
+  return row;
+}
+
 function buildBreadcrumb(folderPath, onNavigate, locked = false) {
   const nav = el('nav', 'bulk-pp-breadcrumb');
   nav.setAttribute('aria-label', 'Current folder');
@@ -341,7 +360,7 @@ function buildBreadcrumb(folderPath, onNavigate, locked = false) {
   nav.append(rootBtn);
   const segments = normalizeFolderPath(folderPath).split('/').filter(Boolean);
   segments.forEach((segment, index) => {
-    nav.append(el('span', 'bulk-pp-breadcrumb-sep', '›'));
+    nav.append(el('span', 'bulk-pp-breadcrumb-sep', '>'));
     const path = segments.slice(0, index + 1).join('/');
     if (index === segments.length - 1) {
       nav.append(el('span', 'bulk-pp-breadcrumb-current', segment));
@@ -357,10 +376,11 @@ function buildBreadcrumb(folderPath, onNavigate, locked = false) {
 }
 
 function buildFolderRow(folder, onNavigate, locked = false) {
-  const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-folder');
+  const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-folder bulk-pp-browse-row');
   if (locked) li.classList.add('bulk-pp-list-item-locked');
   const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-folder', '');
   icon.setAttribute('aria-hidden', 'true');
+  const nameCell = el('div', 'bulk-pp-browse-col-name');
   const link = el('button', 'bulk-pp-folder-link', folder.name);
   link.type = 'button';
   link.disabled = locked;
@@ -381,7 +401,8 @@ function buildFolderRow(folder, onNavigate, locked = false) {
     e.stopPropagation();
     onNavigate(folder.folderPath);
   });
-  li.append(icon, link);
+  nameCell.append(link);
+  li.append(icon, nameCell);
   if (!locked) {
     li.addEventListener('click', (e) => {
       if (e.target !== link) link.click();
@@ -404,7 +425,7 @@ function buildStatusDotPending() {
 }
 
 function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, interactionsLocked = false) {
-  const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-document');
+  const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-document bulk-pp-browse-row');
   const cb = document.createElement('input');
   cb.type = 'checkbox';
   cb.className = 'bulk-pp-page-cb';
@@ -424,7 +445,7 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
   const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-document', '');
   icon.setAttribute('aria-hidden', 'true');
   const { title, subtitle } = formatPageListLabel(page.helixPath, page.name, browseFolder);
-  const labelWrap = el('div', 'bulk-pp-item-main');
+  const labelWrap = el('div', 'bulk-pp-item-main bulk-pp-browse-col-name');
   const label = document.createElement('label');
   label.htmlFor = cb.id;
   label.className = 'bulk-pp-item-label';
@@ -432,37 +453,23 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
   labelWrap.append(label);
   if (subtitle) labelWrap.append(el('span', 'bulk-pp-item-subtitle', subtitle));
 
-  if (showStatus) {
-    const dateParts = [];
-    if (entry?.previewedAt) dateParts.push(`Preview ${formatStatusDate(entry.previewedAt)}`);
-    if (entry?.publishedAt) dateParts.push(`Published ${formatStatusDate(entry.publishedAt)}`);
-    if (dateParts.length) labelWrap.append(el('span', 'bulk-pp-item-dates', dateParts.join(' · ')));
-  }
-
   const rowActions = el('div', 'bulk-pp-row-actions');
   const daUrl = buildDaEditUrl(siteCtx.org, siteCtx.site, page.helixPath, page.sourcePath, siteCtx.ref);
   const multiSelected = getActiveSelectionCount(state) > 1;
   const daDisabled = interactionsLocked || multiSelected;
-  const daLink = document.createElement('a');
-  daLink.className = 'bulk-pp-btn bulk-pp-btn-open-da';
+  const daLink = document.createElement('button');
+  daLink.type = 'button';
+  daLink.className = 'bulk-pp-row-menu-btn';
   daLink.dataset.href = daUrl;
   if (daDisabled) {
-    daLink.classList.add('bulk-pp-btn-open-da-disabled');
-    daLink.setAttribute('aria-disabled', 'true');
+    daLink.classList.add('bulk-pp-row-menu-btn-disabled');
+    daLink.disabled = true;
     daLink.title = multiSelected
       ? 'Use More → Open in Document Authoring when multiple pages are selected'
       : 'Unavailable while status is loading';
-    daLink.textContent = 'DA';
-    daLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    });
   } else {
-    daLink.href = daUrl;
-    daLink.target = '_top';
-    daLink.rel = 'noopener noreferrer';
-    daLink.textContent = 'DA';
-    daLink.title = 'Open this page in Document Authoring';
+    daLink.title = 'Open in Document Authoring';
+    daLink.setAttribute('aria-label', `Open ${title} in Document Authoring`);
     daLink.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -473,9 +480,21 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
       }
     });
   }
+  daLink.append(el('span', 'bulk-pp-row-menu-icon', '⋯'));
+
+  const statusCol = el('div', 'bulk-pp-browse-col-status');
+  statusCol.append(showStatus ? buildStatusDot(getPageStatus(entry)) : buildStatusDotPending());
+  if (showStatus && (entry?.previewedAt || entry?.publishedAt)) {
+    const dateParts = [];
+    if (entry?.previewedAt) dateParts.push(formatStatusDate(entry.previewedAt));
+    if (entry?.publishedAt && !entry?.previewedAt) dateParts.push(formatStatusDate(entry.publishedAt));
+    if (dateParts.length) {
+      statusCol.append(el('span', 'bulk-pp-browse-col-status-date', dateParts[0]));
+    }
+  }
+
   rowActions.append(daLink);
-  rowActions.append(showStatus ? buildStatusDot(getPageStatus(entry)) : buildStatusDotPending());
-  li.append(cb, icon, labelWrap, rowActions);
+  li.append(cb, icon, labelWrap, statusCol, rowActions);
   return li;
 }
 
@@ -1422,8 +1441,11 @@ function render(root, state) {
     folderSearchRow.append(folderSearchField);
     folderSection.append(folderSearchRow);
 
-    const folderWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-folders');
-    const folderList = el('ul', 'bulk-pp-list');
+    const folderWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-folders bulk-pp-browse-list-wrap');
+    folderWrap.append(buildBrowseListHead({
+      columns: [{ label: 'Name', className: 'bulk-pp-browse-col-name' }],
+    }));
+    const folderList = el('ul', 'bulk-pp-list bulk-pp-browse-list bulk-pp-browse-list-folders');
     folderList.id = 'bulk-pp-folder-list';
     if (visibleFolders.length === 0) {
       const folderEmptyMsg = folderSearchTooShort
@@ -1479,9 +1501,17 @@ function render(root, state) {
     controls.append(buildPagesSelectionRow(state, { visiblePages, statusChecking }));
     pagesSection.append(controls);
 
-    const pageWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-pages bulk-pp-list-wrap-fill');
+    const pageWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-pages bulk-pp-list-wrap-fill bulk-pp-browse-list-wrap');
     pageWrap.id = 'bulk-pp-page-list-wrap';
-    const pageList = el('ul', 'bulk-pp-list');
+    pageWrap.append(buildBrowseListHead({
+      showCheckbox: true,
+      columns: [
+        { label: 'Name', className: 'bulk-pp-browse-col-name' },
+        { label: 'Status', className: 'bulk-pp-browse-col-status' },
+        { label: '', className: 'bulk-pp-browse-col-actions' },
+      ],
+    }));
+    const pageList = el('ul', 'bulk-pp-list bulk-pp-browse-list bulk-pp-browse-list-pages');
     pageList.id = 'bulk-pp-page-list';
     if (state.pages.length === 0) {
       pageList.append(el('li', 'bulk-pp-list-empty', 'No pages in this scope.'));
