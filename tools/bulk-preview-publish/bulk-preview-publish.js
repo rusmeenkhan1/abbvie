@@ -57,14 +57,13 @@ import {
   isProgressModalOpen,
   isStatusFetchModalOpen,
   openJobModal,
-  openStatusFetchConfirmModal,
+  openStatusFetchModal,
   showJobCancelledModal,
   showJobCompleteModal,
   showJobErrorModal,
   showStatusFetchCancelledModal,
   showStatusFetchCompleteModal,
   showStatusFetchErrorModal,
-  transitionStatusModalToProgress,
   updateJobModal,
   updateStatusFetchModal,
 } from './lib/progress-modal.js';
@@ -86,7 +85,7 @@ import {
   getSelectedHelixPaths,
   getVisiblePages,
   getVisibleFolders,
-  isStatusLoaded,
+  shouldShowPageStatus,
   resetWorkspace,
   SEARCH_MIN_LEN,
   resetPagesViewState,
@@ -304,32 +303,6 @@ function buildPagesSectionHead(state, workspaceLocked) {
   titleWrap.append(icon, copyWrap);
   head.append(titleWrap);
   return head;
-}
-
-/**
- * @param {ReturnType<typeof createAppState>} state
- * @param {boolean} locked
- */
-function buildPreviewPublishToggle(state, locked) {
-  const on = state.showPreviewPublish;
-  const btn = el('button', `bulk-pp-toggle${on ? ' bulk-pp-toggle-on' : ''}`);
-  btn.type = 'button';
-  btn.id = 'bulk-pp-preview-publish-toggle';
-  btn.setAttribute('role', 'switch');
-  btn.setAttribute('aria-checked', on ? 'true' : 'false');
-  btn.setAttribute('aria-label', 'Fetch deployment status');
-  btn.disabled = locked || state.pages.length === 0;
-  btn.title = on
-    ? 'Hide deployment status'
-    : 'Fetch deployment status for listed pages';
-
-  const track = el('span', 'bulk-pp-toggle-track');
-  track.append(el('span', 'bulk-pp-toggle-thumb'));
-  btn.append(track, el('span', 'bulk-pp-toggle-label', 'Fetch deployment status'));
-  btn.addEventListener('click', () => {
-    void state.onTogglePreviewPublish(!state.showPreviewPublish);
-  });
-  return btn;
 }
 
 /**
@@ -953,7 +926,7 @@ function refreshDeploymentUi(state) {
   if (isStatusFetchModalOpen()) {
     updateStatusFetchModal(state);
   }
-  patchDeploymentToolbar(root, state, state.statusChecking && !state.statusFetched);
+  patchDeploymentToolbar(root, state, state.contentLoading);
   patchPagesStatusLoading(root, state);
   patchPagesFilterControls(root, state);
   patchPageSearchResults(
@@ -999,8 +972,6 @@ function buildPagesSelectionRow(state, { visiblePages, statusChecking }) {
  */
 function buildPagesHeader(state, pageCountLabel, workspaceLocked) {
   const header = el('div', 'bulk-pp-pages-header');
-  const locked = workspaceLocked || state.contentLoading;
-
   const topRow = el('div', 'bulk-pp-pages-header-top');
   const main = el('div', 'bulk-pp-pages-header-main');
   main.append(buildPagesSectionHead(state, workspaceLocked));
@@ -1008,7 +979,7 @@ function buildPagesHeader(state, pageCountLabel, workspaceLocked) {
   const aside = el('div', 'bulk-pp-pages-header-aside');
   const countEl = el('span', 'bulk-pp-section-count', String(pageCountLabel));
   countEl.id = 'bulk-pp-page-count';
-  aside.append(buildPreviewPublishToggle(state, locked), countEl);
+  aside.append(countEl);
   topRow.append(main, aside);
   header.append(topRow);
 
@@ -1152,25 +1123,6 @@ function buildStatusLegend() {
   return legend;
 }
 
-/** @returns {HTMLElement} */
-function buildLockIcon() {
-  const icon = el('span', 'bulk-pp-lock-icon');
-  icon.setAttribute('aria-hidden', 'true');
-  icon.innerHTML = '<svg viewBox="0 0 24 24" focusable="false"><path d="M17 10h-1V7a4 4 0 1 0-8 0v3H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-3 0h-4V7a2 2 0 1 1 4 0v3Z"/></svg>';
-  return icon;
-}
-
-/**
- * @param {ReturnType<typeof createAppState>} state
- */
-function deploymentToolbarTooltipText(state) {
-  if (isStatusLoaded(state)) return '';
-  if (state.showPreviewPublish && state.statusChecking) {
-    return 'Fetching deployment status. Filters unlock when the check completes.';
-  }
-  return 'Turn on Fetch deployment status to load indicators and unlock filters.';
-}
-
 /**
  * @param {ReturnType<typeof createAppState>} state
  */
@@ -1208,7 +1160,7 @@ function buildDeploymentSummaryPlaceholder() {
   cell.append(el(
     'span',
     'bulk-pp-deployment-summary-placeholder-text',
-    'Summary appears after fetch deployment status completes.',
+    'Summary appears while deployment status loads.',
   ));
   strip.append(cell);
   return strip;
@@ -1217,28 +1169,20 @@ function buildDeploymentSummaryPlaceholder() {
 /**
  * @param {ReturnType<typeof createAppState>} state
  * @param {string} pageFilter
- * @param {boolean} interactionsLocked
+ * @param {boolean} contentLoading
  * @returns {{ panel: HTMLElement, filterSelect: HTMLSelectElement | null }}
  */
-function buildDeploymentToolbarPanel(state, pageFilter, interactionsLocked) {
-  const unlocked = isStatusLoaded(state);
-  const panel = el(
-    'div',
-    `bulk-pp-deployment-toolbar${unlocked ? ' bulk-pp-deployment-toolbar-unlocked' : ' bulk-pp-deployment-toolbar-locked'}`,
-  );
+function buildDeploymentToolbarPanel(state, pageFilter, contentLoading) {
+  const hasSummary = state.statusFetched || state.statusChecking;
+  const panel = el('div', 'bulk-pp-deployment-toolbar bulk-pp-deployment-toolbar-unlocked');
   panel.id = 'bulk-pp-deployment-toolbar';
-  if (!unlocked) {
-    panel.tabIndex = 0;
-  }
 
   const content = el('div', 'bulk-pp-deployment-toolbar-content');
   const head = el('div', 'bulk-pp-deployment-toolbar-head');
   head.append(el('span', 'bulk-pp-deployment-toolbar-title', 'Deployment status'));
-  if (!unlocked) {
-    const lockBadge = el('span', 'bulk-pp-deployment-lock-badge');
-    lockBadge.append(buildLockIcon(), el('span', 'bulk-pp-deployment-lock-label', 'Locked'));
-    head.append(lockBadge);
-  } else {
+  if (state.statusChecking) {
+    head.append(el('span', 'bulk-pp-deployment-fetching-badge', 'Fetching…'));
+  } else if (state.statusFetched) {
     head.append(el('span', 'bulk-pp-deployment-active-badge', 'Active'));
   }
   content.append(head);
@@ -1248,7 +1192,7 @@ function buildDeploymentToolbarPanel(state, pageFilter, interactionsLocked) {
   filterField.append(el('label', null, 'Filter by status'));
   const filterSelect = document.createElement('select');
   filterSelect.id = 'bulk-pp-page-filter';
-  filterSelect.disabled = !unlocked || interactionsLocked;
+  filterSelect.disabled = contentLoading;
   PAGE_FILTERS.forEach(([value, label]) => {
     const opt = document.createElement('option');
     opt.value = value;
@@ -1260,18 +1204,9 @@ function buildDeploymentToolbarPanel(state, pageFilter, interactionsLocked) {
   controls.append(filterField, buildStatusLegend());
   content.append(controls);
 
-  content.append(unlocked ? buildDeploymentSummaryStrip(state) : buildDeploymentSummaryPlaceholder());
+  content.append(hasSummary ? buildDeploymentSummaryStrip(state) : buildDeploymentSummaryPlaceholder());
 
   panel.append(content);
-
-  if (!unlocked) {
-    const tooltip = el('div', 'bulk-pp-deployment-toolbar-tooltip');
-    tooltip.id = 'bulk-pp-deployment-toolbar-tooltip';
-    tooltip.setAttribute('role', 'tooltip');
-    tooltip.textContent = deploymentToolbarTooltipText(state);
-    panel.append(tooltip);
-    panel.setAttribute('aria-describedby', tooltip.id);
-  }
 
   return { panel, filterSelect };
 }
@@ -1297,15 +1232,15 @@ function bindDeploymentFilterSelect(filterSelect, root, state) {
 /**
  * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
- * @param {boolean} interactionsLocked
+ * @param {boolean} contentLoading
  */
-function patchDeploymentToolbar(root, state, interactionsLocked) {
+function patchDeploymentToolbar(root, state, contentLoading) {
   const host = root.querySelector('#bulk-pp-deployment-toolbar');
   if (!host) return;
   const { panel, filterSelect } = buildDeploymentToolbarPanel(
     state,
     String(state.pageFilter || 'all'),
-    interactionsLocked,
+    contentLoading,
   );
   host.replaceWith(panel);
   bindDeploymentFilterSelect(filterSelect, root, state);
@@ -1516,7 +1451,7 @@ function render(root, state) {
     const { panel: deploymentToolbar, filterSelect } = buildDeploymentToolbarPanel(
       state,
       String(pageFilter || 'all'),
-      workspaceLocked,
+      state.contentLoading,
     );
     toolbarRow.append(deploymentToolbar);
     controls.append(toolbarRow);
@@ -1547,7 +1482,7 @@ function render(root, state) {
           statusMap[page.helixPath],
           browseFolder,
           state,
-          isStatusLoaded(state),
+          shouldShowPageStatus(state),
           { org, site, ref },
           workspaceLocked,
         ));
@@ -1623,6 +1558,10 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     return;
   }
 
+  const root = /** @type {HTMLElement | null} */ (state.root);
+  if (root) {
+    openStatusFetchModal(root, state, () => state.onCancelStatus());
+  }
   refreshDeploymentUi(state);
 
   fetchPlatformStatusForPaths(
@@ -1671,7 +1610,6 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
             ? `Stopped after ${checked} of ${total} pages. Partial results are shown in the list.`
             : 'Status check cancelled.',
           onClose: () => {
-            if (checked === 0) state.showPreviewPublish = false;
             closeProgressModal(root);
             render(root, state);
           },
@@ -1704,7 +1642,6 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       state.statusType = 'info';
     } else {
       state.statusFetched = false;
-      state.showPreviewPublish = false;
       state.statusCheckFailed = true;
       state.statusError = messageFromApiError(statusErr, 'Status check failed.', 'status');
       state.status = state.statusError;
@@ -1790,7 +1727,6 @@ async function main() {
           ? `Stopped after ${checked} of ${total} pages. Partial results are shown in the list.`
           : 'Status check cancelled.',
         onClose: () => {
-          if (checked === 0) state.showPreviewPublish = false;
           closeProgressModal(root);
           render(root, state);
         },
@@ -1835,57 +1771,9 @@ async function main() {
     const next = enabled ? 'tree' : 'folder';
     if (state.pageScope === next) return;
     closeProgressModal(/** @type {HTMLElement} */ (app));
-    state.showPreviewPublish = false;
     state.pageScope = next;
     clearPagesStatusDisplay(state);
     await state.onFetch(true);
-  };
-
-  state.onTogglePreviewPublish = async (enabled) => {
-    if (state.contentLoading) return;
-    const appRoot = /** @type {HTMLElement} */ (app);
-    if (!enabled) {
-      if (state.statusChecking) {
-        state.onCancelStatus();
-        return;
-      }
-      closeProgressModal(appRoot);
-      state.showPreviewPublish = false;
-      clearPagesStatusDisplay(state);
-      render(appRoot, state);
-      return;
-    }
-    if (state.pages.length === 0) return;
-
-    const pageCount = state.pages.length;
-    openStatusFetchConfirmModal(appRoot, pageCount, {
-      onCancel: () => {
-        closeProgressModal(appRoot);
-        render(appRoot, state);
-      },
-      onConfirm: () => {
-        state.showPreviewPublish = true;
-        transitionStatusModalToProgress(appRoot, state, () => state.onCancelStatus());
-        void state.onLoadStatus();
-      },
-    });
-  };
-
-  state.onLoadStatus = async () => {
-    if (state.statusChecking || state.contentLoading || state.pages.length === 0) return;
-    state.showPreviewPublish = true;
-    const location = displayFolderPath(state.folderPath) || 'site root';
-    const helixPaths = state.pages.map((p) => p.helixPath);
-    hydratePlatformStatusFromCache(state, helixPaths);
-    render(/** @type {HTMLElement} */ (app), state);
-    startStatusCheck(
-      state,
-      daFetch,
-      helixPaths,
-      location,
-      state.pages.length,
-      state.folders.length,
-    );
   };
 
   state.onFetch = async (fromFolderNav = false) => {
@@ -1910,7 +1798,6 @@ async function main() {
 
     syncUrlPath(state.ref, state.folderPath);
     cancelStatusCheck(state, false);
-    const loadWithStatus = state.showPreviewPublish;
     state.contentLoading = true;
     state.error = null;
     state.statusCancelled = false;
@@ -1961,9 +1848,7 @@ async function main() {
       const location = displayFolderPath(state.folderPath) || 'site root';
       state.contentLoading = false;
 
-      if (state.pageFilter !== 'all') state.pageFilter = 'all';
-
-      if (loadWithStatus && docCount > 0) {
+      if (docCount > 0) {
         const helixPaths = state.pages.map((p) => p.helixPath);
         hydratePlatformStatusFromCache(state, helixPaths);
         render(app, state);

@@ -30,9 +30,9 @@ export function createAppState(ctx) {
     pageFilter: 'all',
     pageSearch: '',
     folderSearch: '',
-    /** When true, user opted in to preview/publish indicators for the current folder view. */
+    /** @deprecated unused — deployment status loads automatically with pages */
     showPreviewPublish: false,
-    /** When true, deployment status loads automatically whenever a folder is opened. */
+    /** @deprecated unused — deployment status always loads with pages */
     autoLoadStatus: false,
     /** @deprecated transient flag — use autoLoadStatus */
     fetchStatus: false,
@@ -153,7 +153,6 @@ export function cancelStatusCheck(state, setMessage = true) {
  * @param {ReturnType<typeof createAppState>} state
  */
 export function resetPagesViewState(state) {
-  state.showPreviewPublish = false;
   state.pageScope = 'folder';
 }
 
@@ -166,7 +165,6 @@ export function clearPageWorkspaceAfterOperation(state) {
   state.pageFilter = 'all';
   state.pageSearch = '';
   state.folderSearch = '';
-  state.showPreviewPublish = false;
 }
 
 /**
@@ -187,7 +185,14 @@ export function buildStatusMap(state) {
  */
 export function isStatusLoaded(state) {
   if (state.statusCheckFailed) return false;
-  return Boolean(state.showPreviewPublish && state.statusFetched && state.pages.length > 0);
+  return Boolean(state.statusFetched && state.pages.length > 0);
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function shouldShowPageStatus(state) {
+  return state.statusChecking || isStatusLoaded(state);
 }
 
 /**
@@ -196,9 +201,7 @@ export function isStatusLoaded(state) {
 export function getVisiblePages(state) {
   const statusMap = buildStatusMap(state);
   const browseFolder = resolveContentFolderPath(state.folderPath);
-  const filterId = isStatusLoaded(state)
-    ? String(state.pageFilter || 'all')
-    : 'all';
+  const filterId = String(state.pageFilter || 'all');
   let visible = filterAndSortPages(
     state.pages,
     statusMap,

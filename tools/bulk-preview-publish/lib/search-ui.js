@@ -3,7 +3,7 @@ import {
   getActiveSelectionCount,
   getVisibleFolders,
   getVisiblePages,
-  isStatusLoaded,
+  shouldShowPageStatus,
   SEARCH_MIN_LEN,
 } from './state.js';
 import { isJobModalOpen } from './progress-modal.js';
@@ -223,7 +223,7 @@ export function patchPageSearchResults(root, state, siteCtx, buildPageRow) {
         statusMap[page.helixPath],
         browseFolder,
         state,
-        isStatusLoaded(state),
+        shouldShowPageStatus(state),
         siteCtx,
         state.statusChecking,
       ));
