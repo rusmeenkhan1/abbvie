@@ -130,21 +130,54 @@ const APP_DESCRIPTION = 'Browse folders, select pages, and run bulk preview, pub
 
 /** @typedef {import('./lib/state.js').PageOperationId} PageOperationId */
 
-/** @type {{ id: PageOperationId, label: string }[]} */
+/** @type {{ id: PageOperationId, label: string, variant: 'deploy' | 'primary' }[]} */
 const SELECTION_STRIP_OPS = [
-  { id: 'preview', label: 'Preview' },
-  { id: 'live', label: 'Publish' },
+  { id: 'preview', label: 'Preview', variant: 'deploy' },
+  { id: 'live', label: 'Publish', variant: 'primary' },
 ];
 
-/** @type {{ id: PageOperationId, label: string }[]} */
-const MORE_SELECTION_OPS = [
-  { id: 'unpreview', label: 'Remove preview' },
-  { id: 'unpublish', label: 'Remove from live' },
-  { id: 'delete', label: 'Delete from DA' },
-  { id: 'open-da', label: 'Open in Document Authoring' },
-  { id: 'open-preview', label: 'Open preview site' },
-  { id: 'open-live', label: 'Open live site' },
+/** @type {{ label: string, items: { id: PageOperationId, label: string, danger?: boolean }[] }[]} */
+const MORE_SELECTION_GROUPS = [
+  {
+    label: 'Remove',
+    items: [
+      { id: 'unpreview', label: 'Remove preview' },
+      { id: 'unpublish', label: 'Remove from live' },
+      { id: 'delete', label: 'Delete from DA', danger: true },
+    ],
+  },
+  {
+    label: 'Open',
+    items: [
+      { id: 'open-da', label: 'Open in Document Authoring' },
+      { id: 'open-preview', label: 'Open preview site' },
+      { id: 'open-live', label: 'Open live site' },
+    ],
+  },
 ];
+
+/** @type {Record<string, string>} */
+const SELECTION_OP_ICONS = {
+  preview: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8s2.2-4 5.5-4 5.5 4 5.5 4-2.2 4-5.5 4-5.5-4-5.5-4Z"/><circle cx="8" cy="8" r="1.75"/></svg>',
+  live: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12.5V3.5M5 6.5 8 3.5 11 6.5"/><path d="M3.5 12.5h9"/></svg>',
+  unpreview: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l10 10M6.2 6.2A3.5 3.5 0 0 0 8 11.5a3.5 3.5 0 0 0 1.8-.5"/><path d="M2.5 8s2.2-4 5.5-4c.7 0 1.3.1 1.8.3"/></svg>',
+  unpublish: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 11h11M5 11V5.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V11"/><path d="M6.5 8h3"/></svg>',
+  delete: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 4.5h9M6 4.5V3.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M5.5 4.5l.5 8.5a1 1 0 0 0 1 .9h2a1 1 0 0 0 1-.9l.5-8.5"/></svg>',
+  'open-da': '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2.5H4.5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V6.5L9.5 2.5Z"/><path d="M9.5 2.5V6.5H13M6 9.5h4M6 11.5h2.5"/></svg>',
+  'open-preview': '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5a8 8 0 0 1 0 11M8 2.5a8 8 0 0 0 0 11"/></svg>',
+  'open-live': '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5l1.6 3.2 3.6.5-2.6 2.5.6 3.6L8 10.4l-3.2 1.7.6-3.6-2.6-2.5 3.6-.5L8 2.5Z"/></svg>',
+  more: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12" cy="8" r="1"/></svg>',
+};
+
+/**
+ * @param {string} operationId
+ */
+function buildSelectionOpIcon(operationId) {
+  const icon = el('span', 'bulk-pp-selection-op-icon');
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = SELECTION_OP_ICONS[operationId] || '';
+  return icon;
+}
 
 async function initSdk() {
   const timeout = new Promise((_, reject) => {
@@ -628,11 +661,22 @@ function isSelectionActionsBlocked(state) {
  * @param {ReturnType<typeof createAppState>} state
  * @param {PageOperationId} operationId
  */
-function bindSelectionOpButton(btn, state, operationId) {
+/**
+ * @param {HTMLButtonElement} btn
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {PageOperationId} operationId
+ * @param {string} label
+ * @param {'default' | 'deploy' | 'primary'} [variant]
+ */
+function bindSelectionOpButton(btn, state, operationId, label, variant = 'default') {
   btn.type = 'button';
   btn.dataset.operation = operationId;
-  btn.classList.add('bulk-pp-selection-strip-btn');
+  btn.classList.add('bulk-pp-selection-strip-btn', `bulk-pp-selection-strip-btn-${variant}`);
   if (operationId === 'delete') btn.classList.add('bulk-pp-selection-strip-btn-danger');
+  btn.append(
+    buildSelectionOpIcon(operationId),
+    el('span', 'bulk-pp-selection-op-label', label),
+  );
   btn.addEventListener('click', () => {
     void runPageOperation(state, operationId);
   });
@@ -653,51 +697,65 @@ function buildSelectionActionBar(state) {
   bar.setAttribute('aria-label', 'Actions for selected pages');
 
   const left = el('div', 'bulk-pp-selection-strip-left');
-  const clearBtn = el('button', 'bulk-pp-selection-clear', '×');
+  const badge = el('div', 'bulk-pp-selection-strip-badge');
+  const countEl = el('span', 'bulk-pp-selection-count', '');
+  countEl.id = 'bulk-pp-selection-count';
+  countEl.textContent = formatSelectionBarText(count);
+  badge.append(countEl);
+
+  const clearBtn = el('button', 'bulk-pp-selection-clear', 'Clear');
   clearBtn.type = 'button';
   clearBtn.id = 'bulk-pp-selection-clear';
   clearBtn.setAttribute('aria-label', 'Clear selection');
   clearBtn.title = 'Clear selection';
   clearBtn.disabled = blocked;
   clearBtn.addEventListener('click', () => state.onSelectAll(false));
-
-  const countEl = el('span', 'bulk-pp-selection-count', '');
-  countEl.id = 'bulk-pp-selection-count';
-  countEl.textContent = formatSelectionBarText(count);
-  left.append(clearBtn, countEl);
+  left.append(badge, clearBtn);
 
   const actions = el('div', 'bulk-pp-selection-strip-actions');
-  SELECTION_STRIP_OPS.forEach(({ id, label }) => {
-    const btn = el('button', null, label);
-    bindSelectionOpButton(btn, state, id);
+  const deployGroup = el('div', 'bulk-pp-selection-strip-group bulk-pp-selection-strip-group-deploy');
+  SELECTION_STRIP_OPS.forEach(({ id, label, variant }) => {
+    const btn = el('button');
+    bindSelectionOpButton(btn, state, id, label, variant);
     btn.disabled = blocked;
-    actions.append(btn);
+    deployGroup.append(btn);
   });
+  actions.append(deployGroup);
 
   const moreWrap = el('div', 'bulk-pp-selection-more-wrap');
-  const moreBtn = el('button', 'bulk-pp-selection-strip-btn bulk-pp-selection-more-trigger', 'More');
+  const moreBtn = el('button', 'bulk-pp-selection-strip-btn bulk-pp-selection-more-trigger');
   moreBtn.type = 'button';
   moreBtn.id = 'bulk-pp-selection-more';
   moreBtn.setAttribute('aria-haspopup', 'true');
   moreBtn.setAttribute('aria-expanded', 'false');
   moreBtn.disabled = blocked;
+  moreBtn.append(el('span', 'bulk-pp-selection-op-label', 'More'));
 
   const menu = el('div', 'bulk-pp-selection-more-menu');
   menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', 'More page operations');
   const menuPanel = el('div', 'bulk-pp-selection-more-menu-panel');
-  MORE_SELECTION_OPS.forEach(({ id, label }) => {
-    const item = el('button', 'bulk-pp-selection-more-item', label);
-    item.type = 'button';
-    item.setAttribute('role', 'menuitem');
-    if (id === 'delete') item.classList.add('bulk-pp-selection-more-item-danger');
-    item.disabled = blocked;
-    item.addEventListener('click', () => {
-      void runPageOperation(state, id);
-      moreBtn.setAttribute('aria-expanded', 'false');
-      menu.classList.remove('bulk-pp-selection-more-menu-open');
+  MORE_SELECTION_GROUPS.forEach((group, groupIndex) => {
+    const groupEl = el('div', 'bulk-pp-selection-more-group');
+    groupEl.append(el('span', 'bulk-pp-selection-more-group-label', group.label));
+    group.items.forEach(({ id, label, danger }) => {
+      const item = el('button', 'bulk-pp-selection-more-item');
+      item.type = 'button';
+      item.setAttribute('role', 'menuitem');
+      if (danger) item.classList.add('bulk-pp-selection-more-item-danger');
+      item.disabled = blocked;
+      item.append(buildSelectionOpIcon(id), el('span', 'bulk-pp-selection-more-item-label', label));
+      item.addEventListener('click', () => {
+        void runPageOperation(state, id);
+        moreBtn.setAttribute('aria-expanded', 'false');
+        menu.classList.remove('bulk-pp-selection-more-menu-open');
+      });
+      groupEl.append(item);
     });
-    menuPanel.append(item);
+    menuPanel.append(groupEl);
+    if (groupIndex < MORE_SELECTION_GROUPS.length - 1) {
+      menuPanel.append(el('div', 'bulk-pp-selection-more-divider'));
+    }
   });
   menu.append(menuPanel);
 
@@ -739,7 +797,7 @@ function buildSelectionActionBar(state) {
   });
 
   moreWrap.append(moreBtn, menu);
-  actions.append(moreWrap);
+  actions.append(el('div', 'bulk-pp-selection-strip-divider'), moreWrap);
   bar.append(left, actions);
   anchor.append(bar);
   return anchor;
