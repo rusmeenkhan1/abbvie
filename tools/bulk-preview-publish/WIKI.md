@@ -66,8 +66,8 @@ Users should **hard refresh** the tool (`Cmd+Shift+R` / `Ctrl+Shift+R`) so DA lo
 | **Pages breadcrumb** | Same path navigation in the Pages column |
 | **Subdirectory scope** | **Include all subdirectories** — current folder only vs full tree |
 | **Deployment status** | Auto-check preview/publish per page; summary strip in Pages header |
-| **First-load experience** | Spinner while content loads; first status fetch runs in background (UI stays interactive) |
-| **Status progress bar** | Inline bar above Pages with Stop on folder changes; workspace blurs until complete |
+| **First-load experience** | Single **Fetching content…** screen until folders, pages, and deployment status are ready |
+| **Status progress bar** | Inline bar above Pages with Stop on **folder changes** only (not on first open) |
 | **Smart cache** | `localStorage` per path; instant revisit + silent background refresh |
 | **Search** | **Search folder** / **Search page** inputs (3-char minimum, not shown in UI) |
 | **Status filter** | Filter by published, preview-only, never previewed, date sorts, etc. |
@@ -116,7 +116,7 @@ Users should **hard refresh** the tool (`Cmd+Shift+R` / `Ctrl+Shift+R`) so DA lo
 ```
 
 - Fixed viewport — lists scroll inside panels.
-- On **first open**, status loads in the background — the UI stays fully interactive.
+- On **first open**, one centered loader covers content + status (no progress bar flash).
 - On **folder changes**, the inline progress bar appears and the workspace **blurs** until status completes.
 
 ---
@@ -143,7 +143,7 @@ Shows whether each page was previewed or published.
 
 | Case | Behavior |
 |------|----------|
-| First open | **Fetching content…** centered over blurred workspace until deployment status is ready (no progress bar, no misleading dots) |
+| First open | **Fetching content…** until deployment status is ready (no progress bar, no misleading dots) |
 | Folder change after first visit | Inline progress bar; workspace locked until fetch completes |
 | Full cache | Instant summary/dots; background API refresh (no lock) |
 | Stop | Partial results kept; saved to cache |
@@ -243,7 +243,7 @@ tools/bulk-preview-publish/
 
 - SDK: `https://da.live/nx/utils/sdk.js`  
 - Pages only (not `metadata`, spreadsheets, etc.)  
-- Status fetch: one bulk POST (explicit paths) → per-page fallback via 10-worker pool (status GET tried first)  
+- Status fetch: bulk POST with explicit paths (sync for &lt;10 pages) → per-page fallback via 10-worker pool (status GET only on small sets)  
 - Job poll: 60 × 2s max; async when >5 paths or delete  
 
 ---

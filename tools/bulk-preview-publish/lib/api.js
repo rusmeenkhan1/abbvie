@@ -19,6 +19,8 @@ const adminApiBase = HLX_ADMIN;
 
 /** Max concurrent per-page status GET workers. */
 export const STATUS_PARALLEL_BATCH_SIZE = 10;
+/** Below this count, skip slow bulk jobs and fetch per-page in parallel. */
+export const STATUS_FAST_PER_PAGE_MAX = 10;
 /** Poll interval while waiting for a bulk status job (ms). */
 const STATUS_BULK_POLL_MS = 1500;
 
@@ -1183,13 +1185,14 @@ async function fetchPathKeyLiveGet(daFetch, org, site, ref, pathKey, best) {
   });
 }
 
-async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath) {
+async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath, options = {}) {
   assertAdminContext(org, site, ref);
 
   if (isHardcodeIndexTest() && isIndexHelixPath(helixPath)) {
     return fetchHardcodedIndexStatus(daFetch, org, site, ref);
   }
 
+  const fast = options.fast === true;
   const pathKeys = helixPathToStatusPathKeys(helixPath);
   /** @type {{ previewedAt?: number, publishedAt?: number }} */
   let best = {};
@@ -1198,6 +1201,11 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
   for (let i = 0; i < pathKeys.length; i += 1) {
     const pathKey = pathKeys[i];
     let entry = await fetchPathKeyStatusGet(daFetch, org, site, ref, pathKey);
+    if (fast) {
+      if (entry.previewedAt || entry.publishedAt) return entry;
+      best = mergeStatusTimestamps(best, entry);
+      continue;
+    }
     if (entry.previewedAt && entry.publishedAt) return entry;
     if (entry.previewedAt || entry.publishedAt) {
       if (entry.publishedAt) return entry;
@@ -1428,7 +1436,7 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths, sign
     body: JSON.stringify({
       paths,
       select: ['preview', 'live'],
-      forceAsync: true,
+      forceAsync: paths.length > 5,
     }),
   });
   const data = await parseJson(resp);
@@ -1486,7 +1494,7 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths, sign
  * @param {(partial: Record<string, { previewedAt?: number, publishedAt?: number }>, done: number) => void} [onProgress]
  * @param {AbortSignal} [signal]
  */
-async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgress, signal) {
+async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgress, signal, options = {}) {
   const unique = dedupePaths(helixPaths);
   if (unique.length === 0) return {};
 
@@ -1495,6 +1503,7 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgre
   let nextIndex = 0;
   let done = 0;
   const workers = Math.min(STATUS_PARALLEL_BATCH_SIZE, unique.length);
+  const pageOptions = options.fast ? { fast: true } : {};
 
   const worker = async () => {
     while (nextIndex < unique.length) {
@@ -1502,7 +1511,14 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgre
       const path = unique[nextIndex];
       nextIndex += 1;
       try {
-        result[path] = await fetchSinglePagePlatformStatus(daFetch, org, site, ref, path);
+        result[path] = await fetchSinglePagePlatformStatus(
+          daFetch,
+          org,
+          site,
+          ref,
+          path,
+          pageOptions,
+        );
       } catch (err) {
         if (err instanceof Error && /authorized|too many status/i.test(err.message)) throw err;
         result[path] = {};
@@ -1563,65 +1579,48 @@ export async function fetchPlatformStatusForPaths(
   const useBulk = typeof window !== 'undefined' && (() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has('noBulkStatus')) return false;
-    return !params.has('noBulk') && (params.has('bulkStatus') || unique.length >= 3);
+    return !params.has('noBulk');
   })();
 
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   let result = {};
-  /** @type {string[]} */
-  const bulkMatched = [];
 
   if (useBulk) {
     try {
       throwIfAborted();
       result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique, signal);
-      unique.forEach((p) => {
-        if (hasPlatformStatus(result[p])) bulkMatched.push(p);
-      });
+      if (onProgress) onProgress({ ...result }, unique.length, unique.length);
+      return result;
     } catch (bulkErr) {
       if (new URLSearchParams(window.location.search).has('debug')) {
         // eslint-disable-next-line no-console
         console.debug('[bulk-pp] bulk status failed', bulkErr, describeAdminEndpoints(org, site, ref, unique[0]));
       }
+      result = {};
     }
   }
 
-  const missing = unique.filter((p) => !hasPlatformStatus(result[p]));
-
-  const toFetch = useBulk && bulkMatched.length > 0 ? missing : unique;
-  const alreadyResolved = unique.length - toFetch.length;
-
-  const reportProgress = (doneInBatch, batchTotal) => {
+  const reportProgress = (done) => {
     if (!onProgress) return;
-    const checked = Math.min(alreadyResolved + doneInBatch, unique.length);
-    onProgress({ ...result }, checked, unique.length);
+    onProgress({ ...result }, done, unique.length);
   };
 
-  if (useBulk && alreadyResolved > 0 && onProgress) {
-    reportProgress(0, toFetch.length);
-  }
-
-  if (toFetch.length > 0) {
-    const filled = await fetchStatusParallel(
-      daFetch,
-      org,
-      site,
-      ref,
-      toFetch,
-      (partial, done) => {
-        toFetch.forEach((p) => {
-          const e = partial[p];
-          if (hasPlatformStatus(e)) result[p] = e;
-        });
-        reportProgress(done, toFetch.length);
-      },
-      signal,
-    );
-    toFetch.forEach((p) => {
-      const e = filled[p];
-      if (hasPlatformStatus(e)) result[p] = e;
-    });
-  }
+  const filled = await fetchStatusParallel(
+    daFetch,
+    org,
+    site,
+    ref,
+    unique,
+    (partial, done) => {
+      Object.assign(result, partial);
+      reportProgress(done);
+    },
+    signal,
+    { fast: unique.length < STATUS_FAST_PER_PAGE_MAX },
+  );
+  unique.forEach((p) => {
+    if (filled[p]) result[p] = filled[p];
+  });
 
   if (onProgress) onProgress({ ...result }, unique.length, unique.length);
   return result;

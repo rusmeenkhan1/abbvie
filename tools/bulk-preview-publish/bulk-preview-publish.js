@@ -86,6 +86,7 @@ import {
   isFirstSessionStatusPending,
   isStatusFetchBlocking,
   isStatusFetchLockingUi,
+  markInitialStatusFetchComplete,
   shouldShowPageStatus,
   resetWorkspace,
   SEARCH_MIN_LEN,
@@ -1162,7 +1163,7 @@ function buildPagesFilterField(state, pageFilter, contentLoading) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function shouldShowStatusProgressBar(state) {
-  return isStatusFetchLockingUi(state);
+  return state.hasCompletedInitialStatusFetch && isStatusFetchLockingUi(state);
 }
 
 /**
@@ -1181,7 +1182,7 @@ function syncStatusFetchLockUi(root, state) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function syncFirstSessionLockUi(root, state) {
-  const locked = isFirstSessionStatusPending(state);
+  const locked = isFirstSessionStatusPending(state) && !state.contentLoading;
   root.classList.toggle('bulk-pp-first-session-loading', locked);
   let overlay = root.querySelector('#bulk-pp-first-session-overlay');
   if (locked) {
@@ -1358,13 +1359,13 @@ function buildContentLoadingPanel(isFirstLoad = false) {
     el(
       'p',
       'bulk-pp-content-loading-title',
-      isFirstLoad ? 'Loading workspace…' : 'Fetching content…',
+      'Fetching content…',
     ),
     el(
       'p',
       'bulk-pp-content-loading-sub',
       isFirstLoad
-        ? 'Preparing folders and pages…'
+        ? 'Loading folders, pages, and deployment status…'
         : 'Updating folders and pages…',
     ),
   );
@@ -1486,11 +1487,12 @@ function render(root, state) {
       workspaceLocked,
     ));
 
+    const folderSearchDisabled = workspaceLocked || state.folders.length === 0;
     const { wrap: folderSearchField, input: folderSearchInput } = buildSearchField(
       'bulk-pp-folder-search',
       'Search folder',
       String(folderSearch || ''),
-      workspaceLocked,
+      folderSearchDisabled,
       searchHintText(folderSearch),
     );
     const folderSearchRow = el('div', 'bulk-pp-search-row');
@@ -1531,11 +1533,12 @@ function render(root, state) {
     const controls = el('div', 'bulk-pp-pages-controls');
 
     const toolbarRow = el('div', 'bulk-pp-pages-toolbar-row');
+    const pageSearchDisabled = workspaceLocked || state.pages.length === 0;
     const { wrap: searchField, input: searchInput } = buildSearchField(
       'bulk-pp-page-search',
       'Search page',
       String(pageSearch || ''),
-      workspaceLocked,
+      pageSearchDisabled,
       searchHintText(pageSearch),
     );
     searchField.classList.add('bulk-pp-pages-search-field');
@@ -1722,6 +1725,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusChecking = false;
     state.statusFetchBackground = false;
     state.statusFetched = false;
+    markInitialStatusFetchComplete(state);
     resetFetchStatusOption(state);
     state.status = folderCount === 0 && docCount === 0
       ? `No folders or pages in ${location}.`
@@ -1738,6 +1742,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusChecking = false;
     state.statusFetchBackground = false;
     state.statusFetched = true;
+    markInitialStatusFetchComplete(state);
     state.statusProgressDone = pathsToCheck.length;
     state.statusProgressTotal = pathsToCheck.length;
     state.statusAbort = null;
@@ -1782,6 +1787,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusChecking = false;
     state.statusFetchBackground = false;
     state.statusFetched = true;
+    markInitialStatusFetchComplete(state);
     state.statusAbort = null;
     state.statusFetchStartedAt = null;
     state.statusProgressDone = pathsToCheck.length;
@@ -1804,7 +1810,10 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       if (checked > 0) {
         persistCurrentPlatformStatus(state);
         state.statusFetched = true;
+        markInitialStatusFetchComplete(state);
         refreshDeploymentUi(state);
+      } else {
+        markInitialStatusFetchComplete(state);
       }
       state.statusPanelNote = checked > 0
         ? `Stopped after ${checked} of ${total} pages. Partial results are shown.`
@@ -1823,6 +1832,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     if (hadProgress) {
       persistCurrentPlatformStatus(state);
       state.statusFetched = true;
+      markInitialStatusFetchComplete(state);
       state.statusCheckFailed = true;
       state.statusError = messageFromApiError(statusErr, 'Status check failed.', 'status');
       state.status = `${state.statusError} Partial results were saved.`;
@@ -1830,12 +1840,14 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     } else if (hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)) {
       hydratePlatformStatusFromCache(state, pathsToCheck);
       state.statusFetched = true;
+      markInitialStatusFetchComplete(state);
       state.statusCheckFailed = false;
       state.statusError = null;
       state.status = 'Could not refresh deployment status. Showing last saved results.';
       state.statusType = 'info';
     } else {
       state.statusFetched = false;
+      markInitialStatusFetchComplete(state);
       state.statusCheckFailed = true;
       state.statusError = messageFromApiError(statusErr, 'Status check failed.', 'status');
       state.status = state.statusError;
@@ -1857,6 +1869,7 @@ function finishContentLoadWithoutStatus(state, location, docCount, folderCount) 
   state.statusFetchBackground = false;
   state.statusChecking = false;
   state.statusFetched = false;
+  markInitialStatusFetchComplete(state);
   state.statusCheckFailed = false;
   state.statusError = null;
   state.platformStatus = {};
@@ -1900,9 +1913,11 @@ async function main() {
     if (checked > 0) {
       persistCurrentPlatformStatus(state);
       state.statusFetched = true;
+      markInitialStatusFetchComplete(state);
       state.statusPanelNote = `Stopped after ${checked} of ${total} pages. Showing partial results.`;
     } else {
       state.statusFetched = false;
+      markInitialStatusFetchComplete(state);
       state.statusPanelNote = 'Status check stopped.';
     }
     const root = /** @type {HTMLElement | null} */ (state.root);
@@ -2023,16 +2038,17 @@ async function main() {
       const docCount = state.pages.length;
       const location = displayFolderPath(state.folderPath) || 'site root';
       state.initialContentLoaded = true;
-      state.contentLoading = false;
       const backgroundStatus = state.firstSessionLoad;
       if (backgroundStatus) {
         state.firstSessionLoad = false;
+      }
+      if (!backgroundStatus || docCount === 0) {
+        state.contentLoading = false;
       }
 
       if (docCount > 0) {
         const helixPaths = state.pages.map((p) => p.helixPath);
         hydratePlatformStatusFromCache(state, helixPaths);
-        render(app, state);
         startStatusCheck(
           state,
           daFetch,
@@ -2042,6 +2058,7 @@ async function main() {
           state.folders.length,
           { background: backgroundStatus },
         );
+        render(app, state);
       } else {
         finishContentLoadWithoutStatus(
           state,

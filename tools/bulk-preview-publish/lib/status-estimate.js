@@ -1,14 +1,17 @@
-import { STATUS_PARALLEL_BATCH_SIZE } from './api.js';
+import { STATUS_FAST_PER_PAGE_MAX, STATUS_PARALLEL_BATCH_SIZE } from './api.js';
 
 /** Matches fetchStatusParallel worker pool in api.js */
 const WORKER_COUNT = STATUS_PARALLEL_BATCH_SIZE;
-const BULK_MIN_PAGES = 3;
 
 /** Typical seconds to drain pages with a 10-worker pool. */
 const PARALLEL_SEC_OPTIMISTIC = 1.5;
 const PARALLEL_SEC_PESSIMISTIC = 2.8;
 
-/** Single bulk status request before per-page fallback. */
+/** Sync bulk POST for small page sets (no async job poll). */
+const SYNC_BULK_SEC_OPTIMISTIC = 1.2;
+const SYNC_BULK_SEC_PESSIMISTIC = 2.8;
+
+/** Larger bulk status job before per-page fallback. */
 const BULK_SEC_OPTIMISTIC = 3.5;
 const BULK_SEC_PESSIMISTIC = 7;
 
@@ -48,7 +51,10 @@ function estimateParallelSeconds(pageCount, mode) {
 export function estimateStatusFetchSeconds(pageCount, mode = 'optimistic') {
   const n = Math.max(0, Math.floor(pageCount));
   if (n === 0) return 0;
-  if (n < BULK_MIN_PAGES) return estimateParallelSeconds(n, mode);
+  if (n < STATUS_FAST_PER_PAGE_MAX) {
+    const syncBulk = mode === 'optimistic' ? SYNC_BULK_SEC_OPTIMISTIC : SYNC_BULK_SEC_PESSIMISTIC;
+    return syncBulk;
+  }
   const bulk = mode === 'optimistic' ? BULK_SEC_OPTIMISTIC : BULK_SEC_PESSIMISTIC;
   const remaining = Math.max(0, Math.ceil(n * remainingAfterBulkRatio(n, mode)));
   return bulk + estimateParallelSeconds(remaining, mode);

@@ -29,6 +29,8 @@ export function createAppState(ctx) {
     firstSessionLoad: true,
     /** True while the first-session status fetch runs without locking the UI. */
     statusFetchBackground: false,
+    /** False until the first deployment status fetch in this session has finished. */
+    hasCompletedInitialStatusFetch: false,
     error: null,
     status: null,
     statusType: 'info',
@@ -90,6 +92,7 @@ export function resetWorkspace(state) {
   state.initialContentLoaded = false;
   state.firstSessionLoad = true;
   state.statusFetchBackground = false;
+  state.hasCompletedInitialStatusFetch = false;
   state.error = null;
   state.status = null;
   state.statusType = 'info';
@@ -240,11 +243,20 @@ export function isDeploymentStatusPending(state) {
 }
 
 /**
- * First session: status runs in the background before any deployment data should be shown.
+ * First session: centered loader until the first deployment status fetch completes.
  * @param {ReturnType<typeof createAppState>} state
  */
 export function isFirstSessionStatusPending(state) {
-  return state.statusFetchBackground && isDeploymentStatusPending(state);
+  if (state.hasCompletedInitialStatusFetch || state.pages.length === 0) return false;
+  return !state.statusFetched;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function markInitialStatusFetchComplete(state) {
+  state.hasCompletedInitialStatusFetch = true;
+  state.contentLoading = false;
 }
 
 /**
