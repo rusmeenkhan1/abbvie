@@ -1926,13 +1926,40 @@ html:has(.bulk-pp-body) {
   white-space: nowrap;
 }
 
-.bulk-pp-pages-list-loading {
+/* First visit — full-workspace blur + centered loader while status loads in background */
+.bulk-pp-shell.bulk-pp-first-session-loading {
+  position: relative;
+}
+
+.bulk-pp-first-session-loading .bulk-pp-header,
+.bulk-pp-first-session-loading .bulk-pp-panel-content,
+.bulk-pp-first-session-loading #bulk-pp-selection-bar {
+  filter: blur(4px);
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+
+.bulk-pp-first-session-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 120;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1 1 auto;
-  min-height: 12rem;
-  padding: 32px 24px;
+  pointer-events: auto;
+}
+
+.bulk-pp-first-session-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 36px;
+  background: var(--pp-surface-elevated, #fff);
+  border: 1px solid var(--pp-border);
+  border-radius: var(--pp-radius);
+  box-shadow: var(--pp-shadow-md);
 }
 
 .bulk-pp-pages-summary-pending {

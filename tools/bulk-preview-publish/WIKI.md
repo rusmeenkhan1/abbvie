@@ -143,7 +143,7 @@ Shows whether each page was previewed or published.
 
 | Case | Behavior |
 |------|----------|
-| First open | Spinner while content loads; pages panel shows **Fetching content…** until deployment status is ready (no red placeholder dots) |
+| First open | **Fetching content…** centered over blurred workspace until deployment status is ready (no progress bar, no misleading dots) |
 | Folder change after first visit | Inline progress bar; workspace locked until fetch completes |
 | Full cache | Instant summary/dots; background API refresh (no lock) |
 | Stop | Partial results kept; saved to cache |
@@ -175,7 +175,7 @@ Shows whether each page was previewed or published.
 - Command bar appears when ≥1 page selected.  
 - Disabled during content load, active status fetch, or open job modal.
 
-**More menu:** Remove preview · Remove from live · Delete from DA · Open in DA · Open preview · Open live.
+**More menu:** Remove from preview · Remove from publish · Delete from DA · Open in DA · Open preview URLs (.page) · Open publish URLs (.live).
 
 ---
 

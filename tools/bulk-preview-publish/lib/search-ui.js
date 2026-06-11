@@ -25,7 +25,7 @@ function syncPageRowDaLinks(root, state) {
       el.setAttribute('aria-disabled', 'true');
       el.removeAttribute('href');
       el.title = multi
-        ? 'Use More → Open in Document Authoring when multiple pages are selected'
+        ? 'Use More → Open in DA when multiple pages are selected'
         : 'Unavailable while status is loading';
     } else {
       el.classList.remove('bulk-pp-btn-open-da-disabled');

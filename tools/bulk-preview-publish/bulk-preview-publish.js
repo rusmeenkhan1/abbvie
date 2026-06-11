@@ -139,24 +139,14 @@ const SELECTION_STRIP_OPS = [
   { id: 'live', label: 'Publish', variant: 'primary' },
 ];
 
-/** @type {{ label: string, items: { id: PageOperationId, label: string, danger?: boolean }[] }[]} */
-const MORE_SELECTION_GROUPS = [
-  {
-    label: 'Remove',
-    items: [
-      { id: 'unpreview', label: 'Remove preview' },
-      { id: 'unpublish', label: 'Remove from live' },
-      { id: 'delete', label: 'Delete from DA', danger: true },
-    ],
-  },
-  {
-    label: 'Open',
-    items: [
-      { id: 'open-da', label: 'Open in Document Authoring' },
-      { id: 'open-preview', label: 'Open preview site' },
-      { id: 'open-live', label: 'Open live site' },
-    ],
-  },
+/** @type {{ id: PageOperationId, label: string, danger?: boolean }[]} */
+const MORE_SELECTION_ITEMS = [
+  { id: 'unpreview', label: 'Remove from preview' },
+  { id: 'unpublish', label: 'Remove from publish' },
+  { id: 'delete', label: 'Delete from DA', danger: true },
+  { id: 'open-da', label: 'Open in DA' },
+  { id: 'open-preview', label: 'Open preview URLs (.page)' },
+  { id: 'open-live', label: 'Open publish URLs (.live)' },
 ];
 
 /** @type {Record<string, string>} */
@@ -450,7 +440,7 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
     daLink.classList.add('bulk-pp-btn-open-da-disabled');
     daLink.setAttribute('aria-disabled', 'true');
     daLink.title = multiSelected
-      ? 'Use More → Open in Document Authoring when multiple pages are selected'
+      ? 'Use More → Open in DA when multiple pages are selected'
       : 'Unavailable while status is loading';
     daLink.textContent = 'DA';
     daLink.addEventListener('click', (e) => {
@@ -735,27 +725,19 @@ function buildSelectionActionBar(state) {
   menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', 'More page operations');
   const menuPanel = el('div', 'bulk-pp-selection-more-menu-panel');
-  MORE_SELECTION_GROUPS.forEach((group, groupIndex) => {
-    const groupEl = el('div', 'bulk-pp-selection-more-group');
-    groupEl.append(el('span', 'bulk-pp-selection-more-group-label', group.label));
-    group.items.forEach(({ id, label, danger }) => {
-      const item = el('button', 'bulk-pp-selection-more-item');
-      item.type = 'button';
-      item.setAttribute('role', 'menuitem');
-      if (danger) item.classList.add('bulk-pp-selection-more-item-danger');
-      item.disabled = blocked;
-      item.append(buildSelectionOpIcon(id), el('span', 'bulk-pp-selection-more-item-label', label));
-      item.addEventListener('click', () => {
-        void runPageOperation(state, id);
-        moreBtn.setAttribute('aria-expanded', 'false');
-        menu.classList.remove('bulk-pp-selection-more-menu-open');
-      });
-      groupEl.append(item);
+  MORE_SELECTION_ITEMS.forEach(({ id, label, danger }) => {
+    const item = el('button', 'bulk-pp-selection-more-item');
+    item.type = 'button';
+    item.setAttribute('role', 'menuitem');
+    if (danger) item.classList.add('bulk-pp-selection-more-item-danger');
+    item.disabled = blocked;
+    item.append(buildSelectionOpIcon(id), el('span', 'bulk-pp-selection-more-item-label', label));
+    item.addEventListener('click', () => {
+      void runPageOperation(state, id);
+      moreBtn.setAttribute('aria-expanded', 'false');
+      menu.classList.remove('bulk-pp-selection-more-menu-open');
     });
-    menuPanel.append(groupEl);
-    if (groupIndex < MORE_SELECTION_GROUPS.length - 1) {
-      menuPanel.append(el('div', 'bulk-pp-selection-more-divider'));
-    }
+    menuPanel.append(item);
   });
   menu.append(menuPanel);
 
@@ -908,6 +890,7 @@ function refreshDeploymentUi(state) {
   if (!root) return;
   patchPagesStatusProgressBar(root, state);
   syncStatusFetchLockUi(root, state);
+  syncFirstSessionLockUi(root, state);
   patchPagesStatusSummary(root, state);
   patchPagesStatusLoading(root, state);
   patchPagesFilterControls(root, state);
@@ -1189,7 +1172,23 @@ function shouldShowStatusProgressBar(state) {
 function syncStatusFetchLockUi(root, state) {
   const locked = isStatusFetchLockingUi(state);
   root.classList.toggle('bulk-pp-status-fetch-active', locked);
-  root.setAttribute('aria-busy', locked ? 'true' : 'false');
+  const busy = locked || isFirstSessionStatusPending(state);
+  root.setAttribute('aria-busy', busy ? 'true' : 'false');
+}
+
+/**
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function syncFirstSessionLockUi(root, state) {
+  const locked = isFirstSessionStatusPending(state);
+  root.classList.toggle('bulk-pp-first-session-loading', locked);
+  let overlay = root.querySelector('#bulk-pp-first-session-overlay');
+  if (locked) {
+    if (!overlay) root.append(buildFirstSessionFetchOverlay());
+  } else if (overlay) {
+    overlay.remove();
+  }
 }
 
 /**
@@ -1373,24 +1372,21 @@ function buildContentLoadingPanel(isFirstLoad = false) {
   return loading;
 }
 
-function buildPagesListLoadingPanel() {
-  const loading = el('div', 'bulk-pp-pages-list-loading');
-  loading.id = 'bulk-pp-pages-list-loading';
-  loading.setAttribute('aria-live', 'polite');
-  const inner = el('div', 'bulk-pp-content-loading-inner');
+function buildFirstSessionFetchOverlay() {
+  const overlay = el('div', 'bulk-pp-first-session-overlay');
+  overlay.id = 'bulk-pp-first-session-overlay';
+  overlay.setAttribute('role', 'status');
+  overlay.setAttribute('aria-live', 'polite');
+  overlay.setAttribute('aria-label', 'Fetching content');
+  const inner = el('div', 'bulk-pp-first-session-overlay-inner');
   const spinner = el('div', 'bulk-pp-spinner');
   spinner.setAttribute('aria-hidden', 'true');
   inner.append(
     spinner,
     el('p', 'bulk-pp-content-loading-title', 'Fetching content…'),
-    el(
-      'p',
-      'bulk-pp-content-loading-sub',
-      'Checking deployment status for pages in this view.',
-    ),
   );
-  loading.append(inner);
-  return loading;
+  overlay.append(inner);
+  return overlay;
 }
 
 function buildPagesStatusSummaryLoading() {
@@ -1430,6 +1426,7 @@ function render(root, state) {
   root.classList.add('bulk-pp-shell');
   root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
   syncStatusFetchLockUi(root, state);
+  syncFirstSessionLockUi(root, state);
   const hasWorkspace = !contentLoading && !error
     && (state.pages.length > 0 || state.folders.length > 0 || statusChecking);
   const header = el('header', 'bulk-pp-header');
@@ -1556,25 +1553,23 @@ function render(root, state) {
       const legendRow = el('div', 'bulk-pp-pages-legend-row');
       legendRow.id = 'bulk-pp-pages-legend-row';
       legendRow.append(buildStatusLegend());
-      if (statusChecking || state.statusRevalidating) {
+      if ((statusChecking || state.statusRevalidating) && !isDeploymentStatusPending(state)) {
         const hintText = state.statusRevalidating && !statusChecking
           ? 'Refreshing status…'
-          : (statusChecking && !statusFetched
-            ? 'Checking deployment status…'
-            : 'Updating status…');
+          : 'Updating status…';
         legendRow.append(el('span', 'bulk-pp-pages-status-hint', hintText));
       }
       controls.append(legendRow);
     }
 
-    controls.append(buildPagesSelectionRow(state, { visiblePages, statusChecking }));
+    if (!isFirstSessionStatusPending(state)) {
+      controls.append(buildPagesSelectionRow(state, { visiblePages, statusChecking }));
+    }
     pagesSection.append(controls);
 
     const pageWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-pages bulk-pp-list-wrap-fill');
     pageWrap.id = 'bulk-pp-page-list-wrap';
-    if (isFirstSessionStatusPending(state)) {
-      pageWrap.append(buildPagesListLoadingPanel());
-    } else {
+    if (!isFirstSessionStatusPending(state)) {
       if (state.pages.length > 0) {
         pageWrap.append(buildPageListColumnHeader());
       }
@@ -1616,7 +1611,9 @@ function render(root, state) {
   contentPanel.append(contentBody);
   root.append(contentPanel);
 
-  root.append(buildSelectionActionBar(state));
+  if (!isFirstSessionStatusPending(state)) {
+    root.append(buildSelectionActionBar(state));
+  }
 
   if (status && !statusChecking && statusType === 'error' && !isDaAccessError(status)) {
     const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType}`);
