@@ -103,6 +103,21 @@ export function searchHintText(draft) {
 }
 
 /**
+ * @param {HTMLElement | null} hint
+ * @param {string | null} message
+ */
+function syncSearchHint(hint, message) {
+  if (!hint) return;
+  if (message) {
+    hint.textContent = message;
+    hint.hidden = false;
+  } else {
+    hint.textContent = '';
+    hint.hidden = true;
+  }
+}
+
+/**
  * Keeps checkboxes, selection pill, toolbar, and action buttons in sync with state.
  * @param {HTMLElement} root
  * @param {ReturnType<typeof import('./state.js').createAppState>} state
@@ -148,12 +163,10 @@ export function patchFolderSearchResults(root, state, buildFolderRow) {
       : String(state.folders.length);
   }
 
-  const hint = root.querySelector('#bulk-pp-folder-search-hint');
-  const hintMsg = searchHintText(state.folderSearch);
-  if (hint) {
-    hint.hidden = !hintMsg;
-    if (hintMsg) hint.textContent = hintMsg;
-  }
+  syncSearchHint(
+    root.querySelector('#bulk-pp-folder-search-hint'),
+    searchHintText(state.folderSearch),
+  );
 
   const list = root.querySelector('#bulk-pp-folder-list');
   if (!list) return;
@@ -192,12 +205,10 @@ export function patchPageSearchResults(root, state, siteCtx, buildPageRow) {
       : String(state.pages.length);
   }
 
-  const hint = root.querySelector('#bulk-pp-page-search-hint');
-  const hintMsg = searchHintText(state.pageSearch);
-  if (hint) {
-    hint.hidden = !hintMsg;
-    if (hintMsg) hint.textContent = hintMsg;
-  }
+  syncSearchHint(
+    root.querySelector('#bulk-pp-page-search-hint'),
+    searchHintText(state.pageSearch),
+  );
 
   const list = root.querySelector('#bulk-pp-page-list');
   if (!list) return;
@@ -233,11 +244,16 @@ export function patchPageSearchResults(root, state, siteCtx, buildPageRow) {
  * @param {() => void} patchFn
  */
 export function bindSearchInput(input, state, kind, patchFn) {
-  input.addEventListener('input', () => {
-    if (kind === 'folder') state.folderSearch = input.value;
-    else state.pageSearch = input.value;
+  const syncFromInput = () => {
+    const value = input.value;
+    if (kind === 'folder') state.folderSearch = value;
+    else state.pageSearch = value;
     patchFn();
-  });
+  };
+
+  input.addEventListener('input', syncFromInput);
+  // Native clear (×) on type=search often fires `search`, not `input`.
+  input.addEventListener('search', syncFromInput);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       input.value = '';
