@@ -14,7 +14,13 @@
 </head>
 <body class="bulk-pp-body">
   <div id="app" class="bulk-pp">
-    <p class="bulk-pp-loading">Loading Content Operations Hub…</p>
+    <div class="bulk-pp-content-loading bulk-pp-boot-loading">
+      <div class="bulk-pp-content-loading-inner">
+        <div class="bulk-pp-spinner" aria-hidden="true"></div>
+        <p class="bulk-pp-content-loading-title">Loading Content Operations Hub…</p>
+        <p class="bulk-pp-content-loading-sub">Connecting to Document Authoring</p>
+      </div>
+    </div>
   </div>
   <script type="module">
     import './bulk-preview-publish.js';

@@ -3,6 +3,7 @@ import {
   getActiveSelectionCount,
   getVisibleFolders,
   getVisiblePages,
+  isStatusFetchBlocking,
   shouldShowPageStatus,
   SEARCH_MIN_LEN,
 } from './state.js';
@@ -15,7 +16,7 @@ import { el } from './dom.js';
  */
 function syncPageRowDaLinks(root, state) {
   const multi = getActiveSelectionCount(state) > 1;
-  const locked = state.statusChecking;
+  const locked = isStatusFetchBlocking(state);
   root.querySelectorAll('.bulk-pp-btn-open-da').forEach((el) => {
     if (!(el instanceof HTMLAnchorElement)) return;
     const href = el.dataset.href || '';
@@ -38,7 +39,7 @@ function syncPageRowDaLinks(root, state) {
 function syncSelectionActionBar(root, state) {
   const count = getActiveSelectionCount(state);
   const blocked = count === 0
-    || state.statusChecking
+    || isStatusFetchBlocking(state)
     || state.loading
     || state.contentLoading
     || isJobModalOpen();
@@ -109,7 +110,7 @@ export function searchHintText(draft) {
 export function syncSelectionUI(root, state) {
   const { visible: visiblePages } = getVisiblePages(state);
   const activeCount = getActiveSelectionCount(state);
-  const listBusy = visiblePages.length === 0 || state.statusChecking;
+  const listBusy = visiblePages.length === 0 || isStatusFetchBlocking(state);
 
   const pill = root.querySelector('#bulk-pp-selection-pill');
   if (pill) pill.textContent = formatSelectionPillText(state);
@@ -167,7 +168,7 @@ export function patchFolderSearchResults(root, state, buildFolderRow) {
       list.append(buildFolderRow(
         folder,
         (path) => state.onNavigate(path),
-        state.statusChecking,
+        isStatusFetchBlocking(state),
       ));
     });
   }
@@ -217,7 +218,7 @@ export function patchPageSearchResults(root, state, siteCtx, buildPageRow) {
         state,
         shouldShowPageStatus(state),
         siteCtx,
-        state.statusChecking,
+        isStatusFetchBlocking(state),
       ));
     });
   }

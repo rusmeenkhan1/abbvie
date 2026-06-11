@@ -25,6 +25,10 @@ export function createAppState(ctx) {
     contentLoading: false,
     /** True after the first successful content list load in this session. */
     initialContentLoaded: false,
+    /** True until the workspace is shown for the first time this session. */
+    firstSessionLoad: true,
+    /** True while the first-session status fetch runs without locking the UI. */
+    statusFetchBackground: false,
     error: null,
     status: null,
     statusType: 'info',
@@ -84,6 +88,8 @@ export function resetWorkspace(state) {
   state.loading = false;
   state.contentLoading = false;
   state.initialContentLoaded = false;
+  state.firstSessionLoad = true;
+  state.statusFetchBackground = false;
   state.error = null;
   state.status = null;
   state.statusType = 'info';
@@ -156,6 +162,7 @@ export function cancelStatusCheck(state, setMessage = true) {
   }
   if (!state.statusChecking) return;
   state.statusChecking = false;
+  state.statusFetchBackground = false;
   state.statusFetchStartedAt = null;
   if (setMessage) {
     const checked = state.statusProgressDone;
@@ -198,6 +205,22 @@ export function buildStatusMap(state) {
     map[page.helixPath] = platform[page.helixPath] || {};
   });
   return map;
+}
+
+/**
+ * Status fetch blocks interactions (selection, filters, DA links) when foreground.
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function isStatusFetchBlocking(state) {
+  return state.statusChecking && !state.statusFetched && !state.statusFetchBackground;
+}
+
+/**
+ * Status fetch blurs the workspace and shows the inline progress bar when foreground.
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function isStatusFetchLockingUi(state) {
+  return state.statusChecking && state.statusProgressTotal > 0 && !state.statusFetchBackground;
 }
 
 /**

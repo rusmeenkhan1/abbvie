@@ -66,7 +66,8 @@ Users should **hard refresh** the tool (`Cmd+Shift+R` / `Ctrl+Shift+R`) so DA lo
 | **Pages breadcrumb** | Same path navigation in the Pages column |
 | **Subdirectory scope** | **Include all subdirectories** — current folder only vs full tree |
 | **Deployment status** | Auto-check preview/publish per page; summary strip in Pages header |
-| **Status progress bar** | Inline bar above Pages with Stop; workspace blurs until complete |
+| **First-load experience** | Spinner while content loads; first status fetch runs in background (UI stays interactive) |
+| **Status progress bar** | Inline bar above Pages with Stop on folder changes; workspace blurs until complete |
 | **Smart cache** | `localStorage` per path; instant revisit + silent background refresh |
 | **Search** | **Search folder** / **Search page** inputs (3-char minimum, not shown in UI) |
 | **Status filter** | Filter by published, preview-only, never previewed, date sorts, etc. |
@@ -115,7 +116,8 @@ Users should **hard refresh** the tool (`Cmd+Shift+R` / `Ctrl+Shift+R`) so DA lo
 ```
 
 - Fixed viewport — lists scroll inside panels.
-- During status fetch, everything except the progress bar is **blurred and non-interactive**.
+- On **first open**, status loads in the background — the UI stays fully interactive.
+- On **folder changes**, the inline progress bar appears and the workspace **blurs** until status completes.
 
 ---
 
@@ -141,9 +143,9 @@ Shows whether each page was previewed or published.
 
 | Case | Behavior |
 |------|----------|
-| First open | Content first; inline progress bar; workspace locked |
+| First open | Spinner while content loads; workspace appears; status fetches in background (no blur) |
+| Folder change after first visit | Inline progress bar; workspace locked until fetch completes |
 | Full cache | Instant summary/dots; background API refresh (no lock) |
-| Partial / no cache | Progress bar; blur until fetch completes |
 | Stop | Partial results kept; saved to cache |
 
 ### Summary (Pages header, top-right)

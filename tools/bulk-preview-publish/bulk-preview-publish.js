@@ -82,6 +82,8 @@ import {
   getSelectedHelixPaths,
   getVisiblePages,
   getVisibleFolders,
+  isStatusFetchBlocking,
+  isStatusFetchLockingUi,
   shouldShowPageStatus,
   resetWorkspace,
   SEARCH_MIN_LEN,
@@ -552,7 +554,7 @@ async function openSelectedDa(state) {
 function isOperationBlocked(state) {
   return state.loading
     || state.contentLoading
-    || (state.statusChecking && !state.statusFetched)
+    || isStatusFetchBlocking(state)
     || isJobModalOpen()
     || getActiveSelectionCount(state) === 0;
 }
@@ -648,7 +650,7 @@ async function runPageOperation(state, operationId) {
 function isSelectionActionsBlocked(state) {
   return state.loading
     || state.contentLoading
-    || (state.statusChecking && !state.statusFetched)
+    || isStatusFetchBlocking(state)
     || isJobModalOpen();
 }
 
@@ -883,8 +885,7 @@ function clearPagesStatusDisplay(state) {
 function patchPagesHeader(root, state) {
   const host = root.querySelector('.bulk-pp-pages-header');
   if (!host) return;
-  const workspaceLocked = state.statusChecking && !state.statusFetched;
-  host.replaceWith(buildPagesHeader(state, workspaceLocked));
+  host.replaceWith(buildPagesHeader(state, isStatusFetchBlocking(state)));
 }
 
 /**
@@ -927,7 +928,7 @@ function buildPagesSelectionRow(state, { visiblePages, statusChecking }) {
   selectionPill.id = 'bulk-pp-selection-pill';
   row.append(selectionPill);
 
-  const interactionsLocked = statusChecking && !state.statusFetched;
+  const interactionsLocked = isStatusFetchBlocking(state);
   const selectAllBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Select all');
   const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Clear');
   selectAllBtn.type = 'button';
@@ -1173,14 +1174,7 @@ function buildPagesFilterField(state, pageFilter, contentLoading) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function shouldShowStatusProgressBar(state) {
-  return state.statusChecking && state.statusProgressTotal > 0;
-}
-
-/**
- * @param {ReturnType<typeof createAppState>} state
- */
-function isStatusFetchLockActive(state) {
-  return state.statusChecking && state.statusProgressTotal > 0;
+  return isStatusFetchLockingUi(state);
 }
 
 /**
@@ -1188,7 +1182,7 @@ function isStatusFetchLockActive(state) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function syncStatusFetchLockUi(root, state) {
-  const locked = isStatusFetchLockActive(state);
+  const locked = isStatusFetchLockingUi(state);
   root.classList.toggle('bulk-pp-status-fetch-active', locked);
   root.setAttribute('aria-busy', locked ? 'true' : 'false');
 }
@@ -1348,6 +1342,33 @@ function finishProgressModal(state) {
 }
 
 /**
+ * @param {boolean} [isFirstLoad]
+ */
+function buildContentLoadingPanel(isFirstLoad = false) {
+  const loading = el('div', 'bulk-pp-content-loading');
+  const inner = el('div', 'bulk-pp-content-loading-inner');
+  const spinner = el('div', 'bulk-pp-spinner');
+  spinner.setAttribute('aria-hidden', 'true');
+  inner.append(
+    spinner,
+    el(
+      'p',
+      'bulk-pp-content-loading-title',
+      isFirstLoad ? 'Loading workspace…' : 'Fetching content…',
+    ),
+    el(
+      'p',
+      'bulk-pp-content-loading-sub',
+      isFirstLoad
+        ? 'Preparing folders and pages. Deployment status will load quietly in the background.'
+        : 'Updating folders and pages…',
+    ),
+  );
+  loading.append(inner);
+  return loading;
+}
+
+/**
  * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
  */
@@ -1364,7 +1385,7 @@ function render(root, state) {
 
   const { visible: visiblePages, statusMap, browseFolder } = getVisiblePages(state);
   const visibleFolders = getVisibleFolders(state);
-  const workspaceLocked = statusChecking && !statusFetched;
+  const workspaceLocked = isStatusFetchBlocking(state);
   const safeFolder = resolveContentFolderPath(folderPath);
   const searchDraft = String(pageSearch || '').trim();
   const searchTooShort = searchDraft.length > 0 && searchDraft.length < SEARCH_MIN_LEN;
@@ -1407,9 +1428,7 @@ function render(root, state) {
   const contentBody = el('div', 'bulk-pp-panel-body bulk-pp-content-body');
 
   if (contentLoading) {
-    const loading = el('div', 'bulk-pp-content-loading');
-    loading.append(el('p', 'bulk-pp-list-empty', 'Fetching content…'));
-    contentBody.append(loading);
+    contentBody.append(buildContentLoadingPanel(state.firstSessionLoad));
   } else if (error) {
     if (isDaAccessError(error)) {
       contentBody.append(buildDaAccessErrorPanel(error));
@@ -1507,9 +1526,11 @@ function render(root, state) {
       if (statusChecking || state.statusRevalidating) {
         const hintText = state.statusRevalidating && !statusChecking
           ? 'Refreshing status…'
-          : (statusChecking && !statusFetched
-            ? 'Checking deployment status…'
-            : 'Updating status…');
+          : (state.statusFetchBackground
+            ? 'Loading deployment status in the background…'
+            : (statusChecking && !statusFetched
+              ? 'Checking deployment status…'
+              : 'Updating status…'));
         legendRow.append(el('span', 'bulk-pp-pages-status-hint', hintText));
       }
       controls.append(legendRow);
@@ -1649,13 +1670,16 @@ async function revalidateCachedStatusInBackground(state, daFetch, pathsToCheck) 
  * @param {string} location
  * @param {number} docCount
  * @param {number} folderCount
+ * @param {{ background?: boolean }} [options]
  */
-function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, folderCount) {
+function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, folderCount, options = {}) {
+  const background = Boolean(options.background);
   cancelStatusCheck(state, false);
   state.statusCancelled = false;
   state.statusCheckFailed = false;
   state.statusError = null;
   state.statusPanelNote = null;
+  state.statusFetchBackground = background && pathsToCheck.length > 0;
   state.statusChecking = pathsToCheck.length > 0;
   state.statusProgressDone = 0;
   state.statusProgressTotal = pathsToCheck.length;
@@ -1664,6 +1688,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
 
   if (pathsToCheck.length === 0) {
     state.statusChecking = false;
+    state.statusFetchBackground = false;
     state.statusFetched = false;
     resetFetchStatusOption(state);
     state.status = folderCount === 0 && docCount === 0
@@ -1679,6 +1704,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
 
   if (hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)) {
     state.statusChecking = false;
+    state.statusFetchBackground = false;
     state.statusFetched = true;
     state.statusProgressDone = pathsToCheck.length;
     state.statusProgressTotal = pathsToCheck.length;
@@ -1722,6 +1748,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     if (state.statusAbort?.signal.aborted) return;
     commitPlatformStatus(state, { ...state.platformStatus, ...platformStatus });
     state.statusChecking = false;
+    state.statusFetchBackground = false;
     state.statusFetched = true;
     state.statusAbort = null;
     state.statusFetchStartedAt = null;
@@ -1734,6 +1761,8 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     finishStatusFetch(state);
   }).catch((statusErr) => {
     if (statusErr instanceof DOMException && statusErr.name === 'AbortError') {
+      state.statusChecking = false;
+      state.statusFetchBackground = false;
       state.statusAbort = null;
       state.statusFetchStartedAt = null;
       resetFetchStatusOption(state);
@@ -1752,6 +1781,7 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       return;
     }
     state.statusChecking = false;
+    state.statusFetchBackground = false;
     state.statusAbort = null;
     state.statusFetchStartedAt = null;
     resetFetchStatusOption(state);
@@ -1791,6 +1821,8 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
  * @param {number} folderCount
  */
 function finishContentLoadWithoutStatus(state, location, docCount, folderCount) {
+  state.firstSessionLoad = false;
+  state.statusFetchBackground = false;
   state.statusChecking = false;
   state.statusFetched = false;
   state.statusCheckFailed = false;
@@ -1832,6 +1864,7 @@ async function main() {
     cancelStatusCheck(state, false);
     resetFetchStatusOption(state);
     state.statusChecking = false;
+    state.statusFetchBackground = false;
     if (checked > 0) {
       persistCurrentPlatformStatus(state);
       state.statusFetched = true;
@@ -1878,7 +1911,7 @@ async function main() {
   };
 
   state.onToggleIncludeSubdirectories = async (enabled) => {
-    if (state.statusChecking || state.contentLoading) return;
+    if (isStatusFetchBlocking(state) || state.contentLoading) return;
     const next = enabled ? 'tree' : 'folder';
     if (state.pageScope === next) return;
     closeProgressModal(/** @type {HTMLElement} */ (app));
@@ -1959,6 +1992,10 @@ async function main() {
       const location = displayFolderPath(state.folderPath) || 'site root';
       state.initialContentLoaded = true;
       state.contentLoading = false;
+      const backgroundStatus = state.firstSessionLoad;
+      if (backgroundStatus) {
+        state.firstSessionLoad = false;
+      }
 
       if (docCount > 0) {
         const helixPaths = state.pages.map((p) => p.helixPath);
@@ -1971,6 +2008,7 @@ async function main() {
           location,
           docCount,
           state.folders.length,
+          { background: backgroundStatus },
         );
       } else {
         finishContentLoadWithoutStatus(
