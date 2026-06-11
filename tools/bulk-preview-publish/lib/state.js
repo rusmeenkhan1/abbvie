@@ -38,12 +38,6 @@ export function createAppState(ctx) {
     pageFilter: 'all',
     pageSearch: '',
     folderSearch: '',
-    /** @deprecated unused — deployment status loads automatically with pages */
-    showPreviewPublish: false,
-    /** @deprecated unused — deployment status always loads with pages */
-    autoLoadStatus: false,
-    /** @deprecated transient flag — use autoLoadStatus */
-    fetchStatus: false,
     /** True after a successful status check for the current page set. */
     statusFetched: false,
     platformStatus: {},
@@ -100,9 +94,6 @@ export function resetWorkspace(state) {
   state.pageFilter = 'all';
   state.pageSearch = '';
   state.folderSearch = '';
-  state.fetchStatus = false;
-  state.autoLoadStatus = false;
-  state.showPreviewPublish = false;
   state.statusFetched = false;
   state.platformStatus = {};
   state.statusCheckFailed = false;

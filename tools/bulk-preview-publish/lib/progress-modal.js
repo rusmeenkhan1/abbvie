@@ -1,18 +1,16 @@
-import { formatRuntimeStatusEta, formatStatusFetchEta } from './status-estimate.js';
+import { formatRuntimeStatusEta } from './status-estimate.js';
 import { confirmOpenUrlsInNewTabs } from './modal.js';
 import { copyTextToClipboard, openUrlsInNewTabsQuiet, runButtonAction } from './ui-utils.js';
 import { el } from './dom.js';
 
-/** @typedef {'status' | 'job'} ProgressModalKind */
+/** @typedef {'job'} ProgressModalKind */
 /** @typedef {'preview'|'live'|'unpreview'|'unpublish'|'delete'} JobTopic */
-
-const DEPLOYMENT_NONE_LABEL = 'neither previewed nor published';
 
 /**
  * @param {ProgressModalKind} kind
  */
 function modalIds(kind) {
-  const base = kind === 'status' ? 'bulk-pp-status-modal' : 'bulk-pp-job-modal';
+  const base = kind === 'job' ? 'bulk-pp-job-modal' : 'bulk-pp-status-modal';
   return {
     title: `${base}-title`,
     cancel: `${base}-cancel`,
@@ -50,13 +48,6 @@ export function isProgressModalOpen() {
 /**
  * @returns {boolean}
  */
-export function isStatusFetchModalOpen() {
-  return modalRef?.kind === 'status';
-}
-
-/**
- * @returns {boolean}
- */
 export function isJobModalOpen() {
   return modalRef?.kind === 'job';
 }
@@ -71,9 +62,6 @@ export function closeProgressModal(appRoot = null) {
   modalRef = null;
   clearAppModalOpen(appRoot);
 }
-
-/** @param {HTMLElement | null} [appRoot] */
-export const closeStatusFetchModal = closeProgressModal;
 
 /** @param {HTMLElement | null} [appRoot] */
 export const closeJobModal = closeProgressModal;
@@ -104,9 +92,7 @@ function openProgressModal(appRoot, kind, opts) {
   const cancelBtn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-stop bulk-pp-status-modal-cancel', cancelLabel);
   cancelBtn.type = 'button';
   cancelBtn.id = ids.cancel;
-  cancelBtn.title = kind === 'job'
-    ? 'Stop tracking this job (server work may continue)'
-    : 'Stop the status check (requests already sent may still complete)';
+  cancelBtn.title = 'Stop tracking this job (server work may continue)';
   cancelBtn.addEventListener('click', opts.onCancel);
   head.append(cancelBtn);
 
@@ -157,21 +143,6 @@ function hideHeaderCancel() {
 }
 
 /**
- * End of status fetch — remove Stop and exit progress chrome.
- */
-function finalizeStatusFetchModalHead() {
-  if (!modalRef || modalRef.kind !== 'status') return;
-  const { backdrop, ids } = modalRef;
-  const dialog = backdrop.querySelector('.bulk-pp-modal');
-  if (dialog instanceof HTMLElement) {
-    dialog.classList.remove('bulk-pp-status-modal-progress');
-    dialog.classList.add('bulk-pp-status-modal-complete');
-  }
-  const cancelBtn = document.getElementById(ids.cancel);
-  if (cancelBtn) cancelBtn.remove();
-}
-
-/**
  * @param {string} text
  */
 function setHeadTitle(text) {
@@ -179,203 +150,6 @@ function setHeadTitle(text) {
   const title = modalRef.backdrop.querySelector('.bulk-pp-modal-title')
     || modalRef.backdrop.querySelector('.bulk-pp-status-modal-title');
   if (title) title.textContent = text;
-}
-
-/**
- * @param {ReturnType<typeof modalIds>} ids
- * @param {string} intro
- */
-function buildStatusProgressBody(ids, intro) {
-  const bodyNodes = [el('p', 'bulk-pp-status-modal-intro', intro)];
-  const track = el('div', 'bulk-pp-progress-track');
-  const fill = el('div', 'bulk-pp-progress-fill');
-  fill.id = ids.fill;
-  fill.style.width = '0%';
-  track.append(fill);
-  bodyNodes.push(track);
-  const labelEl = el('p', 'bulk-pp-progress-label', 'Starting…');
-  labelEl.id = ids.label;
-  bodyNodes.push(labelEl);
-  const etaEl = el('p', 'bulk-pp-progress-eta', '');
-  etaEl.id = ids.eta;
-  bodyNodes.push(etaEl);
-  return bodyNodes;
-}
-
-/**
- * @param {() => void} onClick
- */
-function buildModalCloseButton(onClick) {
-  const btn = el('button', 'bulk-pp-modal-close bulk-pp-status-fetch-close');
-  btn.type = 'button';
-  btn.setAttribute('aria-label', 'Close');
-  btn.innerHTML = '<span aria-hidden="true">&times;</span>';
-  btn.addEventListener('click', onClick);
-  return btn;
-}
-
-/**
- * @param {string} scopeLabel
- * @param {string} [etaText]
- */
-function buildStatusFetchStatsCallout(scopeLabel, etaText) {
-  const wrap = el('div', 'bulk-pp-status-fetch-callout');
-  const pagesStat = el('div', 'bulk-pp-status-fetch-stat');
-  pagesStat.append(
-    el('span', 'bulk-pp-status-fetch-stat-value', scopeLabel),
-    el('span', 'bulk-pp-status-fetch-stat-label', 'In this view'),
-  );
-  wrap.append(pagesStat);
-  if (etaText) {
-    const etaStat = el('div', 'bulk-pp-status-fetch-stat');
-    etaStat.append(
-      el('span', 'bulk-pp-status-fetch-stat-value', etaText),
-      el('span', 'bulk-pp-status-fetch-stat-label', 'Estimated time'),
-    );
-    wrap.append(etaStat);
-  }
-  return wrap;
-}
-
-/**
- * @param {HTMLElement | null} dialog
- */
-function prepareStatusModalForProgress(dialog) {
-  if (!dialog) return;
-  dialog.classList.remove('bulk-pp-status-fetch-confirm');
-  dialog.classList.add('bulk-pp-status-modal', 'bulk-pp-status-modal-progress');
-  const closeBtn = dialog.querySelector('.bulk-pp-status-fetch-close');
-  if (closeBtn instanceof HTMLElement) closeBtn.hidden = true;
-  const pathEl = dialog.querySelector('.bulk-pp-modal-choice-path');
-  if (pathEl instanceof HTMLElement) pathEl.hidden = true;
-  const actions = dialog.querySelector('.bulk-pp-status-fetch-actions');
-  if (actions) actions.remove();
-}
-
-/**
- * @param {HTMLElement | null} appRoot
- * @param {number} pageCount
- * @param {{ onConfirm: () => void, onCancel: () => void }} handlers
- */
-export function openStatusFetchConfirmModal(appRoot, pageCount, handlers) {
-  closeProgressModal(appRoot);
-  const ids = modalIds('status');
-  const noun = pageCount === 1 ? '1 page' : `${pageCount} pages`;
-  const etaText = formatStatusFetchEta(pageCount);
-
-  const backdrop = el('div', 'bulk-pp-modal-backdrop bulk-pp-status-modal-backdrop');
-  backdrop.setAttribute('role', 'presentation');
-
-  const dialog = el('div', 'bulk-pp-modal bulk-pp-modal-choice bulk-pp-status-fetch-confirm');
-  dialog.setAttribute('role', 'dialog');
-  dialog.setAttribute('aria-modal', 'true');
-  dialog.setAttribute('aria-labelledby', ids.title);
-
-  const head = el('div', 'bulk-pp-modal-choice-head');
-  const titleBlock = el('div', 'bulk-pp-modal-choice-title-block');
-  const titleEl = el('h2', 'bulk-pp-modal-title', 'Fetch deployment status?');
-  titleEl.id = ids.title;
-  titleBlock.append(
-    titleEl,
-    el('p', 'bulk-pp-modal-choice-path', noun),
-  );
-
-  const cancelBtn = el(
-    'button',
-    'bulk-pp-modal-btn bulk-pp-modal-btn-stop bulk-pp-status-modal-cancel',
-    'Stop',
-  );
-  cancelBtn.type = 'button';
-  cancelBtn.id = ids.cancel;
-  cancelBtn.hidden = true;
-  cancelBtn.title = 'Stop the status check (requests already sent may still complete)';
-  cancelBtn.addEventListener('click', handlers.onCancel);
-
-  head.append(titleBlock, buildModalCloseButton(handlers.onCancel), cancelBtn);
-
-  const body = el('div', 'bulk-pp-modal-body-wrap');
-  body.id = ids.body;
-  body.append(
-    el(
-      'p',
-      'bulk-pp-modal-choice-lead',
-      'Checks preview and live deployment state for each page in this view. Results unlock filters, legends, and row indicators.',
-    ),
-    buildStatusFetchStatsCallout(noun, etaText),
-  );
-
-  const notes = el('ul', 'bulk-pp-status-fetch-notes');
-  [
-    'Status dots appear on each page row when complete',
-    'Deployment filters and summary unlock automatically',
-  ].forEach((text) => notes.append(el('li', null, text)));
-  body.append(notes);
-
-  const actions = el('div', 'bulk-pp-modal-choice-actions bulk-pp-status-fetch-actions');
-  actions.append(
-    cancelActionBtn('Not now', handlers.onCancel),
-    confirmActionBtn('Fetch deployment status', handlers.onConfirm),
-  );
-
-  dialog.append(head, body, actions);
-  backdrop.append(dialog);
-  document.body.append(backdrop);
-  modalRef = { kind: 'status', backdrop, panel: body, ids };
-  setAppModalOpen(appRoot);
-}
-
-/**
- * @param {HTMLElement | null} appRoot
- * @param {{ statusProgressTotal: number }} state
- * @param {() => void} onCancel
- */
-export function transitionStatusModalToProgress(appRoot, state, onCancel) {
-  if (!modalRef || modalRef.kind !== 'status') {
-    openStatusFetchModal(appRoot, state, onCancel);
-    return;
-  }
-  const { ids, panel, backdrop } = modalRef;
-  const dialog = backdrop.querySelector('.bulk-pp-modal');
-  prepareStatusModalForProgress(dialog instanceof HTMLElement ? dialog : null);
-
-  setHeadTitle('Fetching deployment status');
-  const cancelBtn = document.getElementById(ids.cancel);
-  if (cancelBtn instanceof HTMLButtonElement) {
-    cancelBtn.hidden = false;
-    cancelBtn.textContent = 'Stop';
-    const nextCancel = cancelBtn.cloneNode(true);
-    cancelBtn.replaceWith(nextCancel);
-    if (nextCancel instanceof HTMLButtonElement) {
-      nextCancel.addEventListener('click', onCancel);
-    }
-  }
-
-  const etaText = formatStatusFetchEta(state.statusProgressTotal);
-  const intro = etaText
-    ? `Checking deployment status from AEM. Estimated time: ${etaText}.`
-    : 'Checking deployment status from AEM.';
-  replacePanel(panel, buildStatusProgressBody(ids, intro));
-  setAppModalOpen(appRoot);
-  updateStatusFetchModal(state);
-}
-
-/**
- * @param {HTMLElement | null} appRoot
- * @param {{ statusProgressTotal: number }} state
- * @param {() => void} onCancel
- */
-export function openStatusFetchModal(appRoot, state, onCancel) {
-  const etaText = formatStatusFetchEta(state.statusProgressTotal);
-  const base = 'Checking deployment status from AEM. Use Stop to end the check — requests already sent may still complete.';
-  const intro = etaText
-    ? `${base} Estimated time: ${etaText}.`
-    : base;
-  openProgressModal(appRoot, 'status', {
-    title: 'Fetching deployment status',
-    intro,
-    cancelLabel: 'Stop',
-    onCancel,
-  });
 }
 
 /**
@@ -439,33 +213,6 @@ export function openJobModal(appRoot, topic, pageCount, onCancel) {
 
 /**
  * @param {{
- *   statusFetchStartedAt: number | null,
- *   statusProgressDone: number,
- *   statusProgressTotal: number,
- * }} state
- */
-export function updateStatusFetchModal(state) {
-  if (!modalRef || modalRef.kind !== 'status') return;
-  const { ids } = modalRef;
-  const pct = setProgressBar(ids, state.statusProgressDone, state.statusProgressTotal);
-  const label = document.getElementById(ids.label);
-  if (label) {
-    label.textContent = `${state.statusProgressDone} of ${state.statusProgressTotal} pages checked (${pct}%)`;
-  }
-  const etaEl = document.getElementById(ids.eta);
-  if (etaEl) {
-    const runtime = formatRuntimeStatusEta(
-      state.statusFetchStartedAt,
-      state.statusProgressDone,
-      state.statusProgressTotal,
-    );
-    const fallback = formatStatusFetchEta(state.statusProgressTotal);
-    etaEl.textContent = runtime || (fallback ? `Estimated time: ${fallback}` : '');
-  }
-}
-
-/**
- * @param {{
  *   jobStartedAt: number | null,
  *   processed: number,
  *   total: number,
@@ -510,39 +257,6 @@ function replacePanel(panel, nodes) {
 }
 
 /**
- * @param {string} label
- * @param {() => void | Promise<void>} onClick
- */
-function cancelActionBtn(label, onClick) {
-  const btn = el('button', 'bulk-pp-modal-btn bulk-pp-modal-btn-cancel', label);
-  btn.type = 'button';
-  btn.addEventListener('click', () => {
-    Promise.resolve(onClick()).catch(() => {});
-  });
-  return btn;
-}
-
-/**
- * @param {string} label
- * @param {() => void | Promise<void>} onClick
- * @param {boolean} [disabled]
- * @param {string} [title]
- * @param {string} [extraClass]
- */
-function confirmActionBtn(label, onClick, disabled = false, title = '', extraClass = '') {
-  const classes = ['bulk-pp-modal-btn', 'bulk-pp-modal-btn-confirm', extraClass].filter(Boolean).join(' ');
-  const btn = el('button', classes, label);
-  btn.type = 'button';
-  btn.disabled = disabled;
-  if (title) btn.title = title;
-  btn.addEventListener('click', () => {
-    if (btn.disabled) return;
-    Promise.resolve(onClick()).catch(() => {});
-  });
-  return btn;
-}
-
-/**
  * @param {() => void} onClose
  */
 function closeActionBtn(onClose) {
@@ -559,128 +273,6 @@ function actionRow(buttons) {
   const row = el('div', 'bulk-pp-status-modal-actions');
   buttons.forEach((btn) => row.append(btn));
   return row;
-}
-
-/**
- * @param {{ live: number, previewOnly: number, none: number, total: number }} counts
- */
-function buildDeploymentBreakdownSummary(counts) {
-  const { live, previewOnly, none, total } = counts;
-  const wrap = el('div', 'bulk-pp-status-modal-breakdown');
-  wrap.append(el(
-    'p',
-    'bulk-pp-status-modal-breakdown-lead',
-    'Deployment status for pages in this view',
-  ));
-
-  const stats = el('div', 'bulk-pp-status-modal-stats');
-  /**
-   * @param {number} value
-   * @param {string} label
-   * @param {string} mod
-   */
-  const statItem = (value, label, mod) => {
-    const item = el('div', `bulk-pp-status-modal-stat ${mod}`);
-    item.append(
-      el('span', 'bulk-pp-status-modal-stat-value', String(value)),
-      el('span', 'bulk-pp-status-modal-stat-label', label),
-    );
-    return item;
-  };
-
-  stats.append(
-    statItem(live, 'Published (live)', 'bulk-pp-status-modal-stat-live'),
-    statItem(previewOnly, 'Preview only', 'bulk-pp-status-modal-stat-preview'),
-    statItem(none, DEPLOYMENT_NONE_LABEL, 'bulk-pp-status-modal-stat-none'),
-    statItem(total, 'Total in view', 'bulk-pp-status-modal-stat-total'),
-  );
-  wrap.append(stats);
-  return wrap;
-}
-
-/**
- * @param {{
- *   live: number,
- *   previewOnly: number,
- *   none: number,
- *   total: number,
- *   onClose: () => void,
- * }} opts
- */
-export function showStatusFetchCompleteModal(opts) {
-  if (!modalRef || modalRef.kind !== 'status') return;
-  const { live, previewOnly, none, total, onClose } = opts;
-  const { panel } = modalRef;
-  panel.classList.add('bulk-pp-status-modal-complete-body');
-  replacePanel(panel, [
-    el('p', 'bulk-pp-status-modal-success-icon', '✓'),
-    el('h3', 'bulk-pp-status-modal-complete-title', 'Deployment status loaded'),
-    buildDeploymentBreakdownSummary({ live, previewOnly, none, total }),
-    el(
-      'p',
-      'bulk-pp-status-modal-hint',
-      'Use filters and the status key in the Pages panel to review results. Close to continue browsing.',
-    ),
-    actionRow([closeActionBtn(onClose)]),
-  ]);
-  setHeadTitle('Deployment status ready');
-  finalizeStatusFetchModalHead();
-}
-
-/**
- * @param {{ message: string, onClose: () => void }} opts
- */
-export function showStatusFetchCancelledModal(opts) {
-  if (!modalRef || modalRef.kind !== 'status') return;
-  const { message, onClose } = opts;
-  replacePanel(modalRef.panel, [
-    el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-stopped-title', 'Deployment status fetch stopped'),
-    el('p', 'bulk-pp-status-modal-summary', message),
-    actionRow([closeActionBtn(onClose)]),
-  ]);
-  setHeadTitle('Fetch stopped');
-  finalizeStatusFetchModalHead();
-}
-
-/**
- * @param {{ message: string, onClose: () => void, hint?: string }} opts
- */
-export function showStatusFetchErrorModal(opts) {
-  if (!modalRef || modalRef.kind !== 'status') return;
-  const { message, onClose, hint = '' } = opts;
-  const body = [
-    el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-error-title', 'Could not fetch deployment status'),
-    el('p', 'bulk-pp-status-modal-summary bulk-pp-status-modal-error', message),
-  ];
-  if (hint) {
-    body.push(el('p', 'bulk-pp-status-modal-hint bulk-pp-status-modal-error-hint', hint));
-  }
-  body.push(actionRow([closeActionBtn(onClose)]));
-  replacePanel(modalRef.panel, body);
-  setHeadTitle('Fetch failed');
-  finalizeStatusFetchModalHead();
-}
-
-/**
- * @param {JobTopic} topic
- */
-function jobCompleteTitle(topic) {
-  if (topic === 'live') return 'Publish complete';
-  if (topic === 'unpreview') return 'Preview removed';
-  if (topic === 'unpublish') return 'Unpublished from live';
-  if (topic === 'delete') return 'Delete complete';
-  return 'Preview complete';
-}
-
-/**
- * @param {JobTopic} topic
- */
-function jobHeadCompleteTitle(topic) {
-  if (topic === 'live') return 'Publish finished';
-  if (topic === 'unpreview') return 'Unpreview finished';
-  if (topic === 'unpublish') return 'Unpublish finished';
-  if (topic === 'delete') return 'Delete finished';
-  return 'Preview finished';
 }
 
 /**
@@ -732,6 +324,28 @@ function buildJobUrlResults(urls, host) {
   listWrap.append(list);
   section.append(listWrap);
   return section;
+}
+
+/**
+ * @param {JobTopic} topic
+ */
+function jobCompleteTitle(topic) {
+  if (topic === 'live') return 'Publish complete';
+  if (topic === 'unpreview') return 'Preview removed';
+  if (topic === 'unpublish') return 'Unpublished from live';
+  if (topic === 'delete') return 'Delete complete';
+  return 'Preview complete';
+}
+
+/**
+ * @param {JobTopic} topic
+ */
+function jobHeadCompleteTitle(topic) {
+  if (topic === 'live') return 'Publish finished';
+  if (topic === 'unpreview') return 'Unpreview finished';
+  if (topic === 'unpublish') return 'Unpublish finished';
+  if (topic === 'delete') return 'Delete finished';
+  return 'Preview finished';
 }
 
 /**

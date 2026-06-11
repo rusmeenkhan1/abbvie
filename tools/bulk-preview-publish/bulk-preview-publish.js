@@ -14,6 +14,8 @@ import {
   DA_LOGIN_REQUIRED_MESSAGE,
   DA_SITE_CONTEXT_MESSAGE,
   isDaAccessError,
+  isStatusPermissionError,
+  STATUS_ACCESS_DENIED_MESSAGE,
 } from './lib/api.js';
 import {
   displayFolderPath,
@@ -232,15 +234,6 @@ function syncUrlPath(ref, folderPath) {
   const qs = params.toString();
   const url = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
   window.history.replaceState(null, '', url);
-}
-
-function createPanel(title, extraClass = '') {
-  const panel = el('section', `bulk-pp-panel ${extraClass}`.trim());
-  const head = el('div', 'bulk-pp-panel-head');
-  head.append(el('h2', null, title));
-  const body = el('div', 'bulk-pp-panel-body');
-  panel.append(head, body);
-  return { panel, body };
 }
 
 /**
@@ -471,21 +464,6 @@ function buildPageRow(page, entry, browseFolder, state, showStatus, siteCtx, int
 }
 
 /**
- * @param {ReturnType<typeof createAppState>} state
- * @param {'preview'|'live'} env
- * @returns {string[]}
- */
-function collectDeployedHelixPaths(state, env) {
-  return state.pages
-    .map((p) => p.helixPath)
-    .filter((helixPath) => {
-      const entry = state.platformStatus[helixPath];
-      if (env === 'live') return Boolean(entry?.publishedAt);
-      return Boolean(entry?.previewedAt);
-    });
-}
-
-/**
  * @param {string[]} urls
  * @param {ReturnType<typeof createAppState>} [state]
  */
@@ -651,11 +629,6 @@ function isSelectionActionsBlocked(state) {
  * @param {HTMLButtonElement} btn
  * @param {ReturnType<typeof createAppState>} state
  * @param {PageOperationId} operationId
- */
-/**
- * @param {HTMLButtonElement} btn
- * @param {ReturnType<typeof createAppState>} state
- * @param {PageOperationId} operationId
  * @param {string} label
  * @param {'default' | 'deploy' | 'primary'} [variant]
  */
@@ -798,7 +771,6 @@ function formatSelectionBarText(count) {
  */
 function applyOperationWorkspaceReset(state) {
   clearPageWorkspaceAfterOperation(state);
-  clearPagesStatusDisplay(state);
   const root = /** @type {HTMLElement | null} */ (state.root);
   closeProgressModal(root);
   if (!root) return;
@@ -860,7 +832,6 @@ function clearPagesStatusDisplay(state) {
   state.statusCheckFailed = false;
   state.statusError = null;
   state.statusPanelNote = null;
-  resetFetchStatusOption(state);
 }
 
 /**
@@ -893,6 +864,7 @@ function refreshDeploymentUi(state) {
   syncStatusFetchLockUi(root, state);
   syncFirstSessionLockUi(root, state);
   patchPagesStatusSummary(root, state);
+  patchPagesStatusNotice(root, state);
   patchPagesStatusLoading(root, state);
   patchPagesFilterControls(root, state);
   patchPageSearchResults(
@@ -989,8 +961,16 @@ async function refreshPlatformStatusAfterJob(state, daFetch, paths, topic) {
   if (!daFetch || paths.length === 0) return;
   if (topic === 'delete') {
     removePathsFromStatusCache(state.org, state.site, state.ref, paths);
+    refreshDeploymentUi(state);
     return;
   }
+
+  const optimistic = buildOptimisticStatusPatch(topic, paths, state.platformStatus);
+  if (Object.keys(optimistic).length > 0) {
+    commitPlatformStatus(state, optimistic);
+    refreshDeploymentUi(state);
+  }
+
   try {
     const refreshed = await fetchPlatformStatusForPaths(
       daFetch,
@@ -1002,11 +982,8 @@ async function refreshPlatformStatusAfterJob(state, daFetch, paths, topic) {
     commitPlatformStatus(state, refreshed);
   } catch (refreshErr) {
     console.warn('[bulk-pp] status refresh after job failed', refreshErr);
-    const optimistic = buildOptimisticStatusPatch(topic, paths, state.platformStatus);
-    if (Object.keys(optimistic).length > 0) {
-      commitPlatformStatus(state, optimistic);
-    }
   }
+  refreshDeploymentUi(state);
 }
 
 /**
@@ -1083,6 +1060,35 @@ async function runRemovePartitionJob(state, daFetch, partition, paths, phaseLabe
   return resolveJobOutcome(finalJob);
 }
 
+/**
+ * @param {string} message
+ */
+function formatStatusAccessMessage(message) {
+  return isStatusPermissionError(message)
+    ? STATUS_ACCESS_DENIED_MESSAGE
+    : message;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function buildPagesStatusNotice(state) {
+  if (state.statusPanelNote) {
+    return el('p', 'bulk-pp-status-note', state.statusPanelNote);
+  }
+  if (state.statusCheckFailed && state.statusError && state.pages.length > 0) {
+    const note = el(
+      'p',
+      'bulk-pp-status-note bulk-pp-status-note-error',
+      formatStatusAccessMessage(state.statusError),
+    );
+    note.id = 'bulk-pp-pages-status-notice';
+    note.setAttribute('role', 'alert');
+    return note;
+  }
+  return null;
+}
+
 function buildStatusLegend() {
   const legend = el('div', 'bulk-pp-status-legend');
   legend.setAttribute('aria-label', 'Deployment status key');
@@ -1108,6 +1114,21 @@ function buildPagesStatusSummary(state) {
     return buildPagesStatusSummaryLoading();
   }
   const helixPaths = state.pages.map((p) => p.helixPath);
+  const hasAnyStatus = helixPaths.some((path) => {
+    const entry = state.platformStatus[path];
+    return Boolean(entry?.previewedAt || entry?.publishedAt);
+  });
+  if (state.statusCheckFailed && state.statusError && !hasAnyStatus) {
+    const strip = el('div', 'bulk-pp-pages-summary bulk-pp-pages-summary-error');
+    strip.id = 'bulk-pp-pages-summary';
+    strip.setAttribute('aria-label', 'Deployment status unavailable');
+    strip.append(el(
+      'span',
+      'bulk-pp-pages-summary-error-text',
+      formatStatusAccessMessage(state.statusError),
+    ));
+    return strip;
+  }
   const { live, previewOnly, none, total } = deploymentCountsForPaths(
     state.platformStatus,
     helixPaths,
@@ -1302,11 +1323,23 @@ function patchPagesStatusSummary(root, state) {
 }
 
 /**
- * Uncheck legacy fetch flag after a status run finishes.
+ * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
  */
-function resetFetchStatusOption(state) {
-  state.fetchStatus = false;
+function patchPagesStatusNotice(root, state) {
+  const existing = root.querySelector('#bulk-pp-pages-status-notice');
+  const next = buildPagesStatusNotice(state);
+  if (existing && !next) {
+    existing.remove();
+    return;
+  }
+  if (!next) return;
+  if (existing) {
+    existing.replaceWith(next);
+    return;
+  }
+  const controls = root.querySelector('.bulk-pp-pages-controls');
+  if (controls) controls.prepend(next);
 }
 
 /**
@@ -1428,8 +1461,6 @@ function render(root, state) {
   root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
   syncStatusFetchLockUi(root, state);
   syncFirstSessionLockUi(root, state);
-  const hasWorkspace = !contentLoading && !error
-    && (state.pages.length > 0 || state.folders.length > 0 || statusChecking);
   const header = el('header', 'bulk-pp-header');
   const headerInner = el('div', 'bulk-pp-header-inner');
   const headerBrand = el('div', 'bulk-pp-header-brand');
@@ -1551,6 +1582,9 @@ function render(root, state) {
     );
     toolbarRow.append(filterField);
     controls.append(toolbarRow);
+
+    const statusNotice = buildPagesStatusNotice(state);
+    if (statusNotice) controls.append(statusNotice);
 
     if (state.pages.length > 0 && !isFirstSessionStatusPending(state)) {
       const legendRow = el('div', 'bulk-pp-pages-legend-row');
@@ -1726,7 +1760,6 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusFetchBackground = false;
     state.statusFetched = false;
     markInitialStatusFetchComplete(state);
-    resetFetchStatusOption(state);
     state.status = folderCount === 0 && docCount === 0
       ? `No folders or pages in ${location}.`
       : `Loaded ${docCount} page(s) in ${location}.`;
@@ -1747,7 +1780,6 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusProgressTotal = pathsToCheck.length;
     state.statusAbort = null;
     state.statusFetchStartedAt = null;
-    resetFetchStatusOption(state);
     state.status = null;
     state.statusType = 'info';
     refreshDeploymentUi(state);
@@ -1792,7 +1824,6 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusFetchStartedAt = null;
     state.statusProgressDone = pathsToCheck.length;
     state.statusProgressTotal = pathsToCheck.length;
-    resetFetchStatusOption(state);
     state.status = null;
     state.statusType = 'info';
     refreshDeploymentUi(state);
@@ -1803,7 +1834,6 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       state.statusFetchBackground = false;
       state.statusAbort = null;
       state.statusFetchStartedAt = null;
-      resetFetchStatusOption(state);
       const root = /** @type {HTMLElement | null} */ (state.root);
       const checked = state.statusProgressDone;
       const total = state.statusProgressTotal;
@@ -1825,8 +1855,6 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     state.statusFetchBackground = false;
     state.statusAbort = null;
     state.statusFetchStartedAt = null;
-    resetFetchStatusOption(state);
-
     const hadProgress = state.statusProgressDone > 0;
     const root = /** @type {HTMLElement | null} */ (state.root);
     if (hadProgress) {
@@ -1834,7 +1862,9 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       state.statusFetched = true;
       markInitialStatusFetchComplete(state);
       state.statusCheckFailed = true;
-      state.statusError = messageFromApiError(statusErr, 'Status check failed.', 'status');
+      state.statusError = formatStatusAccessMessage(
+        messageFromApiError(statusErr, 'Status check failed.', 'status'),
+      );
       state.status = `${state.statusError} Partial results were saved.`;
       state.statusType = 'error';
     } else if (hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)) {
@@ -1849,7 +1879,9 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
       state.statusFetched = false;
       markInitialStatusFetchComplete(state);
       state.statusCheckFailed = true;
-      state.statusError = messageFromApiError(statusErr, 'Status check failed.', 'status');
+      state.statusError = formatStatusAccessMessage(
+        messageFromApiError(statusErr, 'Status check failed.', 'status'),
+      );
       state.status = state.statusError;
       state.statusType = 'error';
     }
@@ -1907,7 +1939,6 @@ async function main() {
     const checked = state.statusProgressDone;
     const total = state.statusProgressTotal;
     cancelStatusCheck(state, false);
-    resetFetchStatusOption(state);
     state.statusChecking = false;
     state.statusFetchBackground = false;
     if (checked > 0) {

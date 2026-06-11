@@ -246,10 +246,28 @@ export function buildOptimisticStatusPatch(topic, helixPaths, existing = {}) {
  * @param {ReturnType<import('./state.js').createAppState>} state
  * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
  */
+function mergeStatusEntries(a, b) {
+  const previewedAt = Math.max(a?.previewedAt || 0, b?.previewedAt || 0);
+  const publishedAt = Math.max(a?.publishedAt || 0, b?.publishedAt || 0);
+  /** @type {{ previewedAt?: number, publishedAt?: number }} */
+  const merged = {};
+  if (previewedAt > 0) merged.previewedAt = previewedAt;
+  if (publishedAt > 0) merged.publishedAt = publishedAt;
+  return merged;
+}
+
 export function commitPlatformStatus(state, platformStatus) {
   if (!platformStatus || typeof platformStatus !== 'object') return;
-  state.platformStatus = { ...state.platformStatus, ...platformStatus };
-  mergePlatformStatusIntoCache(state.org, state.site, state.ref, platformStatus);
+  const next = { ...state.platformStatus };
+  /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
+  const mergedPatch = {};
+  Object.entries(platformStatus).forEach(([path, entry]) => {
+    const merged = mergeStatusEntries(next[path], entry);
+    next[path] = merged;
+    mergedPatch[path] = merged;
+  });
+  state.platformStatus = next;
+  mergePlatformStatusIntoCache(state.org, state.site, state.ref, mergedPatch);
 }
 
 /**

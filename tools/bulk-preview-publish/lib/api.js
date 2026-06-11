@@ -145,10 +145,21 @@ export function messageFromApiError(err, fallback = 'Operation failed.', operati
  * @param {string} message
  * @returns {string}
  */
+export const STATUS_ACCESS_DENIED_MESSAGE =
+  'You do not have access to fetch deployment status for these pages. Ask your AEM administrator for the required preview/publish permissions.';
+
+/**
+ * @param {string} message
+ * @returns {boolean}
+ */
+export function isStatusPermissionError(message) {
+  const text = String(message || '');
+  return /not permitted|permission|forbidden|not authorized|access denied|do not have access/i.test(text);
+}
+
 export function permissionErrorHint(status, message) {
   const text = String(message || '');
-  const looksForbidden = status === 403
-    || /not permitted|permission|forbidden|not authorized|access denied/i.test(text);
+  const looksForbidden = status === 403 || isStatusPermissionError(text);
   if (!looksForbidden) return '';
   return 'You may lack the AEM or Document Authoring role needed for this action. Contact your site administrator to request preview, publish, or content access.';
 }
