@@ -243,7 +243,7 @@ tools/bulk-preview-publish/
 
 - SDK: `https://da.live/nx/utils/sdk.js`  
 - Pages only (not `metadata`, spreadsheets, etc.)  
-- Status fetch: bulk POST with explicit paths (sync for &lt;10 pages) → per-page fallback via 10-worker pool (status GET only on small sets)  
+- Status fetch: &lt;10 pages → per-page parallel (status GET, then preview/live fallback); 10+ → bulk POST with explicit web paths, then per-page for gaps  
 - Job poll: 60 × 2s max; async when >5 paths or delete  
 
 ---

@@ -1185,14 +1185,13 @@ async function fetchPathKeyLiveGet(daFetch, org, site, ref, pathKey, best) {
   });
 }
 
-async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath, options = {}) {
+async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath) {
   assertAdminContext(org, site, ref);
 
   if (isHardcodeIndexTest() && isIndexHelixPath(helixPath)) {
     return fetchHardcodedIndexStatus(daFetch, org, site, ref);
   }
 
-  const fast = options.fast === true;
   const pathKeys = helixPathToStatusPathKeys(helixPath);
   /** @type {{ previewedAt?: number, publishedAt?: number }} */
   let best = {};
@@ -1201,11 +1200,6 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath,
   for (let i = 0; i < pathKeys.length; i += 1) {
     const pathKey = pathKeys[i];
     let entry = await fetchPathKeyStatusGet(daFetch, org, site, ref, pathKey);
-    if (fast) {
-      if (entry.previewedAt || entry.publishedAt) return entry;
-      best = mergeStatusTimestamps(best, entry);
-      continue;
-    }
     if (entry.previewedAt && entry.publishedAt) return entry;
     if (entry.previewedAt || entry.publishedAt) {
       if (entry.publishedAt) return entry;
@@ -1425,10 +1419,18 @@ function throwIfStatusAborted(signal) {
  * @param {string[]} helixPaths
  * @param {AbortSignal} [signal]
  */
+function helixPathsToStatusBulkPaths(helixPaths) {
+  return dedupePaths(helixPaths.map((helix) => {
+    const web = helixToWebPath(helix);
+    if (!web || web === '/') return '/';
+    return web.startsWith('/') ? web : `/${web}`;
+  }));
+}
+
 async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths, signal) {
   assertAdminContext(org, site, ref);
   throwIfStatusAborted(signal);
-  const paths = dedupePaths(helixPaths);
+  const paths = helixPathsToStatusBulkPaths(helixPaths);
   const url = `${adminApiBase}/status/${org}/${site}/${ref}/${ADMIN_STATUS_POST_SUFFIX}`;
   const resp = await daFetch(url, {
     method: 'POST',
@@ -1494,7 +1496,7 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths, sign
  * @param {(partial: Record<string, { previewedAt?: number, publishedAt?: number }>, done: number) => void} [onProgress]
  * @param {AbortSignal} [signal]
  */
-async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgress, signal, options = {}) {
+async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgress, signal) {
   const unique = dedupePaths(helixPaths);
   if (unique.length === 0) return {};
 
@@ -1503,7 +1505,6 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgre
   let nextIndex = 0;
   let done = 0;
   const workers = Math.min(STATUS_PARALLEL_BATCH_SIZE, unique.length);
-  const pageOptions = options.fast ? { fast: true } : {};
 
   const worker = async () => {
     while (nextIndex < unique.length) {
@@ -1511,14 +1512,7 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgre
       const path = unique[nextIndex];
       nextIndex += 1;
       try {
-        result[path] = await fetchSinglePagePlatformStatus(
-          daFetch,
-          org,
-          site,
-          ref,
-          path,
-          pageOptions,
-        );
+        result[path] = await fetchSinglePagePlatformStatus(daFetch, org, site, ref, path);
       } catch (err) {
         if (err instanceof Error && /authorized|too many status/i.test(err.message)) throw err;
         result[path] = {};
@@ -1579,47 +1573,69 @@ export async function fetchPlatformStatusForPaths(
   const useBulk = typeof window !== 'undefined' && (() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has('noBulkStatus')) return false;
-    return !params.has('noBulk');
+    if (unique.length < STATUS_FAST_PER_PAGE_MAX) return false;
+    return !params.has('noBulk') && (params.has('bulkStatus') || unique.length >= STATUS_FAST_PER_PAGE_MAX);
   })();
 
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   let result = {};
+  /** @type {string[]} */
+  const bulkMatched = [];
 
   if (useBulk) {
     try {
       throwIfAborted();
       result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique, signal);
-      if (onProgress) onProgress({ ...result }, unique.length, unique.length);
-      return result;
+      unique.forEach((p) => {
+        if (hasPlatformStatus(result[p])) bulkMatched.push(p);
+      });
     } catch (bulkErr) {
       if (new URLSearchParams(window.location.search).has('debug')) {
         // eslint-disable-next-line no-console
         console.debug('[bulk-pp] bulk status failed', bulkErr, describeAdminEndpoints(org, site, ref, unique[0]));
       }
-      result = {};
     }
   }
 
-  const reportProgress = (done) => {
+  const missing = unique.filter((p) => !hasPlatformStatus(result[p]));
+  const toFetch = useBulk && bulkMatched.length > 0 ? missing : unique;
+  const alreadyResolved = unique.length - toFetch.length;
+
+  const reportProgress = (doneInBatch) => {
     if (!onProgress) return;
-    onProgress({ ...result }, done, unique.length);
+    const checked = Math.min(alreadyResolved + doneInBatch, unique.length);
+    onProgress({ ...result }, checked, unique.length);
   };
 
-  const filled = await fetchStatusParallel(
-    daFetch,
-    org,
-    site,
-    ref,
-    unique,
-    (partial, done) => {
-      Object.assign(result, partial);
-      reportProgress(done);
-    },
-    signal,
-    { fast: unique.length < STATUS_FAST_PER_PAGE_MAX },
-  );
+  if (useBulk && alreadyResolved > 0 && onProgress) {
+    reportProgress(0);
+  }
+
+  if (toFetch.length > 0) {
+    const filled = await fetchStatusParallel(
+      daFetch,
+      org,
+      site,
+      ref,
+      toFetch,
+      (partial, done) => {
+        toFetch.forEach((p) => {
+          const entry = partial[p];
+          if (hasPlatformStatus(entry)) result[p] = entry;
+        });
+        reportProgress(done);
+      },
+      signal,
+    );
+    toFetch.forEach((p) => {
+      const entry = filled[p];
+      if (hasPlatformStatus(entry)) result[p] = entry;
+      else if (!result[p]) result[p] = {};
+    });
+  }
+
   unique.forEach((p) => {
-    if (filled[p]) result[p] = filled[p];
+    if (!result[p]) result[p] = {};
   });
 
   if (onProgress) onProgress({ ...result }, unique.length, unique.length);
