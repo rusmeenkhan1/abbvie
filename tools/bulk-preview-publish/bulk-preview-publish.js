@@ -18,6 +18,10 @@ import {
   STATUS_ACCESS_DENIED_MESSAGE,
 } from './lib/api.js';
 import {
+  readBrowseLocation,
+  writeBrowseLocation,
+} from './lib/browse-persist.js';
+import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
@@ -224,16 +228,23 @@ function resolveSiteContext(context) {
   return { org, site, ref };
 }
 
-function syncUrlPath(ref, folderPath) {
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function syncBrowseLocation(state) {
+  const { org, site, ref, folderPath, pageScope } = state;
   const params = new URLSearchParams(window.location.search);
   if (ref && ref !== 'main') params.set('ref', ref);
   else params.delete('ref');
   const normalized = normalizeFolderPath(folderPath);
   if (normalized) params.set('path', normalized);
   else params.delete('path');
+  if (pageScope === 'tree') params.set('scope', 'tree');
+  else params.delete('scope');
   const qs = params.toString();
   const url = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
   window.history.replaceState(null, '', url);
+  writeBrowseLocation(org, site, ref, normalized, pageScope);
 }
 
 /**
@@ -823,9 +834,8 @@ function patchPagesFilterControls(root, state) {
 function clearPagesStatusDisplay(state) {
   if (state.statusChecking) {
     persistCurrentPlatformStatus(state);
-    cancelStatusCheck(state, false);
-    state.statusChecking = false;
   }
+  cancelStatusCheck(state, false);
   state.pageFilter = 'all';
   state.statusFetched = false;
   state.platformStatus = {};
@@ -961,13 +971,23 @@ async function refreshPlatformStatusAfterJob(state, daFetch, paths, topic) {
   if (!daFetch || paths.length === 0) return;
   if (topic === 'delete') {
     removePathsFromStatusCache(state.org, state.site, state.ref, paths);
+    const next = { ...state.platformStatus };
+    paths.forEach((path) => {
+      delete next[path];
+    });
+    state.platformStatus = next;
     refreshDeploymentUi(state);
     return;
   }
 
+  const isRemoval = topic === 'unpreview' || topic === 'unpublish';
   const optimistic = buildOptimisticStatusPatch(topic, paths, state.platformStatus);
   if (Object.keys(optimistic).length > 0) {
-    commitPlatformStatus(state, optimistic);
+    commitPlatformStatus(
+      state,
+      optimistic,
+      isRemoval ? { replacePaths: paths } : undefined,
+    );
     refreshDeploymentUi(state);
   }
 
@@ -979,7 +999,11 @@ async function refreshPlatformStatusAfterJob(state, daFetch, paths, topic) {
       state.ref,
       paths,
     );
-    commitPlatformStatus(state, refreshed);
+    commitPlatformStatus(
+      state,
+      refreshed,
+      isRemoval ? { replacePaths: paths, removalTopic: topic } : undefined,
+    );
   } catch (refreshErr) {
     console.warn('[bulk-pp] status refresh after job failed', refreshErr);
   }
@@ -1771,7 +1795,8 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
   const root = /** @type {HTMLElement | null} */ (state.root);
   hydratePlatformStatusFromCache(state, pathsToCheck);
 
-  if (hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)) {
+  // First-session load only: show cached dots immediately, refresh silently in background.
+  if (background && hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)) {
     state.statusChecking = false;
     state.statusFetchBackground = false;
     state.statusFetched = true;
@@ -1788,13 +1813,12 @@ function startStatusCheck(state, daFetch, pathsToCheck, location, docCount, fold
     return;
   }
 
-  const pathsToFetch = getUncachedHelixPaths(
-    state.org,
-    state.site,
-    state.ref,
-    pathsToCheck,
-  );
-  const cachedCount = pathsToCheck.length - pathsToFetch.length;
+  const pathsToFetch = background
+    ? getUncachedHelixPaths(state.org, state.site, state.ref, pathsToCheck)
+    : pathsToCheck;
+  const cachedCount = background
+    ? pathsToCheck.length - pathsToFetch.length
+    : 0;
   state.statusProgressDone = cachedCount;
   state.statusProgressTotal = pathsToCheck.length;
 
@@ -1932,8 +1956,19 @@ async function main() {
   const urlRef = urlParams.get('ref');
   if (urlRef) state.ref = urlRef;
   const urlPath = urlParams.get('path');
-  if (urlPath) state.folderPath = resolveContentFolderPath(normalizeFolderPath(urlPath));
-  syncUrlPath(state.ref, state.folderPath);
+  const urlScope = urlParams.get('scope');
+  const persisted = readBrowseLocation(ctx.org, ctx.site, state.ref);
+  if (urlPath) {
+    state.folderPath = resolveContentFolderPath(normalizeFolderPath(urlPath));
+  } else if (persisted?.folderPath) {
+    state.folderPath = resolveContentFolderPath(persisted.folderPath);
+  }
+  if (urlScope === 'tree' || urlScope === 'folder') {
+    state.pageScope = urlScope;
+  } else if (persisted?.pageScope) {
+    state.pageScope = persisted.pageScope;
+  }
+  syncBrowseLocation(state);
 
   state.onCancelStatus = () => {
     const checked = state.statusProgressDone;
@@ -1984,7 +2019,7 @@ async function main() {
     state.pageSearch = '';
     state.folderSearch = '';
     state.pageFilter = 'all';
-    syncUrlPath(state.ref, state.folderPath);
+    syncBrowseLocation(state);
     await state.onFetch(true);
   };
 
@@ -1995,6 +2030,7 @@ async function main() {
     closeProgressModal(/** @type {HTMLElement} */ (app));
     state.pageScope = next;
     clearPagesStatusDisplay(state);
+    syncBrowseLocation(state);
     await state.onFetch(true);
   };
 
@@ -2018,7 +2054,7 @@ async function main() {
       return;
     }
 
-    syncUrlPath(state.ref, state.folderPath);
+    syncBrowseLocation(state);
     cancelStatusCheck(state, false);
     state.contentLoading = true;
     state.error = null;
@@ -2304,6 +2340,9 @@ async function main() {
           statusType = 'error';
           console.warn('[bulk-pp] unpreview phase failed', phaseErr);
         }
+        if (action === 'delete' && statusType !== 'error' && !state.jobAbort?.signal.aborted) {
+          await refreshPlatformStatusAfterJob(state, daFetch, paths, 'unpreview');
+        }
       }
 
       if (state.jobAbort?.signal.aborted) return;
@@ -2325,6 +2364,9 @@ async function main() {
           notes.push(`Unpublish failed: ${messageFromApiError(phaseErr, 'Unpublish failed.', 'unpublish')}`);
           statusType = 'error';
           console.warn('[bulk-pp] unpublish phase failed', phaseErr);
+        }
+        if (action === 'delete' && statusType !== 'error' && !state.jobAbort?.signal.aborted) {
+          await refreshPlatformStatusAfterJob(state, daFetch, paths, 'unpublish');
         }
       }
 

@@ -230,11 +230,17 @@ export function buildOptimisticStatusPatch(topic, helixPaths, existing = {}) {
       return;
     }
     if (topic === 'unpreview') {
-      patch[path] = { publishedAt: prev.publishedAt };
+      /** @type {{ previewedAt?: number, publishedAt?: number }} */
+      const entry = {};
+      if (prev.publishedAt) entry.publishedAt = prev.publishedAt;
+      patch[path] = entry;
       return;
     }
     if (topic === 'unpublish') {
-      patch[path] = { previewedAt: prev.previewedAt };
+      /** @type {{ previewedAt?: number, publishedAt?: number }} */
+      const entry = {};
+      if (prev.previewedAt) entry.previewedAt = prev.previewedAt;
+      patch[path] = entry;
       return;
     }
   });
@@ -247,8 +253,37 @@ export function buildOptimisticStatusPatch(topic, helixPaths, existing = {}) {
  * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
  */
 function mergeStatusEntries(a, b) {
-  const previewedAt = Math.max(a?.previewedAt || 0, b?.previewedAt || 0);
-  const publishedAt = Math.max(a?.publishedAt || 0, b?.publishedAt || 0);
+  if (!b || typeof b !== 'object') {
+    return a?.previewedAt || a?.publishedAt ? { ...a } : {};
+  }
+
+  const hasPreviewKey = Object.prototype.hasOwnProperty.call(b, 'previewedAt');
+  const hasPublishKey = Object.prototype.hasOwnProperty.call(b, 'publishedAt');
+
+  // Optimistic remove: one partition cleared, the other kept.
+  if (!hasPreviewKey && hasPublishKey) {
+    /** @type {{ previewedAt?: number, publishedAt?: number }} */
+    const merged = {};
+    if (b.publishedAt) merged.publishedAt = b.publishedAt;
+    return merged;
+  }
+  if (hasPreviewKey && !hasPublishKey) {
+    /** @type {{ previewedAt?: number, publishedAt?: number }} */
+    const merged = {};
+    if (b.previewedAt) merged.previewedAt = b.previewedAt;
+    return merged;
+  }
+
+  if (Object.keys(b).length === 0) {
+    /** @type {{ previewedAt?: number, publishedAt?: number }} */
+    const merged = {};
+    if (a?.previewedAt) merged.previewedAt = a.previewedAt;
+    if (a?.publishedAt) merged.publishedAt = a.publishedAt;
+    return merged;
+  }
+
+  const previewedAt = Math.max(a?.previewedAt || 0, b.previewedAt || 0);
+  const publishedAt = Math.max(a?.publishedAt || 0, b.publishedAt || 0);
   /** @type {{ previewedAt?: number, publishedAt?: number }} */
   const merged = {};
   if (previewedAt > 0) merged.previewedAt = previewedAt;
@@ -256,13 +291,35 @@ function mergeStatusEntries(a, b) {
   return merged;
 }
 
-export function commitPlatformStatus(state, platformStatus) {
+/**
+ * @param {ReturnType<import('./state.js').createAppState>} state
+ * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
+ * @param {{ replacePaths?: string[], removalTopic?: 'unpreview'|'unpublish' }} [options]
+ */
+export function commitPlatformStatus(state, platformStatus, options = {}) {
   if (!platformStatus || typeof platformStatus !== 'object') return;
+  const replacePaths = options.replacePaths?.length
+    ? new Set(options.replacePaths)
+    : null;
+  const removalTopic = options.removalTopic;
   const next = { ...state.platformStatus };
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   const mergedPatch = {};
   Object.entries(platformStatus).forEach(([path, entry]) => {
-    const merged = mergeStatusEntries(next[path], entry);
+    let merged;
+    if (replacePaths?.has(path)) {
+      merged = {};
+      if (removalTopic === 'unpreview') {
+        if (entry?.publishedAt) merged.publishedAt = entry.publishedAt;
+      } else if (removalTopic === 'unpublish') {
+        if (entry?.previewedAt) merged.previewedAt = entry.previewedAt;
+      } else {
+        if (entry?.previewedAt) merged.previewedAt = entry.previewedAt;
+        if (entry?.publishedAt) merged.publishedAt = entry.publishedAt;
+      }
+    } else {
+      merged = mergeStatusEntries(next[path], entry);
+    }
     next[path] = merged;
     mergedPatch[path] = merged;
   });
