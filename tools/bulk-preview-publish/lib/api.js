@@ -17,14 +17,10 @@ const ADMIN_STATUS_POST_SUFFIX = 'index';
 /** AEM Admin API (preview / live / status / jobs) — same host as Postman. */
 const adminApiBase = HLX_ADMIN;
 
-/** Max concurrent AEM status HTTP requests (per-page GETs). */
-export const STATUS_MAX_CONCURRENT_REQUESTS = 10;
-/** Per-page workers per wave (matches max concurrent requests). */
+/** Max concurrent per-page status GET workers. */
 export const STATUS_PARALLEL_BATCH_SIZE = 10;
-/** Pause between waves when more pages remain (light 429 guard). */
-export const STATUS_BATCH_PAUSE_MS = 40;
-/** Helix paths per bulk status POST body (one POST at a time). */
-export const STATUS_BULK_PATH_CHUNK_SIZE = 50;
+/** Poll interval while waiting for a bulk status job (ms). */
+const STATUS_BULK_POLL_MS = 1500;
 
 /**
  * Pass through to DA SDK daFetch (adds Bearer + x-content-source-authorization on admin.hlx.page).
@@ -675,44 +671,6 @@ async function sleep(ms) {
   return new Promise((resolve) => { setTimeout(resolve, ms); });
 }
 
-let statusFetchInFlight = 0;
-/** @type {Array<() => void>} */
-const statusFetchWaitQueue = [];
-
-/**
- * Cap concurrent AEM status HTTP calls.
- */
-async function acquireStatusFetchSlot() {
-  if (statusFetchInFlight < STATUS_MAX_CONCURRENT_REQUESTS) {
-    statusFetchInFlight += 1;
-    return;
-  }
-  await new Promise((resolve) => {
-    statusFetchWaitQueue.push(resolve);
-  });
-  statusFetchInFlight += 1;
-}
-
-function releaseStatusFetchSlot() {
-  statusFetchInFlight = Math.max(0, statusFetchInFlight - 1);
-  const next = statusFetchWaitQueue.shift();
-  if (next) next();
-}
-
-/**
- * @param {Function} daFetch
- * @param {string} url
- * @param {RequestInit} [init]
- */
-async function statusHttpFetch(daFetch, url, init) {
-  await acquireStatusFetchSlot();
-  try {
-    return await daFetchWithRetry(daFetch, url, init);
-  } finally {
-    releaseStatusFetchSlot();
-  }
-}
-
 /**
  * @param {Function} daFetch
  * @param {string} jobUrl
@@ -725,8 +683,9 @@ async function fetchJobDetails(daFetch, jobUrl) {
   return null;
 }
 
-export async function pollJob(daFetch, jobUrl, onProgress, signal) {
+export async function pollJob(daFetch, jobUrl, onProgress, signal, options = {}) {
   const terminal = new Set(['stopped', 'succeeded', 'failed', 'cancelled']);
+  const pollMs = Number(options.pollMs) > 0 ? Number(options.pollMs) : 2000;
   let last = null;
   let notFoundCount = 0;
   const resolvedJobUrl = resolveAdminUrl(jobUrl);
@@ -761,7 +720,7 @@ export async function pollJob(daFetch, jobUrl, onProgress, signal) {
       const state = last.state || last.job?.state;
       if (state && terminal.has(String(state))) return last;
     }
-    await sleep(2000);
+    await sleep(pollMs);
     if (signal?.aborted) throw new DOMException('Job cancelled', 'AbortError');
   }
   /* eslint-enable no-await-in-loop */
@@ -1088,7 +1047,7 @@ async function fetchHardcodedIndexStatus(daFetch, org, site, ref) {
   const entry = {};
 
   try {
-    const resp = await statusHttpFetch(daFetch, previewUrl, { method: 'GET' });
+    const resp = await daFetchWithRetry(daFetch, previewUrl, { method: 'GET' });
     const data = await parseJson(resp);
     if (isHardcodeIndexTest()) {
       // eslint-disable-next-line no-console
@@ -1107,7 +1066,7 @@ async function fetchHardcodedIndexStatus(daFetch, org, site, ref) {
   }
 
   try {
-    const resp = await statusHttpFetch(daFetch, statusUrl, { method: 'GET' });
+    const resp = await daFetchWithRetry(daFetch, statusUrl, { method: 'GET' });
     const data = await parseJson(resp);
     if (isHardcodeIndexTest()) {
       // eslint-disable-next-line no-console
@@ -1132,7 +1091,7 @@ async function fetchHardcodedIndexStatus(daFetch, org, site, ref) {
  * @param {{ previewedAt?: number, publishedAt?: number }} a
  * @param {{ previewedAt?: number, publishedAt?: number }} b
  */
-function mergeStatusEntries(a, b) {
+function mergeStatusTimestamps(a, b) {
   return {
     previewedAt: a.previewedAt || b.previewedAt,
     publishedAt: a.publishedAt || b.publishedAt,
@@ -1140,38 +1099,48 @@ function mergeStatusEntries(a, b) {
 }
 
 /**
- * Preview + status GET in parallel for one path key.
  * @param {Function} daFetch
  * @param {string} org
  * @param {string} site
  * @param {string} ref
  * @param {string} pathKey
  */
-async function fetchPathKeyPreviewAndStatus(daFetch, org, site, ref, pathKey) {
-  const previewUrl = buildAdminResourceUrl('preview', org, site, ref, pathKey);
+async function fetchPathKeyStatusGet(daFetch, org, site, ref, pathKey) {
   const statusUrl = buildAdminResourceUrl('status', org, site, ref, pathKey);
+  try {
+    const statusResp = await daFetchWithRetry(daFetch, statusUrl, { method: 'GET' });
+    const statusData = await parseJson(statusResp);
+    if (statusResp.ok && statusData) return parseStatusPayload(statusData);
+  } catch {
+    // fall through to preview/live
+  }
+  return {};
+}
 
-  const [previewSettled, statusSettled] = await Promise.allSettled([
-    (async () => {
-      const resp = await statusHttpFetch(daFetch, previewUrl, { method: 'GET' });
-      const data = await parseJson(resp);
-      if (!resp.ok || !data) return {};
-      const fromPreview = entryFromPreviewBody(data);
-      const linked = await fetchLinkedStatusFromPreview(daFetch, data);
-      return mergeStatusEntries(fromPreview, linked);
-    })(),
-    (async () => {
-      const statusResp = await statusHttpFetch(daFetch, statusUrl, { method: 'GET' });
-      const statusData = await parseJson(statusResp);
-      if (!statusResp.ok || !statusData) return {};
-      return parseStatusPayload(statusData);
-    })(),
-  ]);
-
+/**
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string} pathKey
+ */
+async function fetchPathKeyPreviewGet(daFetch, org, site, ref, pathKey) {
+  const previewUrl = buildAdminResourceUrl('preview', org, site, ref, pathKey);
   /** @type {{ previewedAt?: number, publishedAt?: number }} */
-  let entry = {};
-  if (previewSettled.status === 'fulfilled') entry = mergeStatusEntries(entry, previewSettled.value);
-  if (statusSettled.status === 'fulfilled') entry = mergeStatusEntries(entry, statusSettled.value);
+  const entry = {};
+  try {
+    const resp = await daFetchWithRetry(daFetch, previewUrl, { method: 'GET' });
+    const data = await parseJson(resp);
+    if (resp.ok && data) {
+      const fromPreview = entryFromPreviewBody(data);
+      entry.previewedAt = fromPreview.previewedAt;
+      entry.publishedAt = fromPreview.publishedAt;
+      const linked = await fetchLinkedStatusFromPreview(daFetch, data);
+      return mergeStatusTimestamps(entry, linked);
+    }
+  } catch {
+    // try live next
+  }
   return entry;
 }
 
@@ -1183,11 +1152,11 @@ async function fetchPathKeyPreviewAndStatus(daFetch, org, site, ref, pathKey) {
  * @param {string} pathKey
  * @param {{ previewedAt?: number, publishedAt?: number }} best
  */
-async function fetchPathKeyLiveStatus(daFetch, org, site, ref, pathKey, best) {
+async function fetchPathKeyLiveGet(daFetch, org, site, ref, pathKey, best) {
   const url = buildAdminResourceUrl('live', org, site, ref, pathKey);
   let resp;
   try {
-    resp = await statusHttpFetch(daFetch, url, { method: 'GET' });
+    resp = await daFetchWithRetry(daFetch, url, { method: 'GET' });
   } catch (err) {
     if (err instanceof Error && /missing ims client id/i.test(err.message)) {
       throw new Error(formatAdminApiError({ message: err.message }, 0) || err.message);
@@ -1209,7 +1178,7 @@ async function fetchPathKeyLiveStatus(daFetch, org, site, ref, pathKey, best) {
   if (resp.status === 404 || !resp.ok) return best;
 
   const parsed = parseStatusPayload(data);
-  return mergeStatusEntries(best, {
+  return mergeStatusTimestamps(best, {
     publishedAt: parsed.publishedAt || partitionTimestamp(data),
   });
 }
@@ -1228,12 +1197,32 @@ async function fetchSinglePagePlatformStatus(daFetch, org, site, ref, helixPath)
   /* eslint-disable no-await-in-loop -- try path variants until one resolves */
   for (let i = 0; i < pathKeys.length; i += 1) {
     const pathKey = pathKeys[i];
-    const entry = await fetchPathKeyPreviewAndStatus(daFetch, org, site, ref, pathKey);
-    if (entry.previewedAt || entry.publishedAt) return entry;
+    let entry = await fetchPathKeyStatusGet(daFetch, org, site, ref, pathKey);
+    if (entry.previewedAt && entry.publishedAt) return entry;
+    if (entry.previewedAt || entry.publishedAt) {
+      if (entry.publishedAt) return entry;
+      entry = await fetchPathKeyLiveGet(daFetch, org, site, ref, pathKey, entry);
+      if (entry.previewedAt || entry.publishedAt) return entry;
+    }
 
-    const withLive = await fetchPathKeyLiveStatus(daFetch, org, site, ref, pathKey, entry);
-    if (withLive.previewedAt || withLive.publishedAt) return withLive;
-    best = mergeStatusEntries(best, withLive);
+    entry = mergeStatusTimestamps(entry, await fetchPathKeyPreviewGet(
+      daFetch,
+      org,
+      site,
+      ref,
+      pathKey,
+    ));
+    if (entry.previewedAt && entry.publishedAt) return entry;
+    if (entry.previewedAt || entry.publishedAt) {
+      if (entry.publishedAt) return entry;
+      entry = await fetchPathKeyLiveGet(daFetch, org, site, ref, pathKey, entry);
+      if (entry.previewedAt || entry.publishedAt) return entry;
+    } else {
+      entry = await fetchPathKeyLiveGet(daFetch, org, site, ref, pathKey, entry);
+      if (entry.previewedAt || entry.publishedAt) return entry;
+    }
+
+    best = mergeStatusTimestamps(best, entry);
   }
   /* eslint-enable no-await-in-loop */
 
@@ -1282,7 +1271,7 @@ async function fetchLinkedStatusFromPreview(daFetch, data) {
   const statusUrl = links?.status;
   if (!statusUrl || typeof statusUrl !== 'string') return {};
   try {
-    const resp = await statusHttpFetch(daFetch, statusUrl, { method: 'GET' });
+    const resp = await daFetchWithRetry(daFetch, statusUrl, { method: 'GET' });
     const json = await parseJson(resp);
     if (resp.ok && json) return parseStatusPayload(json);
   } catch {
@@ -1420,34 +1409,26 @@ function throwIfStatusAborted(signal) {
 }
 
 /**
- * One bulk status POST + job poll for explicit helix paths.
+ * One bulk status POST + job poll for all pages in the current view.
  * @param {Function} daFetch
  * @param {string} org
  * @param {string} site
  * @param {string} ref
  * @param {string[]} helixPaths
- * @param {string[]} pathSpec
  * @param {AbortSignal} [signal]
  */
-async function fetchBulkPlatformStatusOnce(
-  daFetch,
-  org,
-  site,
-  ref,
-  helixPaths,
-  pathSpec,
-  signal,
-) {
+async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths, signal) {
   assertAdminContext(org, site, ref);
   throwIfStatusAborted(signal);
+  const paths = dedupePaths(helixPaths);
   const url = `${adminApiBase}/status/${org}/${site}/${ref}/${ADMIN_STATUS_POST_SUFFIX}`;
   const resp = await daFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      paths: pathSpec,
+      paths,
       select: ['preview', 'live'],
-      forceAsync: pathSpec.length > 1,
+      forceAsync: true,
     }),
   });
   const data = await parseJson(resp);
@@ -1478,7 +1459,7 @@ async function fetchBulkPlatformStatusOnce(
   }
 
   if (!details) {
-    details = await pollJob(daFetch, jobUrl, undefined, signal);
+    details = await pollJob(daFetch, jobUrl, undefined, signal, { pollMs: STATUS_BULK_POLL_MS });
     try {
       const detailsResp = await daFetch(`${resolveAdminUrl(jobUrl)}/details`, { method: 'GET' });
       const detailsJson = await parseJson(detailsResp);
@@ -1489,52 +1470,6 @@ async function fetchBulkPlatformStatusOnce(
   }
 
   return mapStatusJobToEntries(details || {}, helixPaths);
-}
-
-/**
- * @param {string[]} helixPaths
- * @returns {string[][]}
- */
-function chunkHelixPathsForBulk(helixPaths) {
-  const unique = dedupePaths(helixPaths);
-  /** @type {string[][]} */
-  const chunks = [];
-  for (let i = 0; i < unique.length; i += STATUS_BULK_PATH_CHUNK_SIZE) {
-    chunks.push(unique.slice(i, i + STATUS_BULK_PATH_CHUNK_SIZE));
-  }
-  return chunks;
-}
-
-/**
- * @param {Function} daFetch
- * @param {string} org
- * @param {string} site
- * @param {string} ref
- * @param {string[]} helixPaths
- * @param {AbortSignal} [signal]
- */
-async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths, signal) {
-  const chunks = chunkHelixPathsForBulk(helixPaths);
-  /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
-  const merged = {};
-
-  /* eslint-disable no-await-in-loop -- one bulk POST at a time */
-  for (let i = 0; i < chunks.length; i += 1) {
-    throwIfStatusAborted(signal);
-    const partial = await fetchBulkPlatformStatusOnce(
-      daFetch,
-      org,
-      site,
-      ref,
-      helixPaths,
-      chunks[i],
-      signal,
-    );
-    Object.assign(merged, partial);
-  }
-  /* eslint-enable no-await-in-loop */
-
-  return merged;
 }
 
 /**
@@ -1553,15 +1488,19 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths, sign
  */
 async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgress, signal) {
   const unique = dedupePaths(helixPaths);
+  if (unique.length === 0) return {};
+
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   const result = {};
+  let nextIndex = 0;
   let done = 0;
+  const workers = Math.min(STATUS_PARALLEL_BATCH_SIZE, unique.length);
 
-  /* eslint-disable no-await-in-loop -- cap in-flight requests per wave */
-  for (let i = 0; i < unique.length; i += STATUS_PARALLEL_BATCH_SIZE) {
-    if (signal?.aborted) throw new DOMException('Status check cancelled', 'AbortError');
-    const batch = unique.slice(i, i + STATUS_PARALLEL_BATCH_SIZE);
-    await Promise.all(batch.map(async (path) => {
+  const worker = async () => {
+    while (nextIndex < unique.length) {
+      if (signal?.aborted) throw new DOMException('Status check cancelled', 'AbortError');
+      const path = unique[nextIndex];
+      nextIndex += 1;
       try {
         result[path] = await fetchSinglePagePlatformStatus(daFetch, org, site, ref, path);
       } catch (err) {
@@ -1570,13 +1509,10 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgre
       }
       done += 1;
       if (onProgress) onProgress({ ...result }, done);
-    }));
-    if (i + STATUS_PARALLEL_BATCH_SIZE < unique.length && STATUS_BATCH_PAUSE_MS > 0) {
-      await sleep(STATUS_BATCH_PAUSE_MS);
     }
-  }
-  /* eslint-enable no-await-in-loop */
+  };
 
+  await Promise.all(Array.from({ length: workers }, () => worker()));
   return result;
 }
 

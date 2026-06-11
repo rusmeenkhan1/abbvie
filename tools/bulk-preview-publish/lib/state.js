@@ -232,10 +232,26 @@ export function isStatusLoaded(state) {
 }
 
 /**
+ * Deployment status is still loading for the current page set (no trustworthy dots/counts yet).
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function isDeploymentStatusPending(state) {
+  return state.pages.length > 0 && state.statusChecking && !state.statusFetched;
+}
+
+/**
+ * First session: status runs in the background before any deployment data should be shown.
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function isFirstSessionStatusPending(state) {
+  return state.statusFetchBackground && isDeploymentStatusPending(state);
+}
+
+/**
  * @param {ReturnType<typeof createAppState>} state
  */
 export function shouldShowPageStatus(state) {
-  return state.statusChecking || isStatusLoaded(state);
+  return isStatusLoaded(state);
 }
 
 /**

@@ -82,6 +82,8 @@ import {
   getSelectedHelixPaths,
   getVisiblePages,
   getVisibleFolders,
+  isDeploymentStatusPending,
+  isFirstSessionStatusPending,
   isStatusFetchBlocking,
   isStatusFetchLockingUi,
   shouldShowPageStatus,
@@ -1118,12 +1120,15 @@ function buildStatusLegend() {
  * @param {ReturnType<typeof createAppState>} state
  */
 function buildPagesStatusSummary(state) {
+  if (isDeploymentStatusPending(state)) {
+    return buildPagesStatusSummaryLoading();
+  }
   const helixPaths = state.pages.map((p) => p.helixPath);
   const { live, previewOnly, none, total } = deploymentCountsForPaths(
     state.platformStatus,
     helixPaths,
   );
-  const loading = (state.statusChecking && !state.statusFetched) || state.statusRevalidating;
+  const loading = state.statusRevalidating;
   const strip = el('div', `bulk-pp-pages-summary${loading ? ' bulk-pp-pages-summary-loading' : ''}`);
   strip.id = 'bulk-pp-pages-summary';
   strip.setAttribute('aria-label', 'Deployment summary for pages in this view');
@@ -1360,12 +1365,40 @@ function buildContentLoadingPanel(isFirstLoad = false) {
       'p',
       'bulk-pp-content-loading-sub',
       isFirstLoad
-        ? 'Preparing folders and pages. Deployment status will load quietly in the background.'
+        ? 'Preparing folders and pages…'
         : 'Updating folders and pages…',
     ),
   );
   loading.append(inner);
   return loading;
+}
+
+function buildPagesListLoadingPanel() {
+  const loading = el('div', 'bulk-pp-pages-list-loading');
+  loading.id = 'bulk-pp-pages-list-loading';
+  loading.setAttribute('aria-live', 'polite');
+  const inner = el('div', 'bulk-pp-content-loading-inner');
+  const spinner = el('div', 'bulk-pp-spinner');
+  spinner.setAttribute('aria-hidden', 'true');
+  inner.append(
+    spinner,
+    el('p', 'bulk-pp-content-loading-title', 'Fetching content…'),
+    el(
+      'p',
+      'bulk-pp-content-loading-sub',
+      'Checking deployment status for pages in this view.',
+    ),
+  );
+  loading.append(inner);
+  return loading;
+}
+
+function buildPagesStatusSummaryLoading() {
+  const strip = el('div', 'bulk-pp-pages-summary bulk-pp-pages-summary-pending');
+  strip.id = 'bulk-pp-pages-summary';
+  strip.setAttribute('aria-label', 'Deployment summary loading');
+  strip.append(el('span', 'bulk-pp-pages-summary-pending-text', 'Fetching content…'));
+  return strip;
 }
 
 /**
@@ -1514,23 +1547,21 @@ function render(root, state) {
     const { filterField, filterSelect } = buildPagesFilterField(
       state,
       String(pageFilter || 'all'),
-      state.contentLoading || workspaceLocked,
+      state.contentLoading || workspaceLocked || isDeploymentStatusPending(state),
     );
     toolbarRow.append(filterField);
     controls.append(toolbarRow);
 
-    if (state.pages.length > 0) {
+    if (state.pages.length > 0 && !isFirstSessionStatusPending(state)) {
       const legendRow = el('div', 'bulk-pp-pages-legend-row');
       legendRow.id = 'bulk-pp-pages-legend-row';
       legendRow.append(buildStatusLegend());
       if (statusChecking || state.statusRevalidating) {
         const hintText = state.statusRevalidating && !statusChecking
           ? 'Refreshing status…'
-          : (state.statusFetchBackground
-            ? 'Loading deployment status in the background…'
-            : (statusChecking && !statusFetched
-              ? 'Checking deployment status…'
-              : 'Updating status…'));
+          : (statusChecking && !statusFetched
+            ? 'Checking deployment status…'
+            : 'Updating status…');
         legendRow.append(el('span', 'bulk-pp-pages-status-hint', hintText));
       }
       controls.append(legendRow);
@@ -1541,32 +1572,36 @@ function render(root, state) {
 
     const pageWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-pages bulk-pp-list-wrap-fill');
     pageWrap.id = 'bulk-pp-page-list-wrap';
-    if (state.pages.length > 0) {
-      pageWrap.append(buildPageListColumnHeader());
-    }
-    const pageList = el('ul', 'bulk-pp-list');
-    pageList.id = 'bulk-pp-page-list';
-    if (state.pages.length === 0) {
-      pageList.append(el('li', 'bulk-pp-list-empty', 'No pages in this scope.'));
-    } else if (visiblePages.length === 0) {
-      const emptyMsg = searchDraft
-        ? 'No pages match this search.'
-        : 'No pages match this filter.';
-      pageList.append(el('li', 'bulk-pp-list-empty', emptyMsg));
+    if (isFirstSessionStatusPending(state)) {
+      pageWrap.append(buildPagesListLoadingPanel());
     } else {
-      visiblePages.forEach((page) => {
-        pageList.append(buildPageRow(
-          page,
-          statusMap[page.helixPath],
-          browseFolder,
-          state,
-          shouldShowPageStatus(state),
-          { org, site, ref },
-          workspaceLocked,
-        ));
-      });
+      if (state.pages.length > 0) {
+        pageWrap.append(buildPageListColumnHeader());
+      }
+      const pageList = el('ul', 'bulk-pp-list');
+      pageList.id = 'bulk-pp-page-list';
+      if (state.pages.length === 0) {
+        pageList.append(el('li', 'bulk-pp-list-empty', 'No pages in this scope.'));
+      } else if (visiblePages.length === 0) {
+        const emptyMsg = searchDraft
+          ? 'No pages match this search.'
+          : 'No pages match this filter.';
+        pageList.append(el('li', 'bulk-pp-list-empty', emptyMsg));
+      } else {
+        visiblePages.forEach((page) => {
+          pageList.append(buildPageRow(
+            page,
+            statusMap[page.helixPath],
+            browseFolder,
+            state,
+            shouldShowPageStatus(state),
+            { org, site, ref },
+            workspaceLocked,
+          ));
+        });
+      }
+      pageWrap.append(pageList);
     }
-    pageWrap.append(pageList);
     pagesSection.append(pageWrap);
     contentGrid.append(pagesSection);
     workspace.append(contentGrid);

@@ -1926,6 +1926,28 @@ html:has(.bulk-pp-body) {
   white-space: nowrap;
 }
 
+.bulk-pp-pages-list-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 12rem;
+  padding: 32px 24px;
+}
+
+.bulk-pp-pages-summary-pending {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 2rem;
+}
+
+.bulk-pp-pages-summary-pending-text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--pp-text-muted);
+}
+
 .bulk-pp-pages-status-loading {
   display: flex;
   flex-wrap: wrap;

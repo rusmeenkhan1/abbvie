@@ -1,20 +1,16 @@
-import {
-  STATUS_BATCH_PAUSE_MS,
-  STATUS_BULK_PATH_CHUNK_SIZE,
-  STATUS_MAX_CONCURRENT_REQUESTS,
-  STATUS_PARALLEL_BATCH_SIZE,
-} from './api.js';
+import { STATUS_PARALLEL_BATCH_SIZE } from './api.js';
 
-const BATCH_PAUSE_SEC = STATUS_BATCH_PAUSE_MS / 1000;
+/** Matches fetchStatusParallel worker pool in api.js */
+const WORKER_COUNT = STATUS_PARALLEL_BATCH_SIZE;
 const BULK_MIN_PAGES = 3;
 
-/** Typical seconds per parallel wave of per-page GETs. */
-const BATCH_SEC_OPTIMISTIC = 1.6;
-const BATCH_SEC_PESSIMISTIC = 3;
+/** Typical seconds to drain pages with a 10-worker pool. */
+const PARALLEL_SEC_OPTIMISTIC = 1.5;
+const PARALLEL_SEC_PESSIMISTIC = 2.8;
 
-/** One bulk status job (POST + poll), sequential chunks. */
-const BULK_JOB_SEC_OPTIMISTIC = 3.5;
-const BULK_JOB_SEC_PESSIMISTIC = 8;
+/** Single bulk status request before per-page fallback. */
+const BULK_SEC_OPTIMISTIC = 3.5;
+const BULK_SEC_PESSIMISTIC = 7;
 
 /**
  * Share of pages that still need per-page checks after bulk (varies by site).
@@ -23,13 +19,13 @@ const BULK_JOB_SEC_PESSIMISTIC = 8;
  */
 function remainingAfterBulkRatio(pageCount, mode) {
   if (mode === 'optimistic') {
-    if (pageCount <= 20) return 0.06;
-    if (pageCount <= 80) return 0.12;
-    return 0.18;
+    if (pageCount <= 20) return 0.1;
+    if (pageCount <= 80) return 0.2;
+    return 0.28;
   }
-  if (pageCount <= 20) return 0.25;
-  if (pageCount <= 80) return 0.38;
-  return 0.5;
+  if (pageCount <= 20) return 0.35;
+  if (pageCount <= 80) return 0.5;
+  return 0.65;
 }
 
 /**
@@ -38,23 +34,11 @@ function remainingAfterBulkRatio(pageCount, mode) {
  */
 function estimateParallelSeconds(pageCount, mode) {
   if (pageCount <= 0) return 0;
-  const perBatch = mode === 'optimistic' ? BATCH_SEC_OPTIMISTIC : BATCH_SEC_PESSIMISTIC;
-  const batchSize = STATUS_PARALLEL_BATCH_SIZE || STATUS_MAX_CONCURRENT_REQUESTS;
-  const batches = Math.ceil(pageCount / batchSize);
-  const batched = batches * perBatch + Math.max(0, batches - 1) * BATCH_PAUSE_SEC;
+  const perWorkerWave = mode === 'optimistic' ? PARALLEL_SEC_OPTIMISTIC : PARALLEL_SEC_PESSIMISTIC;
+  const waves = Math.ceil(pageCount / WORKER_COUNT);
+  const pooled = waves * perWorkerWave;
   const perPageFloor = mode === 'optimistic' ? 0.12 : 0.35;
-  return Math.max(batched, pageCount * perPageFloor);
-}
-
-/**
- * @param {number} pageCount
- * @param {'optimistic' | 'pessimistic'} mode
- */
-function estimateBulkSeconds(pageCount, mode) {
-  if (pageCount < BULK_MIN_PAGES) return 0;
-  const perJob = mode === 'optimistic' ? BULK_JOB_SEC_OPTIMISTIC : BULK_JOB_SEC_PESSIMISTIC;
-  const chunks = Math.ceil(pageCount / STATUS_BULK_PATH_CHUNK_SIZE);
-  return chunks * perJob;
+  return Math.max(pooled, pageCount * perPageFloor);
 }
 
 /**
@@ -65,7 +49,7 @@ export function estimateStatusFetchSeconds(pageCount, mode = 'optimistic') {
   const n = Math.max(0, Math.floor(pageCount));
   if (n === 0) return 0;
   if (n < BULK_MIN_PAGES) return estimateParallelSeconds(n, mode);
-  const bulk = estimateBulkSeconds(n, mode);
+  const bulk = mode === 'optimistic' ? BULK_SEC_OPTIMISTIC : BULK_SEC_PESSIMISTIC;
   const remaining = Math.max(0, Math.ceil(n * remainingAfterBulkRatio(n, mode)));
   return bulk + estimateParallelSeconds(remaining, mode);
 }

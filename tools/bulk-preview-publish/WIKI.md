@@ -143,7 +143,7 @@ Shows whether each page was previewed or published.
 
 | Case | Behavior |
 |------|----------|
-| First open | Spinner while content loads; workspace appears; status fetches in background (no blur) |
+| First open | Spinner while content loads; pages panel shows **Fetching content…** until deployment status is ready (no red placeholder dots) |
 | Folder change after first visit | Inline progress bar; workspace locked until fetch completes |
 | Full cache | Instant summary/dots; background API refresh (no lock) |
 | Stop | Partial results kept; saved to cache |
@@ -243,7 +243,7 @@ tools/bulk-preview-publish/
 
 - SDK: `https://da.live/nx/utils/sdk.js`  
 - Pages only (not `metadata`, spreadsheets, etc.)  
-- Status fetch: bulk POST with explicit page paths (50 per job, one job at a time) + per-page fallback (max 10 concurrent GETs)  
+- Status fetch: one bulk POST (explicit paths) → per-page fallback via 10-worker pool (status GET tried first)  
 - Job poll: 60 × 2s max; async when >5 paths or delete  
 
 ---
