@@ -1162,6 +1162,8 @@ async function refreshPlatformStatusAfterJob(state, daFetch, paths, topic) {
       state.site,
       state.ref,
       paths,
+      undefined,
+      { folderPath: state.folderPath },
     );
     commitPlatformStatus(
       state,
@@ -2013,7 +2015,7 @@ async function revalidateCachedStatusInBackground(
         state.platformStatus = { ...state.platformStatus, ...partial };
         refreshDeploymentUi(state);
       },
-      { signal: controller.signal },
+      { signal: controller.signal, folderPath: state.folderPath },
     );
     if (
       controller.signal.aborted ||
@@ -2140,7 +2142,7 @@ function startStatusCheck(
       state.statusProgressTotal = pathsToCheck.length;
       refreshDeploymentUi(state);
     },
-    { signal: state.statusAbort.signal },
+    { signal: state.statusAbort.signal, folderPath: state.folderPath },
   )
     .then((platformStatus) => {
       if (state.statusAbort?.signal.aborted) return;

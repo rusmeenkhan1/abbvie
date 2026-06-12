@@ -1494,6 +1494,86 @@ async function fetchBulkPlatformStatus(daFetch, org, site, ref, helixPaths, sign
 }
 
 /**
+ * @param {string} folderPath
+ * @returns {string}
+ */
+function folderPathToWildcardStatusPath(folderPath) {
+  const trimmed = normalizeFolderPath(folderPath || '');
+  if (!trimmed) return '/*';
+  return `/${trimmed.replace(/^\/+/, '')}/*`;
+}
+
+/**
+ * @param {Function} daFetch
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string} folderPath
+ * @param {string[]} helixPaths
+ * @param {AbortSignal} [signal]
+ */
+async function fetchFolderWildcardPlatformStatus(
+  daFetch,
+  org,
+  site,
+  ref,
+  folderPath,
+  helixPaths,
+  signal,
+) {
+  assertAdminContext(org, site, ref);
+  throwIfStatusAborted(signal);
+  const url = `${adminApiBase}/status/${org}/${site}/${ref}/${ADMIN_STATUS_POST_SUFFIX}`;
+  const wildcardPath = folderPathToWildcardStatusPath(folderPath);
+  const resp = await daFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      paths: [wildcardPath],
+      select: ['preview', 'live'],
+      forceAsync: true,
+    }),
+  });
+  const data = await parseJson(resp);
+  if (resp.status === 401 || resp.status === 403) {
+    const msg = formatAdminApiError(data, resp.status, 'status');
+    throw createApiError(msg || `Not authorized to read page status (${resp.status}).`, resp.status, data);
+  }
+  if (!resp.ok && resp.status !== 202) {
+    const msg = formatAdminApiError(data, resp.status, 'status');
+    throw createApiError(msg || `Status check failed (${resp.status})`, resp.status, data);
+  }
+
+  const jobUrl = getJobPollUrl(data || {}, org, site, ref, 'status');
+  if (!jobUrl) {
+    if (data && typeof data === 'object') return mapStatusJobToEntries(data, helixPaths);
+    return {};
+  }
+
+  let details = null;
+  try {
+    const detailsResp = await daFetch(`${resolveAdminUrl(jobUrl)}/details`, { method: 'GET' });
+    const detailsJson = await parseJson(detailsResp);
+    if (detailsResp.ok && detailsJson) details = detailsJson;
+  } catch {
+    // fall back to poll
+  }
+
+  if (!details) {
+    details = await pollJob(daFetch, jobUrl, undefined, signal, { pollMs: STATUS_BULK_POLL_MS });
+    try {
+      const detailsResp = await daFetch(`${resolveAdminUrl(jobUrl)}/details`, { method: 'GET' });
+      const detailsJson = await parseJson(detailsResp);
+      if (detailsResp.ok && detailsJson) details = detailsJson;
+    } catch {
+      // use polled job payload
+    }
+  }
+
+  return mapStatusJobToEntries(details || {}, helixPaths);
+}
+
+/**
  * @typedef {(partial: Record<string, { previewedAt?: number, publishedAt?: number }>, checked: number, total: number) => void} StatusProgressFn
  */
 
@@ -1551,7 +1631,7 @@ function hasPlatformStatus(entry) {
  * @param {string} ref
  * @param {string[]} helixPaths
  * @param {StatusProgressFn} [onProgress]
- * @param {{ signal?: AbortSignal }} [options]
+ * @param {{ signal?: AbortSignal, folderPath?: string }} [options]
  */
 export async function fetchPlatformStatusForPaths(
   daFetch,
@@ -1562,7 +1642,7 @@ export async function fetchPlatformStatusForPaths(
   onProgress,
   options = {},
 ) {
-  const { signal } = options;
+  const { signal, folderPath = '' } = options;
 
   const throwIfAborted = () => throwIfStatusAborted(signal);
 
@@ -1593,7 +1673,37 @@ export async function fetchPlatformStatusForPaths(
   /** @type {string[]} */
   const bulkMatched = [];
 
-  if (useBulk) {
+  const shouldUseFolderWildcardBulk = typeof window !== 'undefined' && (() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('noFolderBulkStatus')) return false;
+    if (!folderPath && folderPath !== '') return false;
+    return !params.has('noBulk') && !params.has('noBulkStatus');
+  })();
+
+  if (shouldUseFolderWildcardBulk) {
+    try {
+      throwIfAborted();
+      result = await fetchFolderWildcardPlatformStatus(
+        daFetch,
+        org,
+        site,
+        ref,
+        folderPath,
+        unique,
+        signal,
+      );
+      unique.forEach((p) => {
+        if (hasPlatformStatus(result[p])) bulkMatched.push(p);
+      });
+    } catch (folderBulkErr) {
+      if (new URLSearchParams(window.location.search).has('debug')) {
+        // eslint-disable-next-line no-console
+        console.debug('[bulk-pp] folder wildcard bulk status failed', folderBulkErr);
+      }
+    }
+  }
+
+  if (useBulk && bulkMatched.length === 0) {
     try {
       throwIfAborted();
       result = await fetchBulkPlatformStatus(daFetch, org, site, ref, unique, signal);
