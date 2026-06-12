@@ -1082,7 +1082,19 @@ function buildPagesHeader(state, workspaceLocked) {
   const header = el('div', 'bulk-pp-pages-header');
   const topRow = el('div', 'bulk-pp-pages-header-top');
   const mainSection = el('div', 'bulk-pp-pages-header-main');
-  mainSection.append(buildPagesSectionHead());
+  const breadcrumb = buildBreadcrumb(
+    state.folderPath,
+    (path) => state.onNavigate(path),
+    workspaceLocked,
+  );
+  breadcrumb.classList.add('bulk-pp-pages-breadcrumb');
+  const directoryBlock = el('div', 'bulk-pp-pages-directory');
+  directoryBlock.append(
+    el('span', 'bulk-pp-pages-directory-label', 'Current directory'),
+    breadcrumb,
+    buildPagesScopeRow(state, workspaceLocked),
+  );
+  mainSection.append(buildPagesSectionHead(), directoryBlock);
 
   const aside = el('div', 'bulk-pp-pages-header-aside');
   if (state.pages.length > 0) {
@@ -1095,14 +1107,6 @@ function buildPagesHeader(state, workspaceLocked) {
   }
   topRow.append(mainSection, aside);
   header.append(topRow);
-
-  const breadcrumb = buildBreadcrumb(
-    state.folderPath,
-    (path) => state.onNavigate(path),
-    workspaceLocked,
-  );
-  breadcrumb.classList.add('bulk-pp-pages-breadcrumb');
-  header.append(breadcrumb, buildPagesScopeRow(state, workspaceLocked));
 
   return header;
 }
@@ -1410,15 +1414,15 @@ function buildPagesFilterField(state, pageFilter, contentLoading) {
 function buildRealtimeStatusButton(state) {
   const btn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-text bulk-pp-pages-refresh-status',
+    'bulk-pp-btn bulk-pp-btn-fetch-deployment bulk-pp-pages-refresh-status',
   );
   btn.type = 'button';
   btn.disabled = state.pages.length === 0
     || state.contentLoading
     || state.loading
     || state.statusChecking;
-  setAccessibilityLabel(btn, 'Fetch latest deployment status from server');
-  btn.innerHTML = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 3.5v3.2h-3.2"/></svg>';
+  setAccessibilityLabel(btn, 'Fetch latest status for listed pages');
+  btn.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 3.5v3.2h-3.2"/></svg><span>Fetch deployment status</span>';
   btn.addEventListener('click', () => {
     if (typeof state.onRefreshStatus === 'function') {
       state.onRefreshStatus();
