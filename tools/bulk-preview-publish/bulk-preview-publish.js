@@ -1087,6 +1087,7 @@ function buildPagesHeader(state, workspaceLocked) {
   const aside = el('div', 'bulk-pp-pages-header-aside');
   if (state.pages.length > 0) {
     aside.append(buildPagesStatusSummary(state));
+    aside.append(buildStatusActionCard(state));
   } else {
     const countEl = el('span', 'bulk-pp-section-count', '0');
     countEl.id = 'bulk-pp-page-count';
@@ -1102,10 +1103,6 @@ function buildPagesHeader(state, workspaceLocked) {
   );
   breadcrumb.classList.add('bulk-pp-pages-breadcrumb');
   header.append(breadcrumb, buildPagesScopeRow(state, workspaceLocked));
-
-  if (state.pages.length > 0 && state.statusFetched) {
-    header.append(buildStatusActionCard(state));
-  }
 
   return header;
 }
