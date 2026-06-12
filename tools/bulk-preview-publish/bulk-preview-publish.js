@@ -1103,6 +1103,10 @@ function buildPagesHeader(state, workspaceLocked) {
   breadcrumb.classList.add('bulk-pp-pages-breadcrumb');
   header.append(breadcrumb, buildPagesScopeRow(state, workspaceLocked));
 
+  if (state.pages.length > 0 && state.statusFetched) {
+    header.append(buildStatusActionCard(state));
+  }
+
   return header;
 }
 
@@ -1447,17 +1451,26 @@ function formatStatusFetchedAt(ts) {
 /**
  * @param {ReturnType<typeof createAppState>} state
  */
-function buildStatusFetchedAtLabel(state) {
-  const note = el('span', 'bulk-pp-pages-status-fetched-at');
+function buildStatusActionCard(state) {
+  const card = el('div', 'bulk-pp-status-action-card');
+
+  const left = el('div', 'bulk-pp-status-action-left');
+  const label = el('span', 'bulk-pp-status-action-label');
   const when = formatStatusFetchedAt(state.statusFetchedAt);
   if (!when) {
-    note.textContent = 'Status not fetched yet';
-    return note;
+    label.textContent = 'Status not fetched yet';
+  } else {
+    label.textContent = state.statusFetchedFromCache
+      ? `Last fetched at ${when} (from cache)`
+      : `Last fetched at ${when}`;
   }
-  note.textContent = state.statusFetchedFromCache
-    ? `Status fetched at ${when} (cached)`
-    : `Status fetched at ${when}`;
-  return note;
+  left.append(label);
+
+  const right = el('div', 'bulk-pp-status-action-right');
+  right.append(buildRealtimeStatusButton(state));
+
+  card.append(left, right);
+  return card;
 }
 
 /**
@@ -1718,7 +1731,7 @@ function buildPagesStatusSummaryLoading() {
   strip.id = 'bulk-pp-pages-summary';
   strip.setAttribute('aria-label', 'Deployment summary loading');
   strip.append(
-    el('span', 'bulk-pp-pages-summary-pending-text', 'Fetching content…'),
+    el('span', 'bulk-pp-pages-summary-pending-text', 'Fetching status…'),
   );
   return strip;
 }
@@ -1916,9 +1929,6 @@ function render(root, state) {
         || isDeploymentStatusPending(state),
     );
     toolbarRow.append(filterField);
-    const refreshWrap = el('div', 'bulk-pp-pages-refresh-wrap');
-    refreshWrap.append(buildRealtimeStatusButton(state), buildStatusFetchedAtLabel(state));
-    toolbarRow.append(refreshWrap);
     controls.append(toolbarRow);
 
     const statusNotice = buildPagesStatusNotice(state);
@@ -2120,18 +2130,29 @@ function startStatusCheck(
     cacheOnly = false,
     forceRefresh = false,
   } = options;
+  let pathsToFetch = pathsToCheck;
+  if (!forceRefresh) {
+    pathsToFetch = getUncachedHelixPaths(
+      state.org,
+      state.site,
+      state.ref,
+      pathsToCheck,
+    );
+  }
+  const cachedCount = pathsToCheck.length - pathsToFetch.length;
+
   cancelStatusCheck(state, false);
   state.statusCancelled = false;
   state.statusCheckFailed = false;
   state.statusError = null;
   state.statusPanelNote = null;
-  state.statusFetchBackground = !cacheOnly && background && pathsToCheck.length > 0;
-  state.statusChecking = !cacheOnly && pathsToCheck.length > 0;
-  state.statusProgressDone = 0;
+  state.statusFetchBackground = false;
+  state.statusChecking = !cacheOnly && pathsToFetch.length > 0;
+  state.statusProgressDone = cachedCount;
   state.statusProgressTotal = pathsToCheck.length;
   state.statusFetchedAt = null;
   state.statusFetchedFromCache = false;
-  state.statusFetchStartedAt = !cacheOnly && pathsToCheck.length > 0
+  state.statusFetchStartedAt = !cacheOnly && pathsToFetch.length > 0
     ? Date.now()
     : null;
   state.statusAbort = !cacheOnly ? new AbortController() : null;
@@ -2184,42 +2205,6 @@ function startStatusCheck(
     return;
   }
 
-  // Cache complete for this view: serve from local cache only.
-  if (
-    background
-    && hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)
-  ) {
-    state.statusChecking = false;
-    state.statusFetchBackground = false;
-    state.statusFetched = true;
-    markInitialStatusFetchComplete(state);
-    state.statusProgressDone = pathsToCheck.length;
-    state.statusProgressTotal = pathsToCheck.length;
-    state.statusAbort = null;
-    state.statusFetchStartedAt = null;
-    state.status = null;
-    state.statusFetchedAt = cachedCheckedAt;
-    state.statusFetchedFromCache = Boolean(cachedCheckedAt);
-    state.statusType = 'info';
-    refreshDeploymentUi(state);
-    if (root) render(root, state);
-    return;
-  }
-
-  let pathsToFetch = pathsToCheck;
-  if (forceRefresh) {
-    pathsToFetch = pathsToCheck;
-  } else if (background) {
-    pathsToFetch = getUncachedHelixPaths(
-      state.org,
-      state.site,
-      state.ref,
-      pathsToCheck,
-    );
-  }
-  const cachedCount = background
-    ? pathsToCheck.length - pathsToFetch.length
-    : 0;
   if (pathsToFetch.length === 0) {
     state.statusChecking = false;
     state.statusFetchBackground = false;
@@ -2595,7 +2580,7 @@ async function main() {
           state.folders.length,
           {
             cacheOnly: cacheOnlyStatus,
-            background: !cacheOnlyStatus,
+            background: false,
           },
         );
         render(app, state);
