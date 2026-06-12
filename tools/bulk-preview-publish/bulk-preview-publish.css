@@ -1028,8 +1028,26 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-pages-refresh-status {
   align-self: end;
+  min-width: 42px;
   min-height: 42px;
-  padding-inline: 14px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bulk-pp-pages-refresh-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.bulk-pp-pages-status-fetched-at {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: var(--pp-text-subtle);
   white-space: nowrap;
 }
 
@@ -2874,6 +2892,10 @@ html:has(.bulk-pp-body) {
 
   .bulk-pp-pages-toolbar-row {
     grid-template-columns: 1fr;
+  }
+
+  .bulk-pp-pages-refresh-wrap {
+    align-items: flex-start;
   }
 
   .bulk-pp-pages-filter-field {

@@ -32,6 +32,7 @@ import {
 import {
   buildOptimisticStatusPatch,
   commitPlatformStatus,
+  getLatestCachedStatusCheckedAt,
   getUncachedHelixPaths,
   hasCompleteCachedStatus,
   hydratePlatformStatusFromCache,
@@ -992,6 +993,8 @@ function clearPagesStatusDisplay(state) {
   cancelStatusCheck(state, false);
   state.pageFilter = 'all';
   state.statusFetched = false;
+  state.statusFetchedAt = null;
+  state.statusFetchedFromCache = false;
   state.platformStatus = {};
   state.statusCheckFailed = false;
   state.statusError = null;
@@ -1317,9 +1320,6 @@ function buildPagesStatusSummary(state) {
   if (isDeploymentStatusPending(state)) {
     return buildPagesStatusSummaryLoading();
   }
-  if (!state.statusFetched) {
-    return buildPagesStatusSummaryCachedOnly();
-  }
   const helixPaths = state.pages.map((p) => p.helixPath);
   const hasAnyStatus = helixPaths.some((path) => {
     const entry = state.platformStatus[path];
@@ -1410,14 +1410,14 @@ function buildRealtimeStatusButton(state) {
   const btn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-text bulk-pp-pages-refresh-status',
-    'Real-time status',
   );
   btn.type = 'button';
   btn.disabled = state.pages.length === 0
     || state.contentLoading
     || state.loading
     || state.statusChecking;
-  setAccessibilityLabel(btn, 'Fetch the latest deployment status from server');
+  setAccessibilityLabel(btn, 'Fetch latest deployment status from server');
+  btn.innerHTML = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 3.5v3.2h-3.2"/></svg>';
   btn.addEventListener('click', () => {
     if (typeof state.onRefreshStatus === 'function') {
       state.onRefreshStatus();
@@ -1427,10 +1427,44 @@ function buildRealtimeStatusButton(state) {
 }
 
 /**
+ * @param {number | null | undefined} ts
+ */
+function formatStatusFetchedAt(ts) {
+  if (!ts || Number.isNaN(ts)) return '';
+  const dt = new Date(ts);
+  const now = new Date();
+  if (dt.toDateString() === now.toDateString()) {
+    return dt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+  return dt.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function buildStatusFetchedAtLabel(state) {
+  const note = el('span', 'bulk-pp-pages-status-fetched-at');
+  const when = formatStatusFetchedAt(state.statusFetchedAt);
+  if (!when) {
+    note.textContent = 'Status not fetched yet';
+    return note;
+  }
+  note.textContent = state.statusFetchedFromCache
+    ? `Status fetched at ${when} (cached)`
+    : `Status fetched at ${when}`;
+  return note;
+}
+
+/**
  * @param {ReturnType<typeof createAppState>} state
  */
 function shouldShowStatusProgressBar(state) {
-  return state.hasCompletedInitialStatusFetch && isStatusFetchLockingUi(state);
+  return isStatusFetchLockingUi(state);
 }
 
 /**
@@ -1449,7 +1483,9 @@ function syncStatusFetchLockUi(root, state) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function syncFirstSessionLockUi(root, state) {
-  const locked = isFirstSessionStatusPending(state) && !state.contentLoading;
+  const locked = isFirstSessionStatusPending(state)
+    && !state.contentLoading
+    && !state.statusChecking;
   root.classList.toggle('bulk-pp-first-session-loading', locked);
   const overlay = root.querySelector('#bulk-pp-first-session-overlay');
   if (locked) {
@@ -1687,23 +1723,6 @@ function buildPagesStatusSummaryLoading() {
   return strip;
 }
 
-function buildPagesStatusSummaryCachedOnly() {
-  const strip = el(
-    'div',
-    'bulk-pp-pages-summary bulk-pp-pages-summary-pending',
-  );
-  strip.id = 'bulk-pp-pages-summary';
-  strip.setAttribute('aria-label', 'Deployment status from cache');
-  strip.append(
-    el(
-      'span',
-      'bulk-pp-pages-summary-pending-text',
-      'Showing cached status. Use Real-time status to refresh.',
-    ),
-  );
-  return strip;
-}
-
 /**
  * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
@@ -1897,7 +1916,9 @@ function render(root, state) {
         || isDeploymentStatusPending(state),
     );
     toolbarRow.append(filterField);
-    toolbarRow.append(buildRealtimeStatusButton(state));
+    const refreshWrap = el('div', 'bulk-pp-pages-refresh-wrap');
+    refreshWrap.append(buildRealtimeStatusButton(state), buildStatusFetchedAtLabel(state));
+    toolbarRow.append(refreshWrap);
     controls.append(toolbarRow);
 
     const statusNotice = buildPagesStatusNotice(state);
@@ -2108,6 +2129,8 @@ function startStatusCheck(
   state.statusChecking = !cacheOnly && pathsToCheck.length > 0;
   state.statusProgressDone = 0;
   state.statusProgressTotal = pathsToCheck.length;
+  state.statusFetchedAt = null;
+  state.statusFetchedFromCache = false;
   state.statusFetchStartedAt = !cacheOnly && pathsToCheck.length > 0
     ? Date.now()
     : null;
@@ -2131,6 +2154,12 @@ function startStatusCheck(
     state,
     pathsToCheck,
   );
+  const cachedCheckedAt = getLatestCachedStatusCheckedAt(
+    state.org,
+    state.site,
+    state.ref,
+    pathsToCheck,
+  );
 
   if (cacheOnly) {
     state.statusChecking = false;
@@ -2140,14 +2169,15 @@ function startStatusCheck(
     state.statusProgressDone = Object.keys(state.platformStatus || {}).length;
     state.statusProgressTotal = pathsToCheck.length;
     state.statusFetched = complete;
+    state.statusFetchedAt = cachedCheckedAt;
+    state.statusFetchedFromCache = Boolean(cachedCheckedAt);
     state.statusType = 'info';
     if (!hydrated) {
-      state.statusPanelNote = 'No cached deployment status for this folder yet. Use Real-time status to fetch and save it.';
-    } else if (!complete) {
-      state.statusPanelNote = 'Showing partial cached deployment status. Use Real-time status to refresh.';
-    } else {
-      state.status = null;
+      state.statusPanelNote = 'No cached deployment status for this folder yet.';
+      state.statusFetchedAt = null;
+      state.statusFetchedFromCache = false;
     }
+    state.status = null;
     markInitialStatusFetchComplete(state);
     refreshDeploymentUi(state);
     if (root) render(root, state);
@@ -2168,6 +2198,8 @@ function startStatusCheck(
     state.statusAbort = null;
     state.statusFetchStartedAt = null;
     state.status = null;
+    state.statusFetchedAt = cachedCheckedAt;
+    state.statusFetchedFromCache = Boolean(cachedCheckedAt);
     state.statusType = 'info';
     refreshDeploymentUi(state);
     if (root) render(root, state);
@@ -2198,6 +2230,8 @@ function startStatusCheck(
     state.statusProgressDone = pathsToCheck.length;
     state.statusProgressTotal = pathsToCheck.length;
     state.status = null;
+    state.statusFetchedAt = cachedCheckedAt;
+    state.statusFetchedFromCache = Boolean(cachedCheckedAt);
     state.statusType = 'info';
     refreshDeploymentUi(state);
     if (root) render(root, state);
@@ -2241,6 +2275,8 @@ function startStatusCheck(
       state.statusFetchStartedAt = null;
       state.statusProgressDone = pathsToCheck.length;
       state.statusProgressTotal = pathsToCheck.length;
+      state.statusFetchedAt = Date.now();
+      state.statusFetchedFromCache = false;
       state.status = forceRefresh
         ? 'Fetched the latest deployment status from server.'
         : null;
@@ -2283,6 +2319,8 @@ function startStatusCheck(
       if (hadProgress) {
         persistCurrentPlatformStatus(state);
         state.statusFetched = true;
+        state.statusFetchedAt = Date.now();
+        state.statusFetchedFromCache = false;
         markInitialStatusFetchComplete(state);
         state.statusCheckFailed = true;
         state.statusError = formatStatusAccessMessage(
@@ -2295,6 +2333,13 @@ function startStatusCheck(
       ) {
         hydratePlatformStatusFromCache(state, pathsToCheck);
         state.statusFetched = true;
+        state.statusFetchedAt = getLatestCachedStatusCheckedAt(
+          state.org,
+          state.site,
+          state.ref,
+          pathsToCheck,
+        );
+        state.statusFetchedFromCache = Boolean(state.statusFetchedAt);
         markInitialStatusFetchComplete(state);
         state.statusCheckFailed = false;
         state.statusError = null;
@@ -2533,10 +2578,8 @@ async function main() {
       const docCount = state.pages.length;
       const location = displayFolderPath(state.folderPath) || 'site root';
       state.initialContentLoaded = true;
-      const cacheOnlyStatus = state.firstSessionLoad;
-      if (cacheOnlyStatus) {
-        state.firstSessionLoad = false;
-      }
+      const cacheOnlyStatus = false;
+      state.firstSessionLoad = false;
       if (!cacheOnlyStatus || docCount === 0) {
         state.contentLoading = false;
       }

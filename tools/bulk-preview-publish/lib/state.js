@@ -50,6 +50,9 @@ export function createAppState(ctx) {
     statusProgressDone: 0,
     statusProgressTotal: 0,
     /** @type {number | null} */
+    statusFetchedAt: null,
+    statusFetchedFromCache: false,
+    /** @type {number | null} */
     statusFetchStartedAt: null,
     /** @type {string | null} */
     statusPanelNote: null,
@@ -103,6 +106,8 @@ export function resetWorkspace(state) {
   state.statusCancelled = false;
   state.statusProgressDone = 0;
   state.statusProgressTotal = 0;
+  state.statusFetchedAt = null;
+  state.statusFetchedFromCache = false;
   state.statusFetchStartedAt = null;
   state.statusPanelNote = null;
   state.jobStartedAt = null;

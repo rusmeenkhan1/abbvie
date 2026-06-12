@@ -157,6 +157,26 @@ export function getUncachedHelixPaths(org, site, ref, helixPaths) {
 }
 
 /**
+ * Most recent checkedAt across fresh cached entries for the given paths.
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ * @returns {number | null}
+ */
+export function getLatestCachedStatusCheckedAt(org, site, ref, helixPaths) {
+  if (helixPaths.length === 0) return null;
+  const siteCache = getSiteCache(org, site, ref);
+  let maxCheckedAt = 0;
+  helixPaths.forEach((path) => {
+    const entry = siteCache[path];
+    if (!isFreshEntry(entry)) return;
+    maxCheckedAt = Math.max(maxCheckedAt, entry.checkedAt || 0);
+  });
+  return maxCheckedAt > 0 ? maxCheckedAt : null;
+}
+
+/**
  * @param {string} org
  * @param {string} site
  * @param {string} ref
