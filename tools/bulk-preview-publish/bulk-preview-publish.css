@@ -558,7 +558,7 @@ html:has(.bulk-pp-body) {
 
 /* —— Pages header (title + status summary) —— */
 .bulk-pp-pages-header {
-  padding: 12px 20px 8px 16px;
+  padding: 12px 28px 8px 16px;
   background: #fff;
   border-bottom: none;
 }
@@ -580,6 +580,7 @@ html:has(.bulk-pp-body) {
   justify-items: end;
   align-content: start;
   gap: 10px;
+  padding-right: 6px;
   width: 100%;
   max-width: none;
   min-width: 0;
@@ -1041,21 +1042,21 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-pages-header-aside {
-  align-items: center;
+  align-items: start;
 }
 
 .bulk-pp-status-action-card {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 8px;
   padding: 0;
   border: none;
   border-radius: 0;
   background: transparent;
   font-size: 0.86rem;
-  width: min(100%, 640px);
+  width: min(100%, 420px);
 }
 
 .bulk-pp-status-action-left {
@@ -1067,17 +1068,18 @@ html:has(.bulk-pp-body) {
   color: var(--pp-text-muted);
   font-weight: 600;
   display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
 }
 
 .bulk-pp-status-action-right {
   flex: 0 0 auto;
+  width: 100%;
 }
 
 .bulk-pp-pages-refresh-status {
-  min-width: 260px;
+  width: 100%;
+  min-width: 0;
+  max-width: 420px;
   min-height: 44px;
   padding: 0 16px;
   display: inline-flex;
@@ -1087,6 +1089,11 @@ html:has(.bulk-pp-body) {
   white-space: nowrap;
   font-size: 0.95rem;
   font-weight: 700;
+}
+
+.bulk-pp-pages-header .bulk-pp-pages-summary {
+  justify-self: end;
+  max-width: 100%;
 }
 
 .bulk-pp-filter-select {
@@ -3020,6 +3027,7 @@ html:has(.bulk-pp-body) {
     grid-template-columns: 1fr;
     justify-items: stretch;
     gap: 12px;
+    padding-right: 0;
     width: 100%;
     max-width: none;
   }
@@ -3031,7 +3039,7 @@ html:has(.bulk-pp-body) {
   }
 
   .bulk-pp-pages-refresh-status {
-    min-width: 100%;
+    max-width: none;
   }
 
 }
