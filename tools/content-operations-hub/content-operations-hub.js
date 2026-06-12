@@ -1,7 +1,3 @@
-/* eslint-disable no-use-before-define, no-alert, no-await-in-loop */
-/* eslint-disable no-restricted-syntax, no-nested-ternary, no-void */
-/* eslint-disable no-shadow, no-promise-executor-return, prefer-destructuring */
-
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 const LIST_BASE = 'https://admin.da.live/list';
@@ -24,6 +20,21 @@ const TEXT = {
 
 /** @type {ReturnType<typeof createState>} */
 let state;
+/** @type {() => void} */
+let render = () => {};
+/** @type {() => Promise<void>} */
+let loadContent = async () => {};
+
+function buildUrlsForPaths(paths, org, site, ref, env) {
+  const host = `${ref || 'main'}--${site}--${org}`;
+  return paths.map((path) => {
+    let suffix = '';
+    if (path && path !== '/') {
+      suffix = path.startsWith('/') ? path : `/${path}`;
+    }
+    return `https://${host}.aem.${env}${suffix}`;
+  });
+}
 
 function createState() {
   return {
@@ -55,6 +66,11 @@ function createState() {
       onCancel: /** @type {null | (() => void)} */ (null),
     },
     abortController: /** @type {AbortController | null} */ (null),
+    confirm: {
+      open: false,
+      message: '',
+      resolve: /** @type {null | ((v: boolean) => void)} */ (null),
+    },
   };
 }
 
@@ -113,7 +129,10 @@ function buildSiteHost(org, site, ref) {
 
 function buildEnvUrl(env, path) {
   const host = buildSiteHost(state.org, state.site, state.ref);
-  const suffix = path && path !== '/' ? (path.startsWith('/') ? path : `/${path}`) : '';
+  let suffix = '';
+  if (path && path !== '/') {
+    suffix = path.startsWith('/') ? path : `/${path}`;
+  }
   return `https://${host}.aem.${env}${suffix}`;
 }
 
@@ -252,6 +271,14 @@ async function apiFetch(url, initOptions = {}) {
   return { response, body };
 }
 
+function extractName(entry) {
+  const direct = String(entry.name || '').replace(/\/$/, '');
+  if (direct) return direct;
+  const path = String(entry.path || '');
+  const parts = path.split('/').filter(Boolean);
+  return parts[parts.length - 1] || '';
+}
+
 function classifyEntry(entry) {
   const entryName = extractName(entry);
   const name = String(entry.name || entryName).trim();
@@ -318,22 +345,13 @@ function classifyEntry(entry) {
   return 'document';
 }
 
-function extractName(entry) {
-  const direct = String(entry.name || '').replace(/\/$/, '');
-  if (direct) return direct;
-  const path = String(entry.path || '');
-  const parts = path.split('/').filter(Boolean);
-  return parts[parts.length - 1] || '';
-}
-
 async function listFolderRaw(folderPath) {
   const normalized = normalizePath(folderPath);
   const listUrl = `${LIST_BASE}/${state.org}/${state.site}${normalized ? `/${normalized}` : ''}`;
 
   const items = [];
-  let token = '';
 
-  do {
+  async function fetchBatch(token = '') {
     const headers = token ? { 'da-continuation-token': token } : undefined;
     const { response, body } = await apiFetch(listUrl, {
       method: 'GET',
@@ -341,22 +359,31 @@ async function listFolderRaw(folderPath) {
     });
 
     if (!response.ok) {
-      if (response.status === 404) return [];
+      if (response.status === 404) return null;
       const message = (body && (body.message || body.error))
         || `List failed (${response.status})`;
       throw new Error(String(message));
     }
 
-    const batch = Array.isArray(body)
-      ? body
-      : Array.isArray(body?.items)
-        ? body.items
-        : [];
+    let batch = [];
+    if (Array.isArray(body)) {
+      batch = body;
+    } else if (Array.isArray(body?.items)) {
+      batch = body.items;
+    }
     items.push(...batch);
-    token = response.headers.get('da-continuation-token')
+    const nextToken = response.headers.get('da-continuation-token')
       || response.headers.get('x-da-continuation-token')
       || '';
-  } while (token);
+
+    if (nextToken) {
+      return fetchBatch(nextToken);
+    }
+
+    return null;
+  }
+
+  await fetchBatch();
 
   return items;
 }
@@ -402,29 +429,28 @@ async function collectPagesRecursive(rootPath) {
   const allPages = [];
   const queue = [rootPath];
 
-  async function worker() {
-    while (queue.length) {
-      const folderPath = queue.shift();
-      if (folderPath !== undefined) {
-        const { folders, pages } = await listFolderEntries(folderPath);
-        allPages.push(...pages);
-        folders.forEach((folder) => queue.push(folder.folderPath));
-      }
-    }
+  async function drainQueue() {
+    const folderPath = queue.shift();
+    if (folderPath === undefined) return;
+
+    const { folders, pages } = await listFolderEntries(folderPath);
+    allPages.push(...pages);
+    folders.forEach((folder) => queue.push(folder.folderPath));
+    await drainQueue();
   }
 
   const workerCount = Math.min(
     TREE_WALK_CONCURRENCY,
     Math.max(1, queue.length),
   );
-  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  await Promise.all(Array.from({ length: workerCount }, () => drainQueue()));
 
   const byPath = new Map();
   allPages.forEach((page) => byPath.set(page.helixPath, page));
   return [...byPath.values()].sort((a, b) => a.helixPath.localeCompare(b.helixPath));
 }
 
-async function loadContent() {
+loadContent = async function loadContentInternal() {
   if (!state.daFetch) {
     state.errorText = 'Sign in using the button in the top right, then reload this tool.';
     render();
@@ -466,10 +492,13 @@ async function loadContent() {
     syncUrlAndMemory();
     render();
   }
-}
+};
 
-async function confirmAction(message) {
-  return Promise.resolve(window.confirm(message));
+function confirmAction(message) {
+  return new Promise((resolve) => {
+    state.confirm = { open: true, message, resolve };
+    render();
+  });
 }
 
 function openJob(title, total, cancelLabel, onCancel) {
@@ -550,21 +579,29 @@ function jobUrlFromResponse(bulkResponse, topic) {
 
 async function pollJob(jobUrl, signal, onProgress) {
   const terminal = new Set(['succeeded', 'failed', 'cancelled', 'stopped']);
-  let last = null;
+  const maxAttempts = 90;
 
-  for (let i = 0; i < 90; i += 1) {
+  async function pollAttempt(attempt, lastResult) {
+    if (attempt >= maxAttempts) {
+      return (
+        lastResult || {
+          state: 'timeout',
+          progress: { processed: 0, total: 0, failed: 0 },
+        }
+      );
+    }
+
     if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
 
     const { response, body } = await apiFetch(jobUrl, { method: 'GET' });
     if (!response.ok) {
-      if (response.status === 404 || response.status === 410) break;
+      if (response.status === 404 || response.status === 410) return lastResult;
       const message = (body && (body.message || body.error))
         || `Job polling failed (${response.status})`;
       throw new Error(String(message));
     }
 
     const job = body || {};
-    last = job;
     const progress = job.progress || job.job?.progress || {};
     const total = Number(progress.total || 0);
     const processed = Number(progress.processed || 0);
@@ -578,15 +615,14 @@ async function pollJob(jobUrl, signal, onProgress) {
     });
 
     if (terminal.has(stateLabel)) return job;
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 2000);
+    });
+    return pollAttempt(attempt + 1, job);
   }
 
-  return (
-    last || {
-      state: 'timeout',
-      progress: { processed: 0, total: 0, failed: 0 },
-    }
-  );
+  return pollAttempt(0, null);
 }
 
 function resolveOutcome(job) {
@@ -664,9 +700,7 @@ async function runBulkDeploy(topic) {
     state.statusText = `${topic === 'live' ? 'Publish' : 'Preview'} ${outcome.text}`;
     state.statusType = outcome.type;
 
-    if (outcome.type === 'error') {
-      alert(state.statusText);
-    } else if (outcome.type === 'success') {
+    if (outcome.type === 'success') {
       const urls = buildUrlsForPaths(
         paths,
         state.org,
@@ -686,7 +720,6 @@ async function runBulkDeploy(topic) {
     } else {
       state.statusText = String(error instanceof Error ? error.message : error);
       state.statusType = 'error';
-      alert(state.statusText);
     }
   } finally {
     state.abortController = null;
@@ -742,7 +775,6 @@ async function runBulkRemove(topic) {
 
     state.statusText = `${actionLabel} ${outcome.text}`;
     state.statusType = outcome.type;
-    if (outcome.type === 'error') alert(state.statusText);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       state.statusText = 'Job tracking cancelled. Server work may still continue.';
@@ -750,7 +782,6 @@ async function runBulkRemove(topic) {
     } else {
       state.statusText = String(error instanceof Error ? error.message : error);
       state.statusType = 'error';
-      alert(state.statusText);
     }
   } finally {
     state.abortController = null;
@@ -808,7 +839,8 @@ async function runDeleteFlow() {
       { topic: 'unpublish', label: 'Step 2 of 3 - Remove publish' },
     ];
 
-    for (const phase of phases) {
+    await phases.reduce(async (prev, phase) => {
+      await prev;
       if (state.abortController.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
 
       state.job.phase = phase.label;
@@ -816,32 +848,33 @@ async function runDeleteFlow() {
 
       const response = await startBulk(phase.topic, paths, true);
       const jobUrl = jobUrlFromResponse(response, phase.topic);
-      if (jobUrl) {
-        const job = await pollJob(
-          jobUrl,
-          state.abortController.signal,
-          ({
-            processed, total, failed, stateLabel,
-          }) => {
-            updateJobProgress({
-              processed,
-              total: total || paths.length,
-              failed,
-              stateLabel,
-              phase: phase.label,
-            });
-          },
-        );
-        const outcome = resolveOutcome(job);
-        if (outcome.type === 'error') errors += 1;
-      }
-    }
+      if (!jobUrl) return;
+
+      const job = await pollJob(
+        jobUrl,
+        state.abortController.signal,
+        ({
+          processed, total, failed, stateLabel,
+        }) => {
+          updateJobProgress({
+            processed,
+            total: total || paths.length,
+            failed,
+            stateLabel,
+            phase: phase.label,
+          });
+        },
+      );
+      const outcome = resolveOutcome(job);
+      if (outcome.type === 'error') errors += 1;
+    }, Promise.resolve());
 
     state.job.phase = 'Step 3 of 3 - Delete source documents';
     render();
 
     let processed = 0;
-    for (const page of pages) {
+    await pages.reduce(async (prev, page) => {
+      await prev;
       if (state.abortController.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
       try {
         await deleteSourceDocument(page);
@@ -856,7 +889,7 @@ async function runDeleteFlow() {
         stateLabel: 'running',
         phase: 'Step 3 of 3 - Delete source documents',
       });
-    }
+    }, Promise.resolve());
 
     if (processed > 0) {
       const deletedSet = new Set(paths);
@@ -870,7 +903,6 @@ async function runDeleteFlow() {
       ? `Delete completed with ${errors} failed operation(s).`
       : `Deleted ${paths.length} page(s) successfully.`;
     state.statusType = errors ? 'error' : 'success';
-    if (errors) alert(state.statusText);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       state.statusText = 'Delete tracking cancelled. Server work may still continue.';
@@ -878,7 +910,6 @@ async function runDeleteFlow() {
     } else {
       state.statusText = String(error instanceof Error ? error.message : error);
       state.statusType = 'error';
-      alert(state.statusText);
     }
   } finally {
     state.abortController = null;
@@ -1226,11 +1257,15 @@ function buildSelectionBar() {
   const right = h('div', 'coh-selection-right');
   const preview = h('button', 'coh-btn coh-btn-primary', 'Preview');
   preview.type = 'button';
-  preview.addEventListener('click', () => void runAction('preview'));
+  preview.addEventListener('click', () => {
+    runAction('preview');
+  });
 
   const publish = h('button', 'coh-btn coh-btn-primary', 'Publish');
   publish.type = 'button';
-  publish.addEventListener('click', () => void runAction('live'));
+  publish.addEventListener('click', () => {
+    runAction('live');
+  });
 
   const more = h('details', 'coh-more');
   const summary = h('summary', 'coh-btn coh-btn-ghost', 'More');
@@ -1264,11 +1299,9 @@ function buildSelectionBar() {
 
 function buildStatus() {
   if (!state.statusText) return null;
-  const tone = state.statusType === 'error'
-    ? 'coh-status-error'
-    : state.statusType === 'success'
-      ? 'coh-status-success'
-      : 'coh-status-info';
+  let tone = 'coh-status-info';
+  if (state.statusType === 'error') tone = 'coh-status-error';
+  if (state.statusType === 'success') tone = 'coh-status-success';
   return h('div', `coh-status ${tone}`, state.statusText);
 }
 
@@ -1276,48 +1309,82 @@ function buildJobModal() {
   if (!state.job.open) return null;
 
   const backdrop = h('div', 'coh-modal-backdrop');
-  const modal = h('div', 'coh-modal');
+  const modal = h('div', 'coh-modal coh-job-modal');
 
-  const title = h('h3', 'coh-modal-title', state.job.title);
-  const phase = h('p', 'coh-modal-phase', state.job.phase || 'Processing...');
-
-  const progressWrap = h('div', 'coh-progress');
-  const fill = h('div', 'coh-progress-fill');
+  const head = h('div', 'coh-job-modal-head');
+  const titleEl = h('h3', 'coh-job-modal-title', state.job.title);
   const pct = state.job.total > 0
     ? Math.round((state.job.processed / state.job.total) * 100)
     : 0;
+  const pctLabel = h('span', 'coh-job-pct', `${pct}%`);
+  head.append(titleEl, pctLabel);
+
+  const phase = h('p', 'coh-job-phase', state.job.phase || 'Initialising...');
+
+  const progressWrap = h('div', 'coh-progress');
+  const fill = h('div', 'coh-progress-fill');
   fill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
   progressWrap.append(fill);
 
-  const meta = h(
-    'p',
-    'coh-modal-meta',
-    `${state.job.processed} of ${state.job.total} processed${
-      state.job.failed ? ` · ${state.job.failed} failed` : ''
-    }`,
-  );
-  const stateLabel = h(
-    'p',
-    'coh-modal-meta',
-    `State: ${state.job.stateLabel || 'running'}`,
-  );
+  const statsRow = h('div', 'coh-job-stats');
+  const processed = h('span', 'coh-job-stat', `${state.job.processed} of ${state.job.total} processed`);
+  const chipState = state.job.stateLabel || 'running';
+  const statusChip = h('span', `coh-job-chip coh-chip-${chipState}`, chipState);
+  statsRow.append(processed);
+  if (state.job.failed) {
+    const failed = h('span', 'coh-job-stat coh-job-stat-err', `${state.job.failed} failed`);
+    statsRow.append(failed);
+  }
+  statsRow.append(statusChip);
 
-  const cancel = h(
-    'button',
-    'coh-btn coh-btn-danger',
-    state.job.cancelLabel || 'Cancel',
-  );
+  const cancel = h('button', 'coh-btn coh-btn-outline-danger', state.job.cancelLabel || 'Cancel');
   cancel.type = 'button';
   cancel.addEventListener('click', () => {
     if (state.job.onCancel) state.job.onCancel();
   });
 
-  modal.append(title, phase, progressWrap, meta, stateLabel, cancel);
+  modal.append(head, phase, progressWrap, statsRow, cancel);
   backdrop.append(modal);
   return backdrop;
 }
 
-function render() {
+function buildConfirmModal() {
+  if (!state.confirm.open) return null;
+
+  const { message } = state.confirm;
+
+  function close(result) {
+    const { resolve } = state.confirm;
+    state.confirm = { open: false, message: '', resolve: null };
+    render();
+    if (resolve) resolve(result);
+  }
+
+  const backdrop = h('div', 'coh-modal-backdrop');
+  backdrop.addEventListener('click', () => close(false));
+
+  const modal = h('div', 'coh-modal coh-confirm-modal');
+  modal.addEventListener('click', (e) => e.stopPropagation());
+
+  const icon = h('div', 'coh-confirm-icon', '⚠');
+  const title = h('h3', 'coh-confirm-title', 'Confirm action');
+  const body = h('p', 'coh-confirm-body', message);
+
+  const actions = h('div', 'coh-modal-actions');
+  const cancelBtn = h('button', 'coh-btn coh-btn-ghost', 'Cancel');
+  cancelBtn.type = 'button';
+  cancelBtn.addEventListener('click', () => close(false));
+  const okBtn = h('button', 'coh-btn coh-btn-primary', 'Confirm');
+  okBtn.type = 'button';
+  okBtn.addEventListener('click', () => close(true));
+
+  actions.append(cancelBtn, okBtn);
+  modal.append(icon, title, body, actions);
+  backdrop.append(modal);
+  return backdrop;
+}
+
+render = function renderView() {
   if (!state.root) return;
 
   state.root.replaceChildren();
@@ -1346,7 +1413,10 @@ function render() {
 
   const modal = buildJobModal();
   if (modal) state.root.append(modal);
-}
+
+  const confirmModal = buildConfirmModal();
+  if (confirmModal) state.root.append(confirmModal);
+};
 
 async function init() {
   state = createState();
@@ -1381,8 +1451,9 @@ async function init() {
   if ((!state.org || !state.site) && contextPath) {
     const appMatch = contextPath.match(/\/app\/([^/]+)\/([^/]+)\/?/);
     if (appMatch) {
-      if (!state.org) state.org = appMatch[1];
-      if (!state.site) state.site = appMatch[2];
+      const [, matchedOrg, matchedSite] = appMatch;
+      if (!state.org) state.org = matchedOrg;
+      if (!state.site) state.site = matchedSite;
     }
   }
 
@@ -1399,22 +1470,16 @@ async function init() {
     urlPath || memory?.folderPath || contextPath,
   );
   if (state.folderPath.startsWith('tools/')) state.folderPath = '';
-  state.pageScope = urlScope === 'tree' || urlScope === 'folder'
-    ? urlScope
-    : memory?.pageScope === 'tree'
-      ? 'tree'
-      : 'folder';
+  if (urlScope === 'tree' || urlScope === 'folder') {
+    state.pageScope = urlScope;
+  } else if (memory?.pageScope === 'tree') {
+    state.pageScope = 'tree';
+  } else {
+    state.pageScope = 'folder';
+  }
 
   render();
   await loadContent();
 }
 
-void init();
-
-function buildUrlsForPaths(paths, org, site, ref, env) {
-  const host = `${ref || 'main'}--${site}--${org}`;
-  return paths.map((path) => {
-    const suffix = !path || path === '/' ? '' : path.startsWith('/') ? path : `/${path}`;
-    return `https://${host}.aem.${env}${suffix}`;
-  });
-}
+init();
