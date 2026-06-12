@@ -1,3 +1,7 @@
+/* eslint-disable no-use-before-define, no-alert, no-await-in-loop */
+/* eslint-disable no-restricted-syntax, no-nested-ternary, no-void */
+/* eslint-disable no-shadow, no-promise-executor-return, prefer-destructuring */
+
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 const LIST_BASE = 'https://admin.da.live/list';
@@ -5,10 +9,12 @@ const SOURCE_BASE = 'https://admin.da.live/source';
 const ADMIN_BASE = 'https://admin.hlx.page';
 const SEARCH_MIN_LEN = 3;
 const STORE_KEY = 'coh:browse:v1';
+const TREE_WALK_CONCURRENCY = 6;
 
 const TEXT = {
   title: 'Content Operations Hub',
-  subtitle: 'Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level.',
+  subtitle:
+    'Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level.',
   loading: 'Loading content...',
   noContent: 'No folders or pages in this location.',
 };
@@ -65,7 +71,10 @@ function normalizePath(path) {
 }
 
 function joinPath(...parts) {
-  return parts.map((p) => normalizePath(p)).filter(Boolean).join('/');
+  return parts
+    .map((p) => normalizePath(p))
+    .filter(Boolean)
+    .join('/');
 }
 
 function displayPath(path) {
@@ -77,29 +86,23 @@ function hasExt(name) {
   return /\.[a-z0-9]+$/i.test(name);
 }
 
-function decodeSafe(value) {
-  if (!value) return '';
-  try {
-    return decodeURIComponent(String(value));
-  } catch {
-    return String(value);
-  }
-}
-
 function toHelixPath(folderPath, fileName) {
   const source = joinPath(folderPath, fileName);
   const noExt = source.replace(/\.[a-z0-9]+$/i, '');
   if (noExt === 'index') return '/';
-  if (noExt.endsWith('/index')) return `/${noExt.slice(0, -('/index'.length))}`;
+  if (noExt.endsWith('/index')) return `/${noExt.slice(0, -'/index'.length)}`;
   return `/${noExt}`;
 }
 
 function pathToListLabel(helixPath, browseFolder) {
   const absolute = helixPath === '/' ? '/index' : helixPath;
   const folder = normalizePath(browseFolder);
-  const rel = folder
-    ? absolute.replace(new RegExp(`^/${folder}`), '') || '/'
-    : absolute;
+  const prefix = folder ? `/${folder}` : '';
+  let rel = absolute;
+  if (prefix) {
+    if (absolute === prefix) rel = '/';
+    else if (absolute.startsWith(`${prefix}/`)) rel = absolute.slice(prefix.length);
+  }
   const cleaned = rel === '/' ? 'index' : rel.replace(/^\//, '');
   return cleaned;
 }
@@ -126,7 +129,9 @@ function sourcePathToDocPath(sourcePath, helixPath) {
 
 function buildDaEditUrl(page) {
   const docPath = sourcePathToDocPath(page.sourcePath, page.helixPath);
-  const refQuery = state.ref && state.ref !== 'main' ? `?ref=${encodeURIComponent(state.ref)}` : '';
+  const refQuery = state.ref && state.ref !== 'main'
+    ? `?ref=${encodeURIComponent(state.ref)}`
+    : '';
   return `https://da.live/edit${refQuery}#/${state.org}/${state.site}/${docPath}`;
 }
 
@@ -178,13 +183,19 @@ function syncUrlAndMemory() {
 }
 
 function filterBySearch(list, term, project) {
-  const q = String(term || '').trim().toLowerCase();
+  const q = String(term || '')
+    .trim()
+    .toLowerCase();
   if (!q || q.length < SEARCH_MIN_LEN) return list;
   return list.filter((item) => project(item).toLowerCase().includes(q));
 }
 
 function visibleFolders() {
-  return filterBySearch(state.folders, state.folderSearch, (f) => `${f.name} ${f.folderPath}`);
+  return filterBySearch(
+    state.folders,
+    state.folderSearch,
+    (f) => `${f.name} ${f.folderPath}`,
+  );
 }
 
 function visiblePages() {
@@ -215,30 +226,69 @@ function parseJsonSafe(text) {
   }
 }
 
-async function apiFetch(url, init = {}) {
-  const response = await state.daFetch(url, init);
+async function apiFetch(url, initOptions = {}) {
+  const response = await state.daFetch(url, initOptions);
   const body = parseJsonSafe(await response.text());
   return { response, body };
 }
 
 function classifyEntry(entry) {
   const name = String(entry.name || '').trim();
-  const type = String(entry.type || entry.kind || '').toLowerCase();
-  const contentType = String(entry['content-type'] || entry.contentType || '').toLowerCase();
-  const ext = String(entry.ext || '').toLowerCase();
+  const path = String(
+    entry.path || entry.sourcePath || entry.urlPath || entry.pathname || '',
+  ).trim();
+  const type = String(
+    entry.type || entry.kind || entry.resourceType || '',
+  ).toLowerCase();
+  const contentType = String(
+    entry['content-type'] || entry.contentType || '',
+  ).toLowerCase();
+  const ext = String(
+    entry.ext || extractName(entry).match(/\.([a-z0-9]+)$/i)?.[1] || '',
+  ).toLowerCase();
 
-  const isFolder =
-    name.endsWith('/')
-    || type === 'folder'
-    || type === 'directory'
-    || entry.isFolder === true
+  const isFlaggedDirectory = entry.isFolder === true
     || entry.isdir === true
     || entry.isDirectory === true
+    || entry.directory === true
+    || entry['is-directory'] === true;
+
+  const isFolder = name.endsWith('/')
+    || path.endsWith('/')
+    || type === 'folder'
+    || type === 'directory'
+    || type === 'dir'
+    || type === 'collection'
+    || isFlaggedDirectory
     || contentType.includes('folder');
 
   if (isFolder) return 'folder';
 
-  const isData = ['json', 'yaml', 'yml', 'pdf', 'png', 'jpg', 'jpeg', 'webp', 'svg', 'gif', 'mp4'].includes(ext)
+  const lowerName = extractName(entry).toLowerCase();
+  const hasNoExt = !ext && !hasExt(lowerName);
+  const looksLikeDocument = contentType.startsWith('text/')
+    || contentType.includes('markdown')
+    || contentType.includes('html')
+    || type === 'file'
+    || type === 'document';
+
+  // DA list payloads can omit explicit folder flags. Treat extension-less non-index
+  // entries as folders unless other metadata clearly indicates a document.
+  if (hasNoExt && lowerName !== 'index' && !looksLikeDocument) return 'folder';
+
+  const isData = [
+    'json',
+    'yaml',
+    'yml',
+    'pdf',
+    'png',
+    'jpg',
+    'jpeg',
+    'webp',
+    'svg',
+    'gif',
+    'mp4',
+  ].includes(ext)
     || contentType.includes('json')
     || contentType.startsWith('image/')
     || contentType.startsWith('video/');
@@ -264,17 +314,27 @@ async function listFolderRaw(folderPath) {
 
   do {
     const headers = token ? { 'da-continuation-token': token } : undefined;
-    const { response, body } = await apiFetch(listUrl, { method: 'GET', headers });
+    const { response, body } = await apiFetch(listUrl, {
+      method: 'GET',
+      headers,
+    });
 
     if (!response.ok) {
       if (response.status === 404) return [];
-      const message = (body && (body.message || body.error)) || `List failed (${response.status})`;
+      const message = (body && (body.message || body.error))
+        || `List failed (${response.status})`;
       throw new Error(String(message));
     }
 
-    const batch = Array.isArray(body) ? body : (Array.isArray(body?.items) ? body.items : []);
+    const batch = Array.isArray(body)
+      ? body
+      : Array.isArray(body?.items)
+        ? body.items
+        : [];
     items.push(...batch);
-    token = response.headers.get('da-continuation-token') || response.headers.get('x-da-continuation-token') || '';
+    token = response.headers.get('da-continuation-token')
+      || response.headers.get('x-da-continuation-token')
+      || '';
   } while (token);
 
   return items;
@@ -319,14 +379,24 @@ async function listFolderEntries(folderPath) {
 async function collectPagesRecursive(rootPath) {
   /** @type {PageEntry[]} */
   const allPages = [];
+  const queue = [rootPath];
 
-  async function walk(folderPath) {
-    const { folders, pages } = await listFolderEntries(folderPath);
-    allPages.push(...pages);
-    await Promise.all(folders.map((folder) => walk(folder.folderPath)));
+  async function worker() {
+    while (queue.length) {
+      const folderPath = queue.shift();
+      if (folderPath) {
+        const { folders, pages } = await listFolderEntries(folderPath);
+        allPages.push(...pages);
+        folders.forEach((folder) => queue.push(folder.folderPath));
+      }
+    }
   }
 
-  await walk(rootPath);
+  const workerCount = Math.min(
+    TREE_WALK_CONCURRENCY,
+    Math.max(1, queue.length),
+  );
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
   const byPath = new Map();
   allPages.forEach((page) => byPath.set(page.helixPath, page));
@@ -359,7 +429,7 @@ async function loadContent() {
       ? await collectPagesRecursive(state.folderPath)
       : listed.pages;
 
-    state.statusText = (state.folders.length || state.pages.length)
+    state.statusText = state.folders.length || state.pages.length
       ? `Loaded ${state.pages.length} page(s) and ${state.folders.length} folder(s) in ${displayPath(state.folderPath)}.`
       : TEXT.noContent;
     state.statusType = 'info';
@@ -406,7 +476,9 @@ function closeJob() {
   render();
 }
 
-function updateJobProgress({ processed, total, failed, stateLabel, phase }) {
+function updateJobProgress({
+  processed, total, failed, stateLabel, phase,
+}) {
   state.job.processed = processed;
   state.job.total = total;
   state.job.failed = failed;
@@ -436,7 +508,8 @@ async function startBulk(topic, paths, remove = false) {
   });
 
   if (!response.ok && response.status !== 202) {
-    const message = (body && (body.message || body.error)) || `Request failed (${response.status})`;
+    const message = (body && (body.message || body.error))
+      || `Request failed (${response.status})`;
     throw new Error(String(message));
   }
 
@@ -464,7 +537,8 @@ async function pollJob(jobUrl, signal, onProgress) {
     const { response, body } = await apiFetch(jobUrl, { method: 'GET' });
     if (!response.ok) {
       if (response.status === 404 || response.status === 410) break;
-      const message = (body && (body.message || body.error)) || `Job polling failed (${response.status})`;
+      const message = (body && (body.message || body.error))
+        || `Job polling failed (${response.status})`;
       throw new Error(String(message));
     }
 
@@ -475,23 +549,38 @@ async function pollJob(jobUrl, signal, onProgress) {
     const processed = Number(progress.processed || 0);
     const failed = Number(progress.failed || 0);
     const stateLabel = String(job.state || job.job?.state || 'running');
-    onProgress({ total, processed, failed, stateLabel });
+    onProgress({
+      total,
+      processed,
+      failed,
+      stateLabel,
+    });
 
     if (terminal.has(stateLabel)) return job;
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
 
-  return last || { state: 'timeout', progress: { processed: 0, total: 0, failed: 0 } };
+  return (
+    last || {
+      state: 'timeout',
+      progress: { processed: 0, total: 0, failed: 0 },
+    }
+  );
 }
 
 function resolveOutcome(job) {
   const stateLabel = String(job?.state || job?.job?.state || 'unknown');
   const progress = job?.progress || job?.job?.progress || {};
   const failed = Number(progress.failed || 0);
-  const success = Number(progress.success || progress.processed || progress.total || 0);
+  const success = Number(
+    progress.success || progress.processed || progress.total || 0,
+  );
 
   if (stateLabel === 'failed' || failed > 0) {
-    return { type: 'error', text: failed > 0 ? `finished with ${failed} failed` : 'failed' };
+    return {
+      type: 'error',
+      text: failed > 0 ? `finished with ${failed} failed` : 'failed',
+    };
   }
   if (stateLabel === 'cancelled') {
     return { type: 'info', text: 'was cancelled' };
@@ -499,7 +588,10 @@ function resolveOutcome(job) {
   if (stateLabel === 'timeout') {
     return { type: 'info', text: 'timed out, check server job status' };
   }
-  return { type: 'success', text: `completed successfully${success ? ` (${success} page${success === 1 ? '' : 's'})` : ''}` };
+  return {
+    type: 'success',
+    text: `completed successfully${success ? ` (${success} page${success === 1 ? '' : 's'})` : ''}`,
+  };
 }
 
 async function runBulkDeploy(topic) {
@@ -529,9 +621,20 @@ async function runBulkDeploy(topic) {
 
     let outcome;
     if (jobUrl) {
-      const job = await pollJob(jobUrl, state.abortController.signal, ({ processed, total, failed, stateLabel }) => {
-        updateJobProgress({ processed, total: total || paths.length, failed, stateLabel });
-      });
+      const job = await pollJob(
+        jobUrl,
+        state.abortController.signal,
+        ({
+          processed, total, failed, stateLabel,
+        }) => {
+          updateJobProgress({
+            processed,
+            total: total || paths.length,
+            failed,
+            stateLabel,
+          });
+        },
+      );
       outcome = resolveOutcome(job);
     } else {
       outcome = { type: 'success', text: `scheduled (${paths.length} pages)` };
@@ -543,7 +646,13 @@ async function runBulkDeploy(topic) {
     if (outcome.type === 'error') {
       alert(state.statusText);
     } else if (outcome.type === 'success') {
-      const urls = buildUrlsForPaths(paths, state.org, state.site, state.ref, topic === 'live' ? 'live' : 'page');
+      const urls = buildUrlsForPaths(
+        paths,
+        state.org,
+        state.site,
+        state.ref,
+        topic === 'live' ? 'live' : 'page',
+      );
       if (urls.length) {
         const host = buildSiteHost(state.org, state.site, state.ref);
         state.statusText = `${state.statusText}. Host: ${host}.`;
@@ -570,7 +679,9 @@ async function runBulkRemove(topic) {
   if (!paths.length) return;
 
   const actionLabel = topic === 'unpublish' ? 'unpublish' : 'unpreview';
-  const confirmed = await confirmAction(`Run ${actionLabel} for ${paths.length} selected page(s)?`);
+  const confirmed = await confirmAction(
+    `Run ${actionLabel} for ${paths.length} selected page(s)?`,
+  );
   if (!confirmed) return;
 
   clearWorkspaceDrafts();
@@ -589,9 +700,20 @@ async function runBulkRemove(topic) {
     let outcome;
 
     if (jobUrl) {
-      const job = await pollJob(jobUrl, state.abortController.signal, ({ processed, total, failed, stateLabel }) => {
-        updateJobProgress({ processed, total: total || paths.length, failed, stateLabel });
-      });
+      const job = await pollJob(
+        jobUrl,
+        state.abortController.signal,
+        ({
+          processed, total, failed, stateLabel,
+        }) => {
+          updateJobProgress({
+            processed,
+            total: total || paths.length,
+            failed,
+            stateLabel,
+          });
+        },
+      );
       outcome = resolveOutcome(job);
     } else {
       outcome = { type: 'success', text: `scheduled (${paths.length} pages)` };
@@ -636,7 +758,8 @@ async function deleteSourceDocument(page) {
   const { response, body } = await apiFetch(url, { method: 'DELETE' });
 
   if (response.status === 204 || response.status === 404) return;
-  const message = (body && (body.message || body.error)) || `Delete failed (${response.status})`;
+  const message = (body && (body.message || body.error))
+    || `Delete failed (${response.status})`;
   throw new Error(String(message));
 }
 
@@ -644,7 +767,9 @@ async function runDeleteFlow() {
   const paths = selectedPaths();
   if (!paths.length) return;
 
-  const confirmed = await confirmAction(`Delete ${paths.length} selected page(s) from Document Authoring? This cannot be undone.`);
+  const confirmed = await confirmAction(
+    `Delete ${paths.length} selected page(s) from Document Authoring? This cannot be undone.`,
+  );
   if (!confirmed) return;
 
   clearWorkspaceDrafts();
@@ -672,9 +797,21 @@ async function runDeleteFlow() {
       const response = await startBulk(phase.topic, paths, true);
       const jobUrl = jobUrlFromResponse(response, phase.topic);
       if (jobUrl) {
-        const job = await pollJob(jobUrl, state.abortController.signal, ({ processed, total, failed, stateLabel }) => {
-          updateJobProgress({ processed, total: total || paths.length, failed, stateLabel, phase: phase.label });
-        });
+        const job = await pollJob(
+          jobUrl,
+          state.abortController.signal,
+          ({
+            processed, total, failed, stateLabel,
+          }) => {
+            updateJobProgress({
+              processed,
+              total: total || paths.length,
+              failed,
+              stateLabel,
+              phase: phase.label,
+            });
+          },
+        );
         const outcome = resolveOutcome(job);
         if (outcome.type === 'error') errors += 1;
       }
@@ -703,7 +840,9 @@ async function runDeleteFlow() {
 
     if (processed > 0) {
       const deletedSet = new Set(paths);
-      state.pages = state.pages.filter((page) => !deletedSet.has(page.helixPath));
+      state.pages = state.pages.filter(
+        (page) => !deletedSet.has(page.helixPath),
+      );
       paths.forEach((path) => state.selected.delete(path));
     }
 
@@ -732,14 +871,22 @@ async function runOpenUrls(kind) {
   const paths = selectedPaths();
   if (!paths.length) return;
 
+  const pagesByPath = new Map(
+    state.pages.map((page) => [page.helixPath, page]),
+  );
+
   const urls = kind === 'da'
-    ? paths.map((path) => {
-      const page = state.pages.find((p) => p.helixPath === path);
-      return page ? buildDaEditUrl(page) : '';
-    }).filter(Boolean)
+    ? paths
+      .map((path) => {
+        const page = pagesByPath.get(path);
+        return page ? buildDaEditUrl(page) : '';
+      })
+      .filter(Boolean)
     : paths.map((path) => buildEnvUrl(kind === 'live' ? 'live' : 'page', path));
 
-  const confirmed = await confirmAction(`Open ${urls.length} URL(s) in new tabs?`);
+  const confirmed = await confirmAction(
+    `Open ${urls.length} URL(s) in new tabs?`,
+  );
   if (!confirmed) return;
 
   clearWorkspaceDrafts();
@@ -870,17 +1017,29 @@ function buildFoldersPane() {
     });
   }
 
-  const search = buildSearchInput(state.folderSearch, 'Search folder', (event) => {
-    state.folderSearch = /** @type {HTMLInputElement} */ (event.target).value;
-    render();
-  });
+  const search = buildSearchInput(
+    state.folderSearch,
+    'Search folder',
+    (event) => {
+      state.folderSearch = /** @type {HTMLInputElement} */ (event.target).value;
+      render();
+    },
+  );
 
   const listWrap = h('div', 'coh-list-wrap');
   const list = h('ul', 'coh-list');
   const folders = visibleFolders();
 
   if (!folders.length) {
-    list.append(h('li', 'coh-empty', state.folderSearch ? 'No folders match this search.' : 'No subfolders here.'));
+    list.append(
+      h(
+        'li',
+        'coh-empty',
+        state.folderSearch
+          ? 'No folders match this search.'
+          : 'No subfolders here.',
+      ),
+    );
   } else {
     folders.forEach((folder) => {
       const row = h('li', 'coh-row coh-folder-row');
@@ -905,13 +1064,18 @@ function buildFoldersPane() {
 
 function buildPagesPane() {
   const pane = h('section', 'coh-pane');
+  const pages = visiblePages();
+  const selected = selectedPaths();
+  const selectedCount = selected.length;
 
   const head = h('div', 'coh-pane-head');
   head.append(h('h2', 'coh-pane-title', 'Pages'));
-  head.append(h('span', 'coh-count', String(visiblePages().length)));
+  head.append(h('span', 'coh-count', String(pages.length)));
 
   const breadcrumb = h('div', 'coh-breadcrumb');
-  breadcrumb.append(h('span', 'coh-crumb-current', displayPath(state.folderPath)));
+  breadcrumb.append(
+    h('span', 'coh-crumb-current', displayPath(state.folderPath)),
+  );
 
   const scopeRow = h('label', 'coh-scope');
   const scope = document.createElement('input');
@@ -922,7 +1086,10 @@ function buildPagesPane() {
     state.selected.clear();
     await loadContent();
   });
-  scopeRow.append(scope, document.createTextNode(' Include all subdirectories'));
+  scopeRow.append(
+    scope,
+    document.createTextNode(' Include all subdirectories'),
+  );
 
   const controls = h('div', 'coh-controls');
   const search = buildSearchInput(state.pageSearch, 'Search page', (event) => {
@@ -937,22 +1104,23 @@ function buildPagesPane() {
   controls.append(search, filterStub);
 
   const tools = h('div', 'coh-toolbar');
-  const selected = selectedPaths().length;
-  tools.append(h('span', 'coh-pill', `${selected} selected out of ${visiblePages().length}`));
+  tools.append(
+    h('span', 'coh-pill', `${selectedCount} selected out of ${pages.length}`),
+  );
 
   const selectAll = h('button', 'coh-btn coh-btn-ghost', 'Select all');
   selectAll.type = 'button';
-  selectAll.disabled = !visiblePages().length;
+  selectAll.disabled = !pages.length;
   selectAll.addEventListener('click', () => {
-    visiblePages().forEach((page) => state.selected.add(page.helixPath));
+    pages.forEach((page) => state.selected.add(page.helixPath));
     render();
   });
 
   const clear = h('button', 'coh-btn coh-btn-ghost', 'Clear');
   clear.type = 'button';
-  clear.disabled = !selectedPaths().length;
+  clear.disabled = !selectedCount;
   clear.addEventListener('click', () => {
-    visiblePages().forEach((page) => state.selected.delete(page.helixPath));
+    pages.forEach((page) => state.selected.delete(page.helixPath));
     render();
   });
 
@@ -960,16 +1128,27 @@ function buildPagesPane() {
 
   const table = h('div', 'coh-table');
   const header = h('div', 'coh-table-head');
-  header.append(h('span', '', ''), h('span', '', ''), h('span', '', 'Name'), h('span', '', 'Modified'), h('span', '', 'Actions'));
+  header.append(
+    h('span', '', ''),
+    h('span', '', ''),
+    h('span', '', 'Name'),
+    h('span', '', 'Modified'),
+    h('span', '', 'Actions'),
+  );
 
   const rows = h('ul', 'coh-list');
-  const pages = visiblePages();
   const browseFolder = normalizePath(state.folderPath);
 
   if (!state.pages.length) {
     rows.append(h('li', 'coh-empty', 'No pages in this scope.'));
   } else if (!pages.length) {
-    rows.append(h('li', 'coh-empty', state.pageSearch ? 'No pages match this search.' : 'No pages found.'));
+    rows.append(
+      h(
+        'li',
+        'coh-empty',
+        state.pageSearch ? 'No pages match this search.' : 'No pages found.',
+      ),
+    );
   } else {
     pages.forEach((page) => {
       const row = h('li', 'coh-row coh-page-row');
@@ -985,7 +1164,11 @@ function buildPagesPane() {
       });
 
       const icon = h('span', 'coh-icon', '📄');
-      const name = h('span', 'coh-page-name', pathToListLabel(page.helixPath, browseFolder));
+      const name = h(
+        'span',
+        'coh-page-name',
+        pathToListLabel(page.helixPath, browseFolder),
+      );
       const modified = h('span', 'coh-muted', '');
 
       const actions = h('div', 'coh-actions');
@@ -1019,7 +1202,15 @@ function buildSelectionBar() {
 
   const bar = h('div', 'coh-selection-bar');
   const left = h('div', 'coh-selection-left');
-  left.append(h('span', 'coh-pill', selected.length === 1 ? '1 page selected' : `${selected.length} pages selected`));
+  left.append(
+    h(
+      'span',
+      'coh-pill',
+      selected.length === 1
+        ? '1 page selected'
+        : `${selected.length} pages selected`,
+    ),
+  );
 
   const clear = h('button', 'coh-btn coh-btn-ghost', 'Clear');
   clear.type = 'button';
@@ -1070,7 +1261,11 @@ function buildSelectionBar() {
 
 function buildStatus() {
   if (!state.statusText) return null;
-  const tone = state.statusType === 'error' ? 'coh-status-error' : state.statusType === 'success' ? 'coh-status-success' : 'coh-status-info';
+  const tone = state.statusType === 'error'
+    ? 'coh-status-error'
+    : state.statusType === 'success'
+      ? 'coh-status-success'
+      : 'coh-status-info';
   return h('div', `coh-status ${tone}`, state.statusText);
 }
 
@@ -1085,14 +1280,30 @@ function buildJobModal() {
 
   const progressWrap = h('div', 'coh-progress');
   const fill = h('div', 'coh-progress-fill');
-  const pct = state.job.total > 0 ? Math.round((state.job.processed / state.job.total) * 100) : 0;
+  const pct = state.job.total > 0
+    ? Math.round((state.job.processed / state.job.total) * 100)
+    : 0;
   fill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
   progressWrap.append(fill);
 
-  const meta = h('p', 'coh-modal-meta', `${state.job.processed} of ${state.job.total} processed` + (state.job.failed ? ` · ${state.job.failed} failed` : ''));
-  const stateLabel = h('p', 'coh-modal-meta', `State: ${state.job.stateLabel || 'running'}`);
+  const meta = h(
+    'p',
+    'coh-modal-meta',
+    `${state.job.processed} of ${state.job.total} processed${
+      state.job.failed ? ` · ${state.job.failed} failed` : ''
+    }`,
+  );
+  const stateLabel = h(
+    'p',
+    'coh-modal-meta',
+    `State: ${state.job.stateLabel || 'running'}`,
+  );
 
-  const cancel = h('button', 'coh-btn coh-btn-danger', state.job.cancelLabel || 'Cancel');
+  const cancel = h(
+    'button',
+    'coh-btn coh-btn-danger',
+    state.job.cancelLabel || 'Cancel',
+  );
   cancel.type = 'button';
   cancel.addEventListener('click', () => {
     if (state.job.onCancel) state.job.onCancel();
@@ -1142,7 +1353,10 @@ async function init() {
   let sdk = null;
   try {
     const timeout = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('DA SDK not available')), SDK_TIMEOUT_MS);
+      setTimeout(
+        () => reject(new Error('DA SDK not available')),
+        SDK_TIMEOUT_MS,
+      );
     });
     const mod = await import(SDK_URL);
     sdk = await Promise.race([mod.default, timeout]);
@@ -1152,7 +1366,9 @@ async function init() {
 
   const context = sdk?.context || {};
   const actions = sdk?.actions || {};
-  state.daFetch = typeof actions.daFetch === 'function' ? (url, initOptions) => actions.daFetch(String(url), initOptions) : null;
+  state.daFetch = typeof actions.daFetch === 'function'
+    ? (url, initOptions) => actions.daFetch(String(url), initOptions)
+    : null;
 
   state.org = String(context.org || context.owner || '').trim();
   state.site = String(context.repo || context.site || '').trim();
@@ -1176,11 +1392,15 @@ async function init() {
   const store = readBrowseMemory() || {};
   const memory = store[`${state.org}|${state.site}|${state.ref}`] || null;
 
-  state.folderPath = normalizePath(urlPath || memory?.folderPath || contextPath);
+  state.folderPath = normalizePath(
+    urlPath || memory?.folderPath || contextPath,
+  );
   if (state.folderPath.startsWith('tools/')) state.folderPath = '';
   state.pageScope = urlScope === 'tree' || urlScope === 'folder'
     ? urlScope
-    : (memory?.pageScope === 'tree' ? 'tree' : 'folder');
+    : memory?.pageScope === 'tree'
+      ? 'tree'
+      : 'folder';
 
   render();
   await loadContent();
@@ -1191,7 +1411,7 @@ void init();
 function buildUrlsForPaths(paths, org, site, ref, env) {
   const host = `${ref || 'main'}--${site}--${org}`;
   return paths.map((path) => {
-    const suffix = !path || path === '/' ? '' : (path.startsWith('/') ? path : `/${path}`);
+    const suffix = !path || path === '/' ? '' : path.startsWith('/') ? path : `/${path}`;
     return `https://${host}.aem.${env}${suffix}`;
   });
 }
