@@ -1,3 +1,5 @@
+/* eslint-disable no-use-before-define, prefer-destructuring, no-void, no-shadow, no-console, no-unused-vars, no-unused-expressions, operator-linebreak, max-len */
+
 import {
   collectPages,
   deleteDaDocumentsSequential,
@@ -16,17 +18,17 @@ import {
   isDaAccessError,
   isStatusPermissionError,
   STATUS_ACCESS_DENIED_MESSAGE,
-} from "./lib/api.js";
+} from './lib/api.js';
 import {
   readBrowseLocation,
   writeBrowseLocation,
-} from "./lib/browse-persist.js";
+} from './lib/browse-persist.js';
 import {
   displayFolderPath,
   formatPageListLabel,
   normalizeFolderPath,
   resolveContentFolderPath,
-} from "./lib/paths.js";
+} from './lib/paths.js';
 import {
   buildOptimisticStatusPatch,
   commitPlatformStatus,
@@ -35,28 +37,28 @@ import {
   hydratePlatformStatusFromCache,
   persistCurrentPlatformStatus,
   removePathsFromStatusCache,
-} from "./lib/status-cache.js";
+} from './lib/status-cache.js';
 import {
   buildDaEditUrl,
   buildSiteHost,
   buildUrlsForPaths,
-} from "./lib/urls.js";
+} from './lib/urls.js';
 import {
   formatStatusDate,
   getPageStatus,
   PAGE_FILTERS,
   countStatusBreakdown,
   statusLabel,
-} from "./lib/page-history.js";
+} from './lib/page-history.js';
 import {
   confirmBulkRun,
   confirmDestructiveAction,
   confirmOpenUrlsInNewTabs,
-} from "./lib/modal.js";
+} from './lib/modal.js';
 import {
   openUrlsInNewTabsQuiet,
   shouldWarnPopupBlock,
-} from "./lib/ui-utils.js";
+} from './lib/ui-utils.js';
 import {
   closeJobModal,
   closeProgressModal,
@@ -67,8 +69,8 @@ import {
   showJobCompleteModal,
   showJobErrorModal,
   updateJobModal,
-} from "./lib/progress-modal.js";
-import { formatRuntimeStatusEta } from "./lib/status-estimate.js";
+} from './lib/progress-modal.js';
+import { formatRuntimeStatusEta } from './lib/status-estimate.js';
 import {
   bindSearchInput,
   buildSearchField,
@@ -76,7 +78,7 @@ import {
   patchPageSearchResults,
   searchHintText,
   syncSelectionUI,
-} from "./lib/search-ui.js";
+} from './lib/search-ui.js';
 import {
   cancelBulkJob,
   cancelStatusCheck,
@@ -98,8 +100,8 @@ import {
   SEARCH_MIN_LEN,
   resetPagesViewState,
   selectAllVisible,
-} from "./lib/state.js";
-import { el } from "./lib/dom.js";
+} from './lib/state.js';
+import { el } from './lib/dom.js';
 
 /* ========================================
    CONFIGURATION & CONSTANTS
@@ -111,11 +113,11 @@ import { el } from "./lib/dom.js";
  * @param {JobTopic | null | undefined} topic
  */
 function jobActionLabel(topic) {
-  if (topic === "delete") return "delete";
-  if (topic === "unpublish") return "unpublish";
-  if (topic === "unpreview") return "unpreview";
-  if (topic === "live") return "publish";
-  return "preview";
+  if (topic === 'delete') return 'delete';
+  if (topic === 'unpublish') return 'unpublish';
+  if (topic === 'unpreview') return 'unpreview';
+  if (topic === 'live') return 'publish';
+  return 'preview';
 }
 
 /**
@@ -123,49 +125,48 @@ function jobActionLabel(topic) {
  * @param {number} count
  */
 function destructiveStartMessage(action, count) {
-  const noun = count === 1 ? "page" : "pages";
-  if (action === "delete") return `Starting delete for ${count} ${noun}…`;
-  if (action === "unpublish") return `Starting unpublish for ${count} ${noun}…`;
+  const noun = count === 1 ? 'page' : 'pages';
+  if (action === 'delete') return `Starting delete for ${count} ${noun}…`;
+  if (action === 'unpublish') return `Starting unpublish for ${count} ${noun}…`;
   return `Starting unpreview for ${count} ${noun}…`;
 }
 
 /** @type {Record<'untouched'|'previewed'|'published', string>} */
 const STATUS_COLOR = {
-  untouched: "#c9252d",
-  previewed: "#c9940a",
-  published: "#2d8a4e",
+  untouched: '#c9252d',
+  previewed: '#c9940a',
+  published: '#2d8a4e',
 };
 
-const SDK_URL = "https://da.live/nx/utils/sdk.js";
+const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 
-const APP_TITLE = "Content Operations Hub";
-const APP_DESCRIPTION =
-  "Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level.";
+const APP_TITLE = 'Content Operations Hub';
+const APP_DESCRIPTION = 'Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level.';
 
 /** @type {ReadonlyArray<[keyof typeof STATUS_COLOR, string]>} */
 const STATUS_LEGEND_ITEMS = [
-  ["untouched", "Not previewed"],
-  ["previewed", "Preview only"],
-  ["published", "Published"],
+  ['untouched', 'Not previewed'],
+  ['previewed', 'Preview only'],
+  ['published', 'Published'],
 ];
 
 /** @typedef {import('./lib/state.js').PageOperationId} PageOperationId */
 
 /** @type {{ id: PageOperationId, label: string, variant: 'deploy' | 'primary' }[]} */
 const SELECTION_STRIP_OPS = [
-  { id: "preview", label: "Preview", variant: "deploy" },
-  { id: "live", label: "Publish", variant: "primary" },
+  { id: 'preview', label: 'Preview', variant: 'deploy' },
+  { id: 'live', label: 'Publish', variant: 'primary' },
 ];
 
 /** @type {{ id: PageOperationId, label: string, danger?: boolean }[]} */
 const MORE_SELECTION_ITEMS = [
-  { id: "unpreview", label: "Remove from preview" },
-  { id: "unpublish", label: "Remove from publish" },
-  { id: "delete", label: "Delete from DA", danger: true },
-  { id: "open-da", label: "Open in DA" },
-  { id: "open-preview", label: "Open preview URLs (.page)" },
-  { id: "open-live", label: "Open publish URLs (.live)" },
+  { id: 'unpreview', label: 'Remove from preview' },
+  { id: 'unpublish', label: 'Remove from publish' },
+  { id: 'delete', label: 'Delete from DA', danger: true },
+  { id: 'open-da', label: 'Open in DA' },
+  { id: 'open-preview', label: 'Open preview URLs (.page)' },
+  { id: 'open-live', label: 'Open publish URLs (.live)' },
 ];
 
 /** @type {Record<string, string>} */
@@ -179,11 +180,11 @@ const SELECTION_OP_ICONS = {
     '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 11h11M5 11V5.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V11"/><path d="M6.5 8h3"/></svg>',
   delete:
     '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 4.5h9M6 4.5V3.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1M5.5 4.5l.5 8.5a1 1 0 0 0 1 .9h2a1 1 0 0 0 1-.9l.5-8.5"/></svg>',
-  "open-da":
+  'open-da':
     '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2.5H4.5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V6.5L9.5 2.5Z"/><path d="M9.5 2.5V6.5H13M6 9.5h4M6 11.5h2.5"/></svg>',
-  "open-preview":
+  'open-preview':
     '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5a8 8 0 0 1 0 11M8 2.5a8 8 0 0 0 0 11"/></svg>',
-  "open-live":
+  'open-live':
     '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5l1.6 3.2 3.6.5-2.6 2.5.6 3.6L8 10.4l-3.2 1.7.6-3.6-2.6-2.5 3.6-.5L8 2.5Z"/></svg>',
   more: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12" cy="8" r="1"/></svg>',
 };
@@ -192,9 +193,9 @@ const SELECTION_OP_ICONS = {
  * @param {string} operationId
  */
 function buildSelectionOpIcon(operationId) {
-  const icon = el("span", "bulk-pp-selection-op-icon");
-  icon.setAttribute("aria-hidden", "true");
-  icon.innerHTML = SELECTION_OP_ICONS[operationId] || "";
+  const icon = el('span', 'bulk-pp-selection-op-icon');
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = SELECTION_OP_ICONS[operationId] || '';
   return icon;
 }
 
@@ -209,7 +210,7 @@ function buildSelectionOpIcon(operationId) {
  * @returns {HTMLElement}
  */
 function setAccessibilityLabel(element, label) {
-  element.setAttribute("aria-label", label);
+  element.setAttribute('aria-label', label);
   element.title = label;
   return element;
 }
@@ -235,7 +236,7 @@ function safeQuery(root, selector, constructor = HTMLElement) {
  */
 function clearInputValue(root, selector) {
   const input = safeQuery(root, selector, HTMLInputElement);
-  if (input) input.value = "";
+  if (input) input.value = '';
 }
 
 /**
@@ -245,27 +246,27 @@ function clearInputValue(root, selector) {
 function clearFilterSelect(root) {
   const filterSelect = safeQuery(
     root,
-    "#bulk-pp-page-filter",
+    '#bulk-pp-page-filter',
     HTMLSelectElement,
   );
-  if (filterSelect) filterSelect.value = "all";
+  if (filterSelect) filterSelect.value = 'all';
 }
 
 /**
  * @param {string} [message]
  */
 function buildDaAccessErrorPanel(message = DA_LOGIN_REQUIRED_MESSAGE) {
-  const wrap = el("div", "bulk-pp-da-access-error");
+  const wrap = el('div', 'bulk-pp-da-access-error');
   wrap.append(
-    el("h3", "bulk-pp-da-access-error-title", "Sign in required"),
-    el("p", "bulk-pp-da-access-error-lead", message),
+    el('h3', 'bulk-pp-da-access-error-title', 'Sign in required'),
+    el('p', 'bulk-pp-da-access-error-lead', message),
   );
   return wrap;
 }
 
 async function initSdk() {
   const timeout = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error("DA SDK not available")), SDK_TIMEOUT_MS);
+    setTimeout(() => reject(new Error('DA SDK not available')), SDK_TIMEOUT_MS);
   });
   try {
     const mod = await import(SDK_URL);
@@ -275,10 +276,10 @@ async function initSdk() {
   } catch {
     return {
       context: {
-        org: "local-org",
-        repo: "local-repo",
-        ref: "main",
-        path: "",
+        org: 'local-org',
+        repo: 'local-repo',
+        ref: 'main',
+        path: '',
       },
       actions: {},
     };
@@ -289,13 +290,14 @@ async function initSdk() {
  * @param {Record<string, string>} context
  */
 function resolveSiteContext(context) {
-  let org = String(context.org || context.owner || "").trim();
-  let site = String(context.repo || context.site || "").trim();
-  const ref = context.ref || "main";
+  let org = String(context.org || context.owner || '').trim();
+  let site = String(context.repo || context.site || '').trim();
+  const ref = context.ref || 'main';
   const appMatch = window.location.pathname.match(/\/app\/([^/]+)\/([^/]+)/);
   if (appMatch) {
-    if (!org) org = appMatch[1];
-    if (!site) site = appMatch[2];
+    const [, matchedOrg, matchedSite] = appMatch;
+    if (!org) org = matchedOrg;
+    if (!site) site = matchedSite;
   }
   return { org, site, ref };
 }
@@ -304,18 +306,20 @@ function resolveSiteContext(context) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function syncBrowseLocation(state) {
-  const { org, site, ref, folderPath, pageScope } = state;
+  const {
+    org, site, ref, folderPath, pageScope,
+  } = state;
   const params = new URLSearchParams(window.location.search);
-  if (ref && ref !== "main") params.set("ref", ref);
-  else params.delete("ref");
+  if (ref && ref !== 'main') params.set('ref', ref);
+  else params.delete('ref');
   const normalized = normalizeFolderPath(folderPath);
-  if (normalized) params.set("path", normalized);
-  else params.delete("path");
-  if (pageScope === "tree") params.set("scope", "tree");
-  else params.delete("scope");
+  if (normalized) params.set('path', normalized);
+  else params.delete('path');
+  if (pageScope === 'tree') params.set('scope', 'tree');
+  else params.delete('scope');
   const qs = params.toString();
-  const url = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
-  window.history.replaceState(null, "", url);
+  const url = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
+  window.history.replaceState(null, '', url);
   writeBrowseLocation(org, site, ref, normalized, pageScope);
 }
 
@@ -323,12 +327,12 @@ function syncBrowseLocation(state) {
  * @param {ReturnType<typeof createAppState>} state
  * @param {boolean} workspaceLocked
  */
-function buildPagesSectionHead(state, workspaceLocked) {
-  const head = el("div", "bulk-pp-section-head");
-  const titleWrap = el("div", "bulk-pp-section-title-wrap");
-  const icon = el("span", "bulk-pp-section-icon bulk-pp-section-icon-pages");
-  icon.setAttribute("aria-hidden", "true");
-  titleWrap.append(icon, el("h3", "bulk-pp-section-title", "Pages"));
+function buildPagesSectionHead() {
+  const head = el('div', 'bulk-pp-section-head');
+  const titleWrap = el('div', 'bulk-pp-section-title-wrap');
+  const icon = el('span', 'bulk-pp-section-icon bulk-pp-section-icon-pages');
+  icon.setAttribute('aria-hidden', 'true');
+  titleWrap.append(icon, el('h3', 'bulk-pp-section-title', 'Pages'));
   head.append(titleWrap);
   return head;
 }
@@ -339,20 +343,20 @@ function buildPagesSectionHead(state, workspaceLocked) {
  */
 function buildPagesScopeRow(state, workspaceLocked) {
   const locked = workspaceLocked || state.contentLoading;
-  const scopeRow = el("div", "bulk-pp-pages-scope-row");
-  const scopeCheck = el("input");
-  scopeCheck.type = "checkbox";
-  scopeCheck.id = "bulk-pp-include-subdirectories";
-  scopeCheck.checked = state.pageScope === "tree";
+  const scopeRow = el('div', 'bulk-pp-pages-scope-row');
+  const scopeCheck = el('input');
+  scopeCheck.type = 'checkbox';
+  scopeCheck.id = 'bulk-pp-include-subdirectories';
+  scopeCheck.checked = state.pageScope === 'tree';
   scopeCheck.disabled = locked;
-  scopeCheck.addEventListener("change", () => {
-    void state.onToggleIncludeSubdirectories(scopeCheck.checked);
+  scopeCheck.addEventListener('change', () => {
+    state.onToggleIncludeSubdirectories(scopeCheck.checked);
   });
-  const scopeLabel = el("label", "bulk-pp-pages-scope-check");
-  scopeLabel.htmlFor = "bulk-pp-include-subdirectories";
+  const scopeLabel = el('label', 'bulk-pp-pages-scope-check');
+  scopeLabel.htmlFor = 'bulk-pp-include-subdirectories';
   scopeLabel.append(
     scopeCheck,
-    document.createTextNode(" Include all subdirectories"),
+    document.createTextNode(' Include all subdirectories'),
   );
   scopeRow.append(scopeLabel);
   return scopeRow;
@@ -364,52 +368,52 @@ function buildPagesScopeRow(state, workspaceLocked) {
  * @param {string} [countId]
  * @param {'folders'|'pages'} [variant]
  */
-function buildSectionHead(title, count, countId = "", variant = "folders") {
-  const head = el("div", "bulk-pp-section-head");
-  const titleWrap = el("div", "bulk-pp-section-title-wrap");
+function buildSectionHead(title, count, countId = '', variant = 'folders') {
+  const head = el('div', 'bulk-pp-section-head');
+  const titleWrap = el('div', 'bulk-pp-section-title-wrap');
   const icon = el(
-    "span",
+    'span',
     `bulk-pp-section-icon bulk-pp-section-icon-${variant}`,
   );
-  icon.setAttribute("aria-hidden", "true");
-  titleWrap.append(icon, el("h3", "bulk-pp-section-title", title));
-  const countEl = el("span", "bulk-pp-section-count", String(count));
+  icon.setAttribute('aria-hidden', 'true');
+  titleWrap.append(icon, el('h3', 'bulk-pp-section-title', title));
+  const countEl = el('span', 'bulk-pp-section-count', String(count));
   if (countId) countEl.id = countId;
   head.append(titleWrap, countEl);
   return head;
 }
 
 function buildBreadcrumb(folderPath, onNavigate, locked = false) {
-  const nav = el("nav", "bulk-pp-breadcrumb");
-  nav.setAttribute("aria-label", "Current folder");
+  const nav = el('nav', 'bulk-pp-breadcrumb');
+  nav.setAttribute('aria-label', 'Current folder');
   const normalized = normalizeFolderPath(folderPath);
 
   if (!normalized) {
-    nav.append(el("span", "bulk-pp-breadcrumb-current", "Site root"));
+    nav.append(el('span', 'bulk-pp-breadcrumb-current', 'Site root'));
     return nav;
   }
 
-  const rootBtn = el("button", "bulk-pp-breadcrumb-segment", "Site root");
-  rootBtn.type = "button";
+  const rootBtn = el('button', 'bulk-pp-breadcrumb-segment', 'Site root');
+  rootBtn.type = 'button';
   rootBtn.disabled = locked;
   if (!locked) {
-    setAccessibilityLabel(rootBtn, "Go to site root");
-    rootBtn.addEventListener("click", () => onNavigate(""));
+    setAccessibilityLabel(rootBtn, 'Go to site root');
+    rootBtn.addEventListener('click', () => onNavigate(''));
   }
   nav.append(rootBtn);
-  const segments = normalized.split("/").filter(Boolean);
+  const segments = normalized.split('/').filter(Boolean);
   segments.forEach((segment, index) => {
-    nav.append(el("span", "bulk-pp-breadcrumb-sep", "›"));
-    const path = segments.slice(0, index + 1).join("/");
+    nav.append(el('span', 'bulk-pp-breadcrumb-sep', '›'));
+    const path = segments.slice(0, index + 1).join('/');
     if (index === segments.length - 1) {
-      nav.append(el("span", "bulk-pp-breadcrumb-current", segment));
+      nav.append(el('span', 'bulk-pp-breadcrumb-current', segment));
     } else {
-      const btn = el("button", "bulk-pp-breadcrumb-segment", segment);
-      btn.type = "button";
+      const btn = el('button', 'bulk-pp-breadcrumb-segment', segment);
+      btn.type = 'button';
       btn.disabled = locked;
       if (!locked) {
         setAccessibilityLabel(btn, `Navigate to ${segment}`);
-        btn.addEventListener("click", () => onNavigate(path));
+        btn.addEventListener('click', () => onNavigate(path));
       }
       nav.append(btn);
     }
@@ -418,39 +422,39 @@ function buildBreadcrumb(folderPath, onNavigate, locked = false) {
 }
 
 function formatRowModifiedLabel(entry, showStatus) {
-  if (!showStatus || !entry) return "";
+  if (!showStatus || !entry) return '';
   const ts = Math.max(entry.previewedAt || 0, entry.publishedAt || 0);
-  return ts ? formatStatusDate(ts) : "";
+  return ts ? formatStatusDate(ts) : '';
 }
 
 function buildPageListColumnHeader() {
-  const head = el("div", "bulk-pp-list-colhead bulk-pp-list-colhead-pages");
-  head.setAttribute("aria-hidden", "true");
+  const head = el('div', 'bulk-pp-list-colhead bulk-pp-list-colhead-pages');
+  head.setAttribute('aria-hidden', 'true');
   head.append(
-    el("span", "bulk-pp-list-colhead-check"),
-    el("span", "bulk-pp-list-colhead-icon"),
-    el("span", "bulk-pp-list-colhead-name", "Name"),
-    el("span", "bulk-pp-list-colhead-modified", "Modified"),
-    el("span", "bulk-pp-list-colhead-actions"),
+    el('span', 'bulk-pp-list-colhead-check'),
+    el('span', 'bulk-pp-list-colhead-icon'),
+    el('span', 'bulk-pp-list-colhead-name', 'Name'),
+    el('span', 'bulk-pp-list-colhead-modified', 'Modified'),
+    el('span', 'bulk-pp-list-colhead-actions'),
   );
   return head;
 }
 
 function buildFolderRow(folder, onNavigate, locked = false) {
-  const li = el("li", "bulk-pp-list-item bulk-pp-list-item-folder");
-  if (locked) li.classList.add("bulk-pp-list-item-locked");
-  const icon = el("span", "bulk-pp-item-icon bulk-pp-icon-folder", "");
-  icon.setAttribute("aria-hidden", "true");
-  const link = el("button", "bulk-pp-folder-link", folder.name);
-  link.type = "button";
+  const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-folder');
+  if (locked) li.classList.add('bulk-pp-list-item-locked');
+  const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-folder', '');
+  icon.setAttribute('aria-hidden', 'true');
+  const link = el('button', 'bulk-pp-folder-link', folder.name);
+  link.type = 'button';
   link.disabled = locked;
   if (locked) {
-    link.setAttribute("aria-disabled", "true");
-    setAccessibilityLabel(link, "Unavailable while status is loading");
+    link.setAttribute('aria-disabled', 'true');
+    setAccessibilityLabel(link, 'Unavailable while status is loading');
   } else {
     setAccessibilityLabel(link, `Open folder ${folder.name}`);
   }
-  link.addEventListener("click", (e) => {
+  link.addEventListener('click', (e) => {
     if (locked) {
       e.preventDefault();
       e.stopPropagation();
@@ -462,7 +466,7 @@ function buildFolderRow(folder, onNavigate, locked = false) {
   });
   li.append(icon, link);
   if (!locked) {
-    li.addEventListener("click", (e) => {
+    li.addEventListener('click', (e) => {
       if (e.target !== link) link.click();
     });
   }
@@ -477,12 +481,12 @@ function buildFolderRow(folder, onNavigate, locked = false) {
 function buildStatusDot(status) {
   const isPending = !status;
   const classList = isPending
-    ? "bulk-pp-status-dot bulk-pp-status-dot-pending"
+    ? 'bulk-pp-status-dot bulk-pp-status-dot-pending'
     : `bulk-pp-status-dot bulk-pp-status-dot-${status}`;
-  const dot = el("span", classList);
-  const label = isPending ? "Status loading" : statusLabel(status);
+  const dot = el('span', classList);
+  const label = isPending ? 'Status loading' : statusLabel(status);
   if (!isPending) setAccessibilityLabel(dot, label);
-  else dot.setAttribute("aria-label", label);
+  else dot.setAttribute('aria-label', label);
   return dot;
 }
 
@@ -495,16 +499,16 @@ function buildPageRow(
   siteCtx,
   interactionsLocked = false,
 ) {
-  const li = el("li", "bulk-pp-list-item bulk-pp-list-item-document");
-  const cb = el("input");
-  cb.type = "checkbox";
-  cb.className = "bulk-pp-page-cb";
+  const li = el('li', 'bulk-pp-list-item bulk-pp-list-item-document');
+  const cb = el('input');
+  cb.type = 'checkbox';
+  cb.className = 'bulk-pp-page-cb';
   cb.value = page.helixPath;
   cb.dataset.path = page.helixPath;
   cb.checked = state.selected.has(page.helixPath);
   cb.disabled = interactionsLocked;
-  cb.id = `page-${page.helixPath.replace(/\W/g, "_")}`;
-  cb.addEventListener("change", (e) => {
+  cb.id = `page-${page.helixPath.replace(/\W/g, '_')}`;
+  cb.addEventListener('change', (e) => {
     const input = /** @type {HTMLInputElement} */ (e.target);
     const path = input.dataset.path || input.value;
     if (input.checked) state.selected.add(path);
@@ -512,23 +516,23 @@ function buildPageRow(
     state.onSelectionChange();
   });
 
-  const icon = el("span", "bulk-pp-item-icon bulk-pp-icon-document", "");
-  icon.setAttribute("aria-hidden", "true");
+  const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-document', '');
+  icon.setAttribute('aria-hidden', 'true');
   const { title } = formatPageListLabel(
     page.helixPath,
     page.name,
     browseFolder,
   );
-  const labelWrap = el("div", "bulk-pp-item-main");
-  const label = el("label", "bulk-pp-item-label", title);
+  const labelWrap = el('div', 'bulk-pp-item-main');
+  const label = el('label', 'bulk-pp-item-label', title);
   label.htmlFor = cb.id;
   labelWrap.append(label);
 
   const modifiedText = formatRowModifiedLabel(entry, showStatus);
-  const modifiedEl = el("span", "bulk-pp-item-modified", modifiedText);
-  if (!modifiedText) modifiedEl.setAttribute("aria-hidden", "true");
+  const modifiedEl = el('span', 'bulk-pp-item-modified', modifiedText);
+  if (!modifiedText) modifiedEl.setAttribute('aria-hidden', 'true');
 
-  const rowActions = el("div", "bulk-pp-row-actions");
+  const rowActions = el('div', 'bulk-pp-row-actions');
   const daUrl = buildDaEditUrl(
     siteCtx.org,
     siteCtx.site,
@@ -538,31 +542,31 @@ function buildPageRow(
   );
   const multiSelected = getActiveSelectionCount(state) > 1;
   const daDisabled = interactionsLocked || multiSelected;
-  const daLink = el("a", "bulk-pp-btn bulk-pp-btn-open-da", "DA");
+  const daLink = el('a', 'bulk-pp-btn bulk-pp-btn-open-da', 'DA');
   daLink.dataset.href = daUrl;
   if (daDisabled) {
-    daLink.classList.add("bulk-pp-btn-open-da-disabled");
-    daLink.setAttribute("aria-disabled", "true");
+    daLink.classList.add('bulk-pp-btn-open-da-disabled');
+    daLink.setAttribute('aria-disabled', 'true');
     const disabledLabel = multiSelected
-      ? "Use More → Open in DA when multiple pages are selected"
-      : "Unavailable while status is loading";
+      ? 'Use More → Open in DA when multiple pages are selected'
+      : 'Unavailable while status is loading';
     setAccessibilityLabel(daLink, disabledLabel);
-    daLink.addEventListener("click", (e) => {
+    daLink.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
     });
   } else {
     daLink.href = daUrl;
-    daLink.target = "_top";
-    daLink.rel = "noopener noreferrer";
-    setAccessibilityLabel(daLink, "Open this page in Document Authoring");
-    daLink.addEventListener("click", (e) => {
+    daLink.target = '_top';
+    daLink.rel = 'noopener noreferrer';
+    setAccessibilityLabel(daLink, 'Open this page in Document Authoring');
+    daLink.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       try {
         (window.top || window).location.assign(daUrl);
       } catch {
-        window.open(daUrl, "_blank", "noopener,noreferrer");
+        window.open(daUrl, '_blank', 'noopener,noreferrer');
       }
     });
   }
@@ -587,9 +591,8 @@ async function openUrlsInNewTabs(urls, state = null) {
   }
   const result = openUrlsInNewTabsQuiet(urls);
   if (shouldWarnPopupBlock(result) && state) {
-    state.status =
-      "Your browser blocked new tabs. Allow pop-ups for this site, or copy URLs from the operation completion dialog.";
-    state.statusType = "error";
+    state.status = 'Your browser blocked new tabs. Allow pop-ups for this site, or copy URLs from the operation completion dialog.';
+    state.statusType = 'error';
     if (state.root) render(/** @type {HTMLElement} */ (state.root), state);
   }
 }
@@ -620,15 +623,13 @@ async function openSelectedDa(state) {
   const urls = getSelectedHelixPaths(state)
     .map((path) => pageByPath.get(path))
     .filter(Boolean)
-    .map((page) =>
-      buildDaEditUrl(
-        state.org,
-        state.site,
-        page.helixPath,
-        page.sourcePath,
-        state.ref,
-      ),
-    );
+    .map((page) => buildDaEditUrl(
+      state.org,
+      state.site,
+      page.helixPath,
+      page.sourcePath,
+      state.ref,
+    ));
   await openUrlsInNewTabs(urls, state);
 }
 
@@ -638,11 +639,11 @@ async function openSelectedDa(state) {
  */
 function isOperationBlocked(state) {
   return (
-    state.loading ||
-    state.contentLoading ||
-    isStatusFetchBlocking(state) ||
-    isJobModalOpen() ||
-    getActiveSelectionCount(state) === 0
+    state.loading
+    || state.contentLoading
+    || isStatusFetchBlocking(state)
+    || isJobModalOpen()
+    || getActiveSelectionCount(state) === 0
   );
 }
 
@@ -651,12 +652,12 @@ function isOperationBlocked(state) {
  * @returns {import('./lib/api.js').AdminOperation | ''}
  */
 function operationApiKey(operationId) {
-  if (operationId === "live") return "live";
-  if (operationId === "preview") return "preview";
-  if (operationId === "unpreview") return "unpreview";
-  if (operationId === "unpublish") return "unpublish";
-  if (operationId === "delete") return "delete";
-  return "";
+  if (operationId === 'live') return 'live';
+  if (operationId === 'preview') return 'preview';
+  if (operationId === 'unpreview') return 'unpreview';
+  if (operationId === 'unpublish') return 'unpublish';
+  if (operationId === 'delete') return 'delete';
+  return '';
 }
 
 /**
@@ -665,10 +666,9 @@ function operationApiKey(operationId) {
  * @returns {string}
  */
 function errorHintFrom(err, message) {
-  const status =
-    err && typeof err === "object" && "status" in err
-      ? Number(/** @type {{ status?: number }} */ (err).status)
-      : 0;
+  const status = err && typeof err === 'object' && 'status' in err
+    ? Number(/** @type {{ status?: number }} */ (err).status)
+    : 0;
   return permissionErrorHint(status, message);
 }
 
@@ -678,11 +678,11 @@ function errorHintFrom(err, message) {
  * @param {unknown} err
  * @param {import('./lib/api.js').AdminOperation | ''} [operation]
  */
-function presentJobError(state, topic, err, operation = "") {
-  const msg = messageFromApiError(err, "Operation failed.", operation);
+function presentJobError(state, topic, err, operation = '') {
+  const msg = messageFromApiError(err, 'Operation failed.', operation);
   state.status = msg;
-  state.statusType = "error";
-  if (err && typeof err === "object" && "data" in err && err.data) {
+  state.statusType = 'error';
+  if (err && typeof err === 'object' && 'data' in err && err.data) {
     state.jobDetail = JSON.stringify(err.data, null, 2);
   }
   showJobErrorModal({
@@ -701,36 +701,36 @@ async function runPageOperation(state, operationId) {
   if (isOperationBlocked(state)) return;
 
   try {
-    if (operationId === "preview" || operationId === "live") {
+    if (operationId === 'preview' || operationId === 'live') {
       await state.onRun(operationId);
       return;
     }
     if (
-      operationId === "unpreview" ||
-      operationId === "unpublish" ||
-      operationId === "delete"
+      operationId === 'unpreview'
+      || operationId === 'unpublish'
+      || operationId === 'delete'
     ) {
       await state.onRunDestructive(operationId);
       return;
     }
-    if (operationId === "open-da") {
+    if (operationId === 'open-da') {
       await openSelectedDa(state);
       return;
     }
-    if (operationId === "open-preview") {
-      await openSelectedUrls(state, "preview");
+    if (operationId === 'open-preview') {
+      await openSelectedUrls(state, 'preview');
       return;
     }
-    if (operationId === "open-live") {
-      await openSelectedUrls(state, "live");
+    if (operationId === 'open-live') {
+      await openSelectedUrls(state, 'live');
     }
   } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") return;
+    if (err instanceof DOMException && err.name === 'AbortError') return;
     const op = operationApiKey(operationId);
-    const msg = messageFromApiError(err, "Operation failed.", op);
+    const msg = messageFromApiError(err, 'Operation failed.', op);
     state.status = msg;
-    state.statusType = "error";
-    const root = state.root;
+    state.statusType = 'error';
+    const { root } = state;
     if (root) render(/** @type {HTMLElement} */ (root), state);
   }
 }
@@ -741,10 +741,10 @@ async function runPageOperation(state, operationId) {
  */
 function isSelectionActionsBlocked(state) {
   return (
-    state.loading ||
-    state.contentLoading ||
-    isStatusFetchBlocking(state) ||
-    isJobModalOpen()
+    state.loading
+    || state.contentLoading
+    || isStatusFetchBlocking(state)
+    || isJobModalOpen()
   );
 }
 
@@ -760,22 +760,21 @@ function bindSelectionOpButton(
   state,
   operationId,
   label,
-  variant = "default",
+  variant = 'default',
 ) {
-  btn.type = "button";
+  btn.type = 'button';
   btn.dataset.operation = operationId;
   btn.classList.add(
-    "bulk-pp-selection-strip-btn",
+    'bulk-pp-selection-strip-btn',
     `bulk-pp-selection-strip-btn-${variant}`,
   );
-  if (operationId === "delete")
-    btn.classList.add("bulk-pp-selection-strip-btn-danger");
+  if (operationId === 'delete') btn.classList.add('bulk-pp-selection-strip-btn-danger');
   btn.append(
     buildSelectionOpIcon(operationId),
-    el("span", "bulk-pp-selection-op-label", label),
+    el('span', 'bulk-pp-selection-op-label', label),
   );
-  btn.addEventListener("click", () => {
-    void runPageOperation(state, operationId);
+  btn.addEventListener('click', () => {
+    runPageOperation(state, operationId);
   });
 }
 
@@ -785,76 +784,76 @@ function bindSelectionOpButton(
 function buildSelectionActionBar(state) {
   const count = getActiveSelectionCount(state);
   const blocked = isSelectionActionsBlocked(state);
-  const anchor = el("div", "bulk-pp-selection-strip-anchor");
-  anchor.id = "bulk-pp-selection-bar";
+  const anchor = el('div', 'bulk-pp-selection-strip-anchor');
+  anchor.id = 'bulk-pp-selection-bar';
   if (count === 0) anchor.hidden = true;
 
-  const bar = el("div", "bulk-pp-selection-strip");
-  bar.setAttribute("role", "toolbar");
-  setAccessibilityLabel(bar, "Actions for selected pages");
+  const bar = el('div', 'bulk-pp-selection-strip');
+  bar.setAttribute('role', 'toolbar');
+  setAccessibilityLabel(bar, 'Actions for selected pages');
 
-  const left = el("div", "bulk-pp-selection-strip-left");
-  const badge = el("div", "bulk-pp-selection-strip-badge");
+  const left = el('div', 'bulk-pp-selection-strip-left');
+  const badge = el('div', 'bulk-pp-selection-strip-badge');
   const countEl = el(
-    "span",
-    "bulk-pp-selection-count",
+    'span',
+    'bulk-pp-selection-count',
     formatSelectionBarText(count),
   );
-  countEl.id = "bulk-pp-selection-count";
+  countEl.id = 'bulk-pp-selection-count';
   badge.append(countEl);
 
-  const clearBtn = el("button", "bulk-pp-selection-clear", "Clear");
-  clearBtn.type = "button";
-  clearBtn.id = "bulk-pp-selection-clear";
-  setAccessibilityLabel(clearBtn, "Clear selection");
+  const clearBtn = el('button', 'bulk-pp-selection-clear', 'Clear');
+  clearBtn.type = 'button';
+  clearBtn.id = 'bulk-pp-selection-clear';
+  setAccessibilityLabel(clearBtn, 'Clear selection');
   clearBtn.disabled = blocked;
-  clearBtn.addEventListener("click", () => state.onSelectAll(false));
+  clearBtn.addEventListener('click', () => state.onSelectAll(false));
   left.append(badge, clearBtn);
 
-  const actions = el("div", "bulk-pp-selection-strip-actions");
+  const actions = el('div', 'bulk-pp-selection-strip-actions');
   const deployGroup = el(
-    "div",
-    "bulk-pp-selection-strip-group bulk-pp-selection-strip-group-deploy",
+    'div',
+    'bulk-pp-selection-strip-group bulk-pp-selection-strip-group-deploy',
   );
   SELECTION_STRIP_OPS.forEach(({ id, label, variant }) => {
-    const btn = el("button");
+    const btn = el('button');
     bindSelectionOpButton(btn, state, id, label, variant);
     btn.disabled = blocked;
     deployGroup.append(btn);
   });
   actions.append(deployGroup);
 
-  const moreWrap = el("div", "bulk-pp-selection-more-wrap");
+  const moreWrap = el('div', 'bulk-pp-selection-more-wrap');
   const moreBtn = el(
-    "button",
-    "bulk-pp-selection-strip-btn bulk-pp-selection-more-trigger",
-    "",
+    'button',
+    'bulk-pp-selection-strip-btn bulk-pp-selection-more-trigger',
+    '',
   );
-  moreBtn.type = "button";
-  moreBtn.id = "bulk-pp-selection-more";
-  moreBtn.setAttribute("aria-haspopup", "true");
-  moreBtn.setAttribute("aria-expanded", "false");
-  setAccessibilityLabel(moreBtn, "More page operations");
+  moreBtn.type = 'button';
+  moreBtn.id = 'bulk-pp-selection-more';
+  moreBtn.setAttribute('aria-haspopup', 'true');
+  moreBtn.setAttribute('aria-expanded', 'false');
+  setAccessibilityLabel(moreBtn, 'More page operations');
   moreBtn.disabled = blocked;
-  moreBtn.append(el("span", "bulk-pp-selection-op-label", "More"));
+  moreBtn.append(el('span', 'bulk-pp-selection-op-label', 'More'));
 
-  const menu = el("div", "bulk-pp-selection-more-menu");
-  menu.setAttribute("role", "menu");
-  const menuPanel = el("div", "bulk-pp-selection-more-menu-panel");
+  const menu = el('div', 'bulk-pp-selection-more-menu');
+  menu.setAttribute('role', 'menu');
+  const menuPanel = el('div', 'bulk-pp-selection-more-menu-panel');
   MORE_SELECTION_ITEMS.forEach(({ id, label, danger }) => {
-    const item = el("button", "bulk-pp-selection-more-item");
-    item.type = "button";
-    item.setAttribute("role", "menuitem");
-    if (danger) item.classList.add("bulk-pp-selection-more-item-danger");
+    const item = el('button', 'bulk-pp-selection-more-item');
+    item.type = 'button';
+    item.setAttribute('role', 'menuitem');
+    if (danger) item.classList.add('bulk-pp-selection-more-item-danger');
     item.disabled = blocked;
     item.append(
       buildSelectionOpIcon(id),
-      el("span", "bulk-pp-selection-more-item-label", label),
+      el('span', 'bulk-pp-selection-more-item-label', label),
     );
-    item.addEventListener("click", () => {
-      void runPageOperation(state, id);
-      moreBtn.setAttribute("aria-expanded", "false");
-      menu.classList.remove("bulk-pp-selection-more-menu-open");
+    item.addEventListener('click', () => {
+      runPageOperation(state, id);
+      moreBtn.setAttribute('aria-expanded', 'false');
+      menu.classList.remove('bulk-pp-selection-more-menu-open');
     });
     menuPanel.append(item);
   });
@@ -864,7 +863,7 @@ function buildSelectionActionBar(state) {
   attachMenuManager(moreWrap, moreBtn, menu);
 
   moreWrap.append(moreBtn, menu);
-  actions.append(el("div", "bulk-pp-selection-strip-divider"), moreWrap);
+  actions.append(el('div', 'bulk-pp-selection-strip-divider'), moreWrap);
   bar.append(left, actions);
   anchor.append(bar);
   return anchor;
@@ -874,7 +873,7 @@ function buildSelectionActionBar(state) {
  * @param {number} count
  */
 function formatSelectionBarText(count) {
-  return count === 1 ? "1 page selected" : `${count} pages selected`;
+  return count === 1 ? '1 page selected' : `${count} pages selected`;
 }
 
 /* ========================================
@@ -897,40 +896,42 @@ function attachMenuManager(menuWrap, menuTrigger, menu, closeDelay = 220) {
       clearTimeout(closeTimer);
       closeTimer = null;
     }
-    menu.classList.add("bulk-pp-selection-more-menu-open");
-    menuTrigger.setAttribute("aria-expanded", "true");
+    menu.classList.add('bulk-pp-selection-more-menu-open');
+    menuTrigger.setAttribute('aria-expanded', 'true');
   };
 
   const scheduleClose = () => {
     if (closeTimer) clearTimeout(closeTimer);
     closeTimer = setTimeout(() => {
-      menu.classList.remove("bulk-pp-selection-more-menu-open");
-      menuTrigger.setAttribute("aria-expanded", "false");
+      menu.classList.remove('bulk-pp-selection-more-menu-open');
+      menuTrigger.setAttribute('aria-expanded', 'false');
       closeTimer = null;
     }, closeDelay);
   };
 
   const toggleMenu = (e) => {
     e.stopPropagation();
-    menu.classList.contains("bulk-pp-selection-more-menu-open")
-      ? scheduleClose()
-      : openMenu();
+    if (menu.classList.contains('bulk-pp-selection-more-menu-open')) {
+      scheduleClose();
+    } else {
+      openMenu();
+    }
   };
 
   // Mouse events
-  menuWrap.addEventListener("mouseenter", openMenu);
-  menuWrap.addEventListener("mouseleave", scheduleClose);
+  menuWrap.addEventListener('mouseenter', openMenu);
+  menuWrap.addEventListener('mouseleave', scheduleClose);
 
   // Focus events
-  menuWrap.addEventListener("focusin", openMenu);
-  menuWrap.addEventListener("focusout", (e) => {
+  menuWrap.addEventListener('focusin', openMenu);
+  menuWrap.addEventListener('focusout', (e) => {
     if (!menuWrap.contains(/** @type {Node} */ (e.relatedTarget))) {
       scheduleClose();
     }
   });
 
   // Click to toggle
-  menuTrigger.addEventListener("click", toggleMenu);
+  menuTrigger.addEventListener('click', toggleMenu);
 }
 
 /**
@@ -942,8 +943,8 @@ function applyOperationWorkspaceReset(state) {
   closeProgressModal(root);
 
   clearFilterSelect(root);
-  clearInputValue(root, "#bulk-pp-page-search");
-  clearInputValue(root, "#bulk-pp-folder-search");
+  clearInputValue(root, '#bulk-pp-page-search');
+  clearInputValue(root, '#bulk-pp-folder-search');
 
   if (root) patchPagesFilterControls(root, state);
 
@@ -964,20 +965,19 @@ function applyOperationWorkspaceReset(state) {
 function patchPagesFilterControls(root, state) {
   const filterSelect = safeQuery(
     root,
-    "#bulk-pp-page-filter",
+    '#bulk-pp-page-filter',
     HTMLSelectElement,
   );
   if (!filterSelect) return;
 
-  filterSelect.querySelectorAll("option").forEach((opt) => {
+  filterSelect.querySelectorAll('option').forEach((opt) => {
     if (!(opt instanceof HTMLOptionElement)) return;
-    const baseLabel =
-      PAGE_FILTERS.find(([v]) => v === opt.value)?.[1] || opt.textContent;
+    const baseLabel = PAGE_FILTERS.find(([v]) => v === opt.value)?.[1] || opt.textContent;
     opt.disabled = false;
     opt.textContent = baseLabel;
   });
 
-  const filterNote = root.querySelector(".bulk-pp-pages-filter-note");
+  const filterNote = root.querySelector('.bulk-pp-pages-filter-note');
   if (filterNote) filterNote.remove();
 }
 
@@ -990,7 +990,7 @@ function clearPagesStatusDisplay(state) {
     persistCurrentPlatformStatus(state);
   }
   cancelStatusCheck(state, false);
-  state.pageFilter = "all";
+  state.pageFilter = 'all';
   state.statusFetched = false;
   state.platformStatus = {};
   state.statusCheckFailed = false;
@@ -1003,7 +1003,7 @@ function clearPagesStatusDisplay(state) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function patchPagesHeader(root, state) {
-  const host = safeQuery(root, ".bulk-pp-pages-header");
+  const host = safeQuery(root, '.bulk-pp-pages-header');
   if (!host) return;
   host.replaceWith(buildPagesHeader(state, isStatusFetchBlocking(state)));
 }
@@ -1014,7 +1014,7 @@ function patchPagesHeader(root, state) {
  */
 function patchPagesStatusLoading(root, state) {
   patchPagesHeader(root, state);
-  const host = safeQuery(root, "#bulk-pp-pages-status-loading");
+  const host = safeQuery(root, '#bulk-pp-pages-status-loading');
   if (host) host.remove();
 }
 
@@ -1038,36 +1038,35 @@ function refreshDeploymentUi(state) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
- * @param {{ visiblePages: { helixPath: string }[], statusChecking: boolean }} opts
+ * @param {{ visiblePages: { helixPath: string }[] }} opts
  */
-function buildPagesSelectionRow(state, { visiblePages, statusChecking }) {
-  const row = el("div", "bulk-pp-pages-selection-row");
+function buildPagesSelectionRow(state, { visiblePages }) {
+  const row = el('div', 'bulk-pp-pages-selection-row');
   const selectionPill = el(
-    "span",
-    "bulk-pp-selection-pill",
+    'span',
+    'bulk-pp-selection-pill',
     formatSelectionPillText(state),
   );
-  selectionPill.id = "bulk-pp-selection-pill";
+  selectionPill.id = 'bulk-pp-selection-pill';
   row.append(selectionPill);
 
   const interactionsLocked = isStatusFetchBlocking(state);
   const selectAllBtn = el(
-    "button",
-    "bulk-pp-btn bulk-pp-btn-text",
-    "Select all",
+    'button',
+    'bulk-pp-btn bulk-pp-btn-text',
+    'Select all',
   );
-  const selectNoneBtn = el("button", "bulk-pp-btn bulk-pp-btn-text", "Clear");
-  selectAllBtn.type = "button";
-  selectNoneBtn.type = "button";
-  selectAllBtn.id = "bulk-pp-select-all";
-  selectNoneBtn.id = "bulk-pp-select-none";
+  const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Clear');
+  selectAllBtn.type = 'button';
+  selectNoneBtn.type = 'button';
+  selectAllBtn.id = 'bulk-pp-select-all';
+  selectNoneBtn.id = 'bulk-pp-select-none';
   selectAllBtn.disabled = visiblePages.length === 0 || interactionsLocked;
-  selectNoneBtn.disabled =
-    visiblePages.length === 0 ||
-    interactionsLocked ||
-    getActiveSelectionCount(state) === 0;
-  selectAllBtn.addEventListener("click", () => state.onSelectAll(true));
-  selectNoneBtn.addEventListener("click", () => state.onSelectAll(false));
+  selectNoneBtn.disabled = visiblePages.length === 0
+    || interactionsLocked
+    || getActiveSelectionCount(state) === 0;
+  selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
+  selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
   row.append(selectAllBtn, selectNoneBtn);
   return row;
 }
@@ -1077,20 +1076,20 @@ function buildPagesSelectionRow(state, { visiblePages, statusChecking }) {
  * @param {boolean} workspaceLocked
  */
 function buildPagesHeader(state, workspaceLocked) {
-  const header = el("div", "bulk-pp-pages-header");
-  const topRow = el("div", "bulk-pp-pages-header-top");
-  const main = el("div", "bulk-pp-pages-header-main");
-  main.append(buildPagesSectionHead(state, workspaceLocked));
+  const header = el('div', 'bulk-pp-pages-header');
+  const topRow = el('div', 'bulk-pp-pages-header-top');
+  const mainSection = el('div', 'bulk-pp-pages-header-main');
+  mainSection.append(buildPagesSectionHead());
 
-  const aside = el("div", "bulk-pp-pages-header-aside");
+  const aside = el('div', 'bulk-pp-pages-header-aside');
   if (state.pages.length > 0) {
     aside.append(buildPagesStatusSummary(state));
   } else {
-    const countEl = el("span", "bulk-pp-section-count", "0");
-    countEl.id = "bulk-pp-page-count";
+    const countEl = el('span', 'bulk-pp-section-count', '0');
+    countEl.id = 'bulk-pp-page-count';
     aside.append(countEl);
   }
-  topRow.append(main, aside);
+  topRow.append(mainSection, aside);
   header.append(topRow);
 
   const breadcrumb = buildBreadcrumb(
@@ -1098,7 +1097,7 @@ function buildPagesHeader(state, workspaceLocked) {
     (path) => state.onNavigate(path),
     workspaceLocked,
   );
-  breadcrumb.classList.add("bulk-pp-pages-breadcrumb");
+  breadcrumb.classList.add('bulk-pp-pages-breadcrumb');
   header.append(breadcrumb, buildPagesScopeRow(state, workspaceLocked));
 
   return header;
@@ -1128,7 +1127,7 @@ function removePagesFromState(state, helixPaths) {
  */
 async function refreshPlatformStatusAfterJob(state, daFetch, paths, topic) {
   if (!daFetch || paths.length === 0) return;
-  if (topic === "delete") {
+  if (topic === 'delete') {
     removePathsFromStatusCache(state.org, state.site, state.ref, paths);
     const next = { ...state.platformStatus };
     paths.forEach((path) => {
@@ -1139,7 +1138,7 @@ async function refreshPlatformStatusAfterJob(state, daFetch, paths, topic) {
     return;
   }
 
-  const isRemoval = topic === "unpreview" || topic === "unpublish";
+  const isRemoval = topic === 'unpreview' || topic === 'unpublish';
   const optimistic = buildOptimisticStatusPatch(
     topic,
     paths,
@@ -1170,7 +1169,7 @@ async function refreshPlatformStatusAfterJob(state, daFetch, paths, topic) {
       isRemoval ? { replacePaths: paths, removalTopic: topic } : undefined,
     );
   } catch (refreshErr) {
-    console.warn("[bulk-pp] status refresh after job failed", refreshErr);
+    console.warn('[bulk-pp] status refresh after job failed', refreshErr);
   }
   refreshDeploymentUi(state);
 }
@@ -1183,7 +1182,7 @@ async function refreshPlatformStatusAfterJob(state, daFetch, paths, topic) {
  */
 function applyJobProgress(state, paths, phaseLabel, job) {
   const progress = job.progress || job.job?.progress;
-  if (progress && typeof progress === "object") {
+  if (progress && typeof progress === 'object') {
     const { total, processed, failed } = /** @type {{
       total?: number,
       processed?: number,
@@ -1198,7 +1197,7 @@ function applyJobProgress(state, paths, phaseLabel, job) {
       processed: proc,
       total: tot || paths.length,
       failed: Number(failed ?? 0),
-      stateLabel: String(job.state || job.job?.state || "running"),
+      stateLabel: String(job.state || job.job?.state || 'running'),
       phaseLabel,
     });
   }
@@ -1227,7 +1226,7 @@ function setSequentialProgress(
     processed,
     total,
     failed,
-    stateLabel: "running",
+    stateLabel: 'running',
     phaseLabel,
   });
 }
@@ -1276,27 +1275,27 @@ function formatStatusAccessMessage(message) {
  */
 function buildPagesStatusNotice(state) {
   if (state.statusPanelNote) {
-    return el("p", "bulk-pp-status-note", state.statusPanelNote);
+    return el('p', 'bulk-pp-status-note', state.statusPanelNote);
   }
   if (state.statusCheckFailed && state.statusError && state.pages.length > 0) {
     const note = el(
-      "p",
-      "bulk-pp-status-note bulk-pp-status-note-error",
+      'p',
+      'bulk-pp-status-note bulk-pp-status-note-error',
       formatStatusAccessMessage(state.statusError),
     );
-    note.id = "bulk-pp-pages-status-notice";
-    note.setAttribute("role", "alert");
+    note.id = 'bulk-pp-pages-status-notice';
+    note.setAttribute('role', 'alert');
     return note;
   }
   return null;
 }
 
 function buildStatusLegend() {
-  const legend = el("div", "bulk-pp-status-legend");
-  legend.setAttribute("aria-label", "Deployment status key");
+  const legend = el('div', 'bulk-pp-status-legend');
+  legend.setAttribute('aria-label', 'Deployment status key');
   STATUS_LEGEND_ITEMS.forEach(([key, text]) => {
-    const item = el("span", "bulk-pp-legend-item");
-    const dot = el("span", "bulk-pp-legend-dot");
+    const item = el('span', 'bulk-pp-legend-item');
+    const dot = el('span', 'bulk-pp-legend-dot');
     dot.style.background = STATUS_COLOR[key];
     item.append(dot, document.createTextNode(text));
     legend.append(item);
@@ -1325,47 +1324,49 @@ function buildPagesStatusSummary(state) {
   });
   if (state.statusCheckFailed && state.statusError && !hasAnyStatus) {
     const strip = el(
-      "div",
-      "bulk-pp-pages-summary bulk-pp-pages-summary-error",
+      'div',
+      'bulk-pp-pages-summary bulk-pp-pages-summary-error',
     );
-    strip.id = "bulk-pp-pages-summary";
-    strip.setAttribute("aria-label", "Deployment status unavailable");
+    strip.id = 'bulk-pp-pages-summary';
+    strip.setAttribute('aria-label', 'Deployment status unavailable');
     strip.append(
       el(
-        "span",
-        "bulk-pp-pages-summary-error-text",
+        'span',
+        'bulk-pp-pages-summary-error-text',
         formatStatusAccessMessage(state.statusError),
       ),
     );
     return strip;
   }
-  const { live, previewOnly, none, total } = deploymentCountsForPaths(
+  const {
+    live, previewOnly, none, total,
+  } = deploymentCountsForPaths(
     state.platformStatus,
     helixPaths,
   );
   const loading = state.statusRevalidating;
   const strip = el(
-    "div",
-    `bulk-pp-pages-summary${loading ? " bulk-pp-pages-summary-loading" : ""}`,
+    'div',
+    `bulk-pp-pages-summary${loading ? ' bulk-pp-pages-summary-loading' : ''}`,
   );
-  strip.id = "bulk-pp-pages-summary";
-  strip.setAttribute("aria-label", "Deployment summary for pages in this view");
+  strip.id = 'bulk-pp-pages-summary';
+  strip.setAttribute('aria-label', 'Deployment summary for pages in this view');
 
   /** @type {[string, number, string][]} */
   const items = [
-    ["live", live, "Published"],
-    ["preview", previewOnly, "Preview only"],
-    ["none", none, "Not deployed"],
-    ["total", total, "Total in view"],
+    ['live', live, 'Published'],
+    ['preview', previewOnly, 'Preview only'],
+    ['none', none, 'Not deployed'],
+    ['total', total, 'Total in view'],
   ];
   items.forEach(([mod, value, label]) => {
     const item = el(
-      "div",
+      'div',
       `bulk-pp-pages-summary-item bulk-pp-pages-summary-${mod}`,
     );
     item.append(
-      el("span", "bulk-pp-pages-summary-value", String(value)),
-      el("span", "bulk-pp-pages-summary-label", label),
+      el('span', 'bulk-pp-pages-summary-value', String(value)),
+      el('span', 'bulk-pp-pages-summary-label', label),
     );
     strip.append(item);
   });
@@ -1380,19 +1381,19 @@ function buildPagesStatusSummary(state) {
  */
 function buildPagesFilterField(state, pageFilter, contentLoading) {
   const filterField = el(
-    "div",
-    "bulk-pp-pages-filter-field bulk-pp-field-filter",
+    'div',
+    'bulk-pp-pages-filter-field bulk-pp-field-filter',
   );
-  const filterSelect = document.createElement("select");
-  filterSelect.id = "bulk-pp-page-filter";
-  filterSelect.className = "bulk-pp-filter-select";
-  filterSelect.setAttribute("aria-label", "Filter by status");
+  const filterSelect = document.createElement('select');
+  filterSelect.id = 'bulk-pp-page-filter';
+  filterSelect.className = 'bulk-pp-filter-select';
+  filterSelect.setAttribute('aria-label', 'Filter by status');
   filterSelect.disabled = contentLoading;
   PAGE_FILTERS.forEach(([value, labelText]) => {
-    const opt = document.createElement("option");
+    const opt = document.createElement('option');
     opt.value = value;
     opt.textContent = labelText;
-    if (value === (pageFilter || "all")) opt.selected = true;
+    if (value === (pageFilter || 'all')) opt.selected = true;
     filterSelect.append(opt);
   });
   filterField.append(filterSelect);
@@ -1412,9 +1413,9 @@ function shouldShowStatusProgressBar(state) {
  */
 function syncStatusFetchLockUi(root, state) {
   const locked = isStatusFetchLockingUi(state);
-  root.classList.toggle("bulk-pp-status-fetch-active", locked);
+  root.classList.toggle('bulk-pp-status-fetch-active', locked);
   const busy = locked || isFirstSessionStatusPending(state);
-  root.setAttribute("aria-busy", busy ? "true" : "false");
+  root.setAttribute('aria-busy', busy ? 'true' : 'false');
 }
 
 /**
@@ -1423,8 +1424,8 @@ function syncStatusFetchLockUi(root, state) {
  */
 function syncFirstSessionLockUi(root, state) {
   const locked = isFirstSessionStatusPending(state) && !state.contentLoading;
-  root.classList.toggle("bulk-pp-first-session-loading", locked);
-  let overlay = root.querySelector("#bulk-pp-first-session-overlay");
+  root.classList.toggle('bulk-pp-first-session-loading', locked);
+  const overlay = root.querySelector('#bulk-pp-first-session-overlay');
   if (locked) {
     if (!overlay) root.append(buildFirstSessionFetchOverlay());
   } else if (overlay) {
@@ -1436,38 +1437,38 @@ function syncFirstSessionLockUi(root, state) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function buildPagesStatusProgressBar(state) {
-  const bar = el("div", "bulk-pp-pages-status-progress");
-  bar.id = "bulk-pp-pages-status-progress";
+  const bar = el('div', 'bulk-pp-pages-status-progress');
+  bar.id = 'bulk-pp-pages-status-progress';
 
-  const head = el("div", "bulk-pp-pages-status-progress-head");
+  const head = el('div', 'bulk-pp-pages-status-progress-head');
   head.append(
     el(
-      "span",
-      "bulk-pp-pages-status-progress-title",
-      "Fetching deployment status",
+      'span',
+      'bulk-pp-pages-status-progress-title',
+      'Fetching deployment status',
     ),
   );
   const stopBtn = el(
-    "button",
-    "bulk-pp-btn bulk-pp-btn-text bulk-pp-pages-status-progress-stop",
-    "Stop",
+    'button',
+    'bulk-pp-btn bulk-pp-btn-text bulk-pp-pages-status-progress-stop',
+    'Stop',
   );
-  stopBtn.type = "button";
-  stopBtn.addEventListener("click", () => state.onCancelStatus());
+  stopBtn.type = 'button';
+  stopBtn.addEventListener('click', () => state.onCancelStatus());
   head.append(stopBtn);
   bar.append(head);
 
-  const track = el("div", "bulk-pp-progress-track");
-  const fill = el("div", "bulk-pp-progress-fill");
-  fill.id = "bulk-pp-pages-status-progress-fill";
+  const track = el('div', 'bulk-pp-progress-track');
+  const fill = el('div', 'bulk-pp-progress-fill');
+  fill.id = 'bulk-pp-pages-status-progress-fill';
   track.append(fill);
   bar.append(track);
 
-  const meta = el("div", "bulk-pp-pages-status-progress-meta");
-  const label = el("span", "bulk-pp-pages-status-progress-label", "Starting…");
-  label.id = "bulk-pp-pages-status-progress-label";
-  const eta = el("span", "bulk-pp-pages-status-progress-eta", "");
-  eta.id = "bulk-pp-pages-status-progress-eta";
+  const meta = el('div', 'bulk-pp-pages-status-progress-meta');
+  const label = el('span', 'bulk-pp-pages-status-progress-label', 'Starting…');
+  label.id = 'bulk-pp-pages-status-progress-label';
+  const eta = el('span', 'bulk-pp-pages-status-progress-eta', '');
+  eta.id = 'bulk-pp-pages-status-progress-eta';
   meta.append(label, eta);
   bar.append(meta);
 
@@ -1483,21 +1484,20 @@ function updatePagesStatusProgressBar(bar, state) {
   const done = state.statusProgressDone;
   const total = state.statusProgressTotal;
   const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
-  const fill = bar.querySelector("#bulk-pp-pages-status-progress-fill");
+  const fill = bar.querySelector('#bulk-pp-pages-status-progress-fill');
   if (fill instanceof HTMLElement) fill.style.width = `${pct}%`;
-  const label = bar.querySelector("#bulk-pp-pages-status-progress-label");
+  const label = bar.querySelector('#bulk-pp-pages-status-progress-label');
   if (label) {
-    label.textContent =
-      total > 0 ? `${done} of ${total} pages checked (${pct}%)` : "Starting…";
+    label.textContent = total > 0 ? `${done} of ${total} pages checked (${pct}%)` : 'Starting…';
   }
-  const eta = bar.querySelector("#bulk-pp-pages-status-progress-eta");
+  const eta = bar.querySelector('#bulk-pp-pages-status-progress-eta');
   if (eta) {
     const runtime = formatRuntimeStatusEta(
       state.statusFetchStartedAt,
       done,
       total,
     );
-    eta.textContent = runtime || "";
+    eta.textContent = runtime || '';
   }
 }
 
@@ -1506,9 +1506,9 @@ function updatePagesStatusProgressBar(bar, state) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function patchPagesStatusProgressBar(root, state) {
-  const pagesSection = root.querySelector(".bulk-pp-content-section-pages");
+  const pagesSection = root.querySelector('.bulk-pp-content-section-pages');
   if (!pagesSection) return;
-  let bar = root.querySelector("#bulk-pp-pages-status-progress");
+  let bar = root.querySelector('#bulk-pp-pages-status-progress');
   const show = shouldShowStatusProgressBar(state);
   if (!show) {
     bar?.remove();
@@ -1529,7 +1529,7 @@ function patchPagesStatusProgressBar(root, state) {
  */
 function bindDeploymentFilterSelect(filterSelect, root, state) {
   const siteCtx = siteCtxFromState(state);
-  filterSelect?.addEventListener("change", () => {
+  filterSelect?.addEventListener('change', () => {
     if (!filterSelect || filterSelect.disabled) return;
     state.pageFilter = filterSelect.value;
     patchPageSearchResults(root, state, siteCtx, buildPageRow);
@@ -1541,7 +1541,7 @@ function bindDeploymentFilterSelect(filterSelect, root, state) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function patchPagesStatusSummary(root, state) {
-  const host = root.querySelector("#bulk-pp-pages-summary");
+  const host = root.querySelector('#bulk-pp-pages-summary');
   if (!host || state.pages.length === 0) return;
   host.replaceWith(buildPagesStatusSummary(state));
 }
@@ -1551,7 +1551,7 @@ function patchPagesStatusSummary(root, state) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function patchPagesStatusNotice(root, state) {
-  const existing = root.querySelector("#bulk-pp-pages-status-notice");
+  const existing = root.querySelector('#bulk-pp-pages-status-notice');
   const next = buildPagesStatusNotice(state);
   if (existing && !next) {
     existing.remove();
@@ -1562,7 +1562,7 @@ function patchPagesStatusNotice(root, state) {
     existing.replaceWith(next);
     return;
   }
-  const controls = root.querySelector(".bulk-pp-pages-controls");
+  const controls = root.querySelector('.bulk-pp-pages-controls');
   if (controls) controls.prepend(next);
 }
 
@@ -1578,7 +1578,12 @@ function deploymentCountsForPaths(platformStatus, helixPaths) {
   });
   const pages = helixPaths.map((helixPath) => ({ helixPath }));
   const { live, preview, none } = countStatusBreakdown(statusMap, pages);
-  return { live, previewOnly: preview, none, total: helixPaths.length };
+  return {
+    live,
+    previewOnly: preview,
+    none,
+    total: helixPaths.length,
+  };
 }
 
 /**
@@ -1607,19 +1612,19 @@ function finishProgressModal(state) {
  * @param {boolean} [isFirstLoad]
  */
 function buildContentLoadingPanel(isFirstLoad = false) {
-  const loading = el("div", "bulk-pp-content-loading");
-  const inner = el("div", "bulk-pp-content-loading-inner");
-  const spinner = el("div", "bulk-pp-spinner");
-  spinner.setAttribute("aria-hidden", "true");
+  const loading = el('div', 'bulk-pp-content-loading');
+  const inner = el('div', 'bulk-pp-content-loading-inner');
+  const spinner = el('div', 'bulk-pp-spinner');
+  spinner.setAttribute('aria-hidden', 'true');
   inner.append(
     spinner,
-    el("p", "bulk-pp-content-loading-title", "Fetching content…"),
+    el('p', 'bulk-pp-content-loading-title', 'Fetching content…'),
     el(
-      "p",
-      "bulk-pp-content-loading-sub",
+      'p',
+      'bulk-pp-content-loading-sub',
       isFirstLoad
-        ? "Loading folders, pages, and deployment status…"
-        : "Updating folders and pages…",
+        ? 'Loading folders, pages, and deployment status…'
+        : 'Updating folders and pages…',
     ),
   );
   loading.append(inner);
@@ -1627,17 +1632,17 @@ function buildContentLoadingPanel(isFirstLoad = false) {
 }
 
 function buildFirstSessionFetchOverlay() {
-  const overlay = el("div", "bulk-pp-first-session-overlay");
-  overlay.id = "bulk-pp-first-session-overlay";
-  overlay.setAttribute("role", "status");
-  overlay.setAttribute("aria-live", "polite");
-  overlay.setAttribute("aria-label", "Fetching content");
-  const inner = el("div", "bulk-pp-first-session-overlay-inner");
-  const spinner = el("div", "bulk-pp-spinner");
-  spinner.setAttribute("aria-hidden", "true");
+  const overlay = el('div', 'bulk-pp-first-session-overlay');
+  overlay.id = 'bulk-pp-first-session-overlay';
+  overlay.setAttribute('role', 'status');
+  overlay.setAttribute('aria-live', 'polite');
+  overlay.setAttribute('aria-label', 'Fetching content');
+  const inner = el('div', 'bulk-pp-first-session-overlay-inner');
+  const spinner = el('div', 'bulk-pp-spinner');
+  spinner.setAttribute('aria-hidden', 'true');
   inner.append(
     spinner,
-    el("p", "bulk-pp-content-loading-title", "Fetching content…"),
+    el('p', 'bulk-pp-content-loading-title', 'Fetching content…'),
   );
   overlay.append(inner);
   return overlay;
@@ -1645,13 +1650,13 @@ function buildFirstSessionFetchOverlay() {
 
 function buildPagesStatusSummaryLoading() {
   const strip = el(
-    "div",
-    "bulk-pp-pages-summary bulk-pp-pages-summary-pending",
+    'div',
+    'bulk-pp-pages-summary bulk-pp-pages-summary-pending',
   );
-  strip.id = "bulk-pp-pages-summary";
-  strip.setAttribute("aria-label", "Deployment summary loading");
+  strip.id = 'bulk-pp-pages-summary';
+  strip.setAttribute('aria-label', 'Deployment summary loading');
   strip.append(
-    el("span", "bulk-pp-pages-summary-pending-text", "Fetching content…"),
+    el('span', 'bulk-pp-pages-summary-pending-text', 'Fetching content…'),
   );
   return strip;
 }
@@ -1661,7 +1666,7 @@ function buildPagesStatusSummaryLoading() {
  * @param {ReturnType<typeof createAppState>} state
  */
 function render(root, state) {
-  const listWrapBefore = document.getElementById("bulk-pp-page-list-wrap");
+  const listWrapBefore = document.getElementById('bulk-pp-page-list-wrap');
   const savedListScroll = listWrapBefore ? listWrapBefore.scrollTop : null;
 
   const {
@@ -1669,20 +1674,15 @@ function render(root, state) {
     site,
     ref,
     folderPath,
-    loading,
     error,
     status,
     statusType,
     jobDetail,
     pageFilter,
-    pageScope,
-    statusCheckFailed,
-    statusError,
     statusChecking,
     pageSearch,
     folderSearch,
     contentLoading,
-    statusFetched,
   } = state;
   const siteCtx = { org, site, ref };
 
@@ -1694,52 +1694,50 @@ function render(root, state) {
   const visibleFolders = getVisibleFolders(state);
   const workspaceLocked = isStatusFetchBlocking(state);
   const safeFolder = resolveContentFolderPath(folderPath);
-  const searchDraft = String(pageSearch || "").trim();
-  const searchTooShort =
-    searchDraft.length > 0 && searchDraft.length < SEARCH_MIN_LEN;
-  const folderSearchDraft = String(folderSearch || "").trim();
-  const folderSearchTooShort =
-    folderSearchDraft.length > 0 && folderSearchDraft.length < SEARCH_MIN_LEN;
+  const searchDraft = String(pageSearch || '').trim();
+  const searchTooShort = searchDraft.length > 0 && searchDraft.length < SEARCH_MIN_LEN;
+  const folderSearchDraft = String(folderSearch || '').trim();
+  const folderSearchTooShort = folderSearchDraft.length > 0 && folderSearchDraft.length < SEARCH_MIN_LEN;
 
   root.replaceChildren();
-  root.classList.add("bulk-pp-shell");
-  root.classList.toggle("bulk-pp-modal-open", isProgressModalOpen());
+  root.classList.add('bulk-pp-shell');
+  root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
   syncStatusFetchLockUi(root, state);
   syncFirstSessionLockUi(root, state);
-  const header = el("header", "bulk-pp-header");
-  const headerInner = el("div", "bulk-pp-header-inner");
-  const headerBrand = el("div", "bulk-pp-header-brand");
+  const header = el('header', 'bulk-pp-header');
+  const headerInner = el('div', 'bulk-pp-header-inner');
+  const headerBrand = el('div', 'bulk-pp-header-brand');
   headerBrand.append(
     el(
-      "span",
-      "bulk-pp-header-eyebrow",
-      "Adobe Experience Manager · Edge Delivery",
+      'span',
+      'bulk-pp-header-eyebrow',
+      'Adobe Experience Manager · Edge Delivery',
     ),
-    el("h1", null, APP_TITLE),
-    el("p", "bulk-pp-header-desc", APP_DESCRIPTION),
+    el('h1', null, APP_TITLE),
+    el('p', 'bulk-pp-header-desc', APP_DESCRIPTION),
   );
-  const headerMeta = el("div", "bulk-pp-header-meta");
-  const branchBadge = el("span", "bulk-pp-badge bulk-pp-badge-muted", ref);
-  branchBadge.title = "Branch";
-  const repoBadge = el("span", "bulk-pp-badge bulk-pp-badge-muted", site);
-  repoBadge.title = "Repository";
-  const orgBadge = el("span", "bulk-pp-badge", org);
-  orgBadge.title = "Organization";
+  const headerMeta = el('div', 'bulk-pp-header-meta');
+  const branchBadge = el('span', 'bulk-pp-badge bulk-pp-badge-muted', ref);
+  branchBadge.title = 'Branch';
+  const repoBadge = el('span', 'bulk-pp-badge bulk-pp-badge-muted', site);
+  repoBadge.title = 'Repository';
+  const orgBadge = el('span', 'bulk-pp-badge', org);
+  orgBadge.title = 'Organization';
   headerMeta.append(branchBadge, repoBadge, orgBadge);
   headerInner.append(headerBrand, headerMeta);
   header.append(headerInner);
   root.append(header);
 
   const contentPanel = el(
-    "section",
-    "bulk-pp-panel bulk-pp-panel-content bulk-pp-panel-fill",
+    'section',
+    'bulk-pp-panel bulk-pp-panel-content bulk-pp-panel-fill',
   );
-  const contentHead = el("div", "bulk-pp-panel-head");
-  const contentHeadMain = el("div", "bulk-pp-panel-head-main");
-  contentHeadMain.append(el("h2", null, "Site content"));
+  const contentHead = el('div', 'bulk-pp-panel-head');
+  const contentHeadMain = el('div', 'bulk-pp-panel-head-main');
+  contentHeadMain.append(el('h2', null, 'Site content'));
   contentHead.append(contentHeadMain);
   contentPanel.append(contentHead);
-  const contentBody = el("div", "bulk-pp-panel-body bulk-pp-content-body");
+  const contentBody = el('div', 'bulk-pp-panel-body bulk-pp-content-body');
 
   if (contentLoading) {
     contentBody.append(buildContentLoadingPanel(state.firstSessionLoad));
@@ -1748,35 +1746,34 @@ function render(root, state) {
       contentBody.append(buildDaAccessErrorPanel(error));
     } else {
       contentBody.append(
-        el("p", "bulk-pp-list-empty bulk-pp-list-empty-error", error),
+        el('p', 'bulk-pp-list-empty bulk-pp-list-empty-error', error),
       );
     }
   } else if (
-    state.pages.length === 0 &&
-    state.folders.length === 0 &&
-    !statusChecking
+    state.pages.length === 0
+    && state.folders.length === 0
+    && !statusChecking
   ) {
     contentBody.append(
-      el("p", "bulk-pp-list-empty", "No folders or pages in this location."),
+      el('p', 'bulk-pp-list-empty', 'No folders or pages in this location.'),
     );
   } else {
-    const workspace = el("div", "bulk-pp-workspace");
-    const contentGrid = el("div", "bulk-pp-content-grid");
+    const workspace = el('div', 'bulk-pp-workspace');
+    const contentGrid = el('div', 'bulk-pp-content-grid');
 
     const folderSection = el(
-      "section",
-      "bulk-pp-content-section bulk-pp-content-section-folders",
+      'section',
+      'bulk-pp-content-section bulk-pp-content-section-folders',
     );
-    const folderCountLabel =
-      folderSearchDraft && !folderSearchTooShort
-        ? `${visibleFolders.length} of ${state.folders.length}`
-        : String(state.folders.length);
+    const folderCountLabel = folderSearchDraft && !folderSearchTooShort
+      ? `${visibleFolders.length} of ${state.folders.length}`
+      : String(state.folders.length);
     folderSection.append(
       buildSectionHead(
-        "Directories",
+        'Directories',
         folderCountLabel,
-        "bulk-pp-folder-count",
-        "folders",
+        'bulk-pp-folder-count',
+        'folders',
       ),
     );
     folderSection.append(
@@ -1788,26 +1785,25 @@ function render(root, state) {
     );
 
     const folderSearchDisabled = workspaceLocked || state.folders.length === 0;
-    const { wrap: folderSearchField, input: folderSearchInput } =
-      buildSearchField(
-        "bulk-pp-folder-search",
-        "Search folder",
-        String(folderSearch || ""),
-        folderSearchDisabled,
-        searchHintText(folderSearch),
-      );
-    const folderSearchRow = el("div", "bulk-pp-search-row");
+    const { wrap: folderSearchField, input: folderSearchInput } = buildSearchField(
+      'bulk-pp-folder-search',
+      'Search folder',
+      String(folderSearch || ''),
+      folderSearchDisabled,
+      searchHintText(folderSearch),
+    );
+    const folderSearchRow = el('div', 'bulk-pp-search-row');
     folderSearchRow.append(folderSearchField);
     folderSection.append(folderSearchRow);
 
-    const folderWrap = el("div", "bulk-pp-list-wrap bulk-pp-list-wrap-folders");
-    const folderList = el("ul", "bulk-pp-list");
-    folderList.id = "bulk-pp-folder-list";
+    const folderWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-folders');
+    const folderList = el('ul', 'bulk-pp-list');
+    folderList.id = 'bulk-pp-folder-list';
     if (visibleFolders.length === 0) {
       const folderEmptyMsg = folderSearchDraft
-        ? "No folders match this search."
-        : "No subfolders here — pages in this folder are listed on the right.";
-      folderList.append(el("li", "bulk-pp-list-empty", folderEmptyMsg));
+        ? 'No folders match this search.'
+        : 'No subfolders here — pages in this folder are listed on the right.';
+      folderList.append(el('li', 'bulk-pp-list-empty', folderEmptyMsg));
     } else {
       visibleFolders.forEach((folder) => {
         folderList.append(
@@ -1823,39 +1819,39 @@ function render(root, state) {
     folderSection.append(folderWrap);
     contentGrid.append(folderSection);
 
-    bindSearchInput(folderSearchInput, state, "folder", () => {
+    bindSearchInput(folderSearchInput, state, 'folder', () => {
       patchFolderSearchResults(root, state, buildFolderRow);
     });
 
     const pagesSection = el(
-      "section",
-      "bulk-pp-content-section bulk-pp-content-section-pages",
+      'section',
+      'bulk-pp-content-section bulk-pp-content-section-pages',
     );
     if (shouldShowStatusProgressBar(state)) {
       pagesSection.append(buildPagesStatusProgressBar(state));
     }
     pagesSection.append(buildPagesHeader(state, workspaceLocked));
 
-    const controls = el("div", "bulk-pp-pages-controls");
+    const controls = el('div', 'bulk-pp-pages-controls');
 
-    const toolbarRow = el("div", "bulk-pp-pages-toolbar-row");
+    const toolbarRow = el('div', 'bulk-pp-pages-toolbar-row');
     const pageSearchDisabled = workspaceLocked || state.pages.length === 0;
     const { wrap: searchField, input: searchInput } = buildSearchField(
-      "bulk-pp-page-search",
-      "Search page",
-      String(pageSearch || ""),
+      'bulk-pp-page-search',
+      'Search page',
+      String(pageSearch || ''),
       pageSearchDisabled,
       searchHintText(pageSearch),
     );
-    searchField.classList.add("bulk-pp-pages-search-field");
+    searchField.classList.add('bulk-pp-pages-search-field');
     toolbarRow.append(searchField);
 
     const { filterField, filterSelect } = buildPagesFilterField(
       state,
-      String(pageFilter || "all"),
-      state.contentLoading ||
-        workspaceLocked ||
-        isDeploymentStatusPending(state),
+      String(pageFilter || 'all'),
+      state.contentLoading
+        || workspaceLocked
+        || isDeploymentStatusPending(state),
     );
     toolbarRow.append(filterField);
     controls.append(toolbarRow);
@@ -1864,18 +1860,17 @@ function render(root, state) {
     if (statusNotice) controls.append(statusNotice);
 
     if (state.pages.length > 0 && !isFirstSessionStatusPending(state)) {
-      const legendRow = el("div", "bulk-pp-pages-legend-row");
-      legendRow.id = "bulk-pp-pages-legend-row";
+      const legendRow = el('div', 'bulk-pp-pages-legend-row');
+      legendRow.id = 'bulk-pp-pages-legend-row';
       legendRow.append(buildStatusLegend());
       if (
-        (statusChecking || state.statusRevalidating) &&
-        !isDeploymentStatusPending(state)
+        (statusChecking || state.statusRevalidating)
+        && !isDeploymentStatusPending(state)
       ) {
-        const hintText =
-          state.statusRevalidating && !statusChecking
-            ? "Refreshing status…"
-            : "Updating status…";
-        legendRow.append(el("span", "bulk-pp-pages-status-hint", hintText));
+        const hintText = state.statusRevalidating && !statusChecking
+          ? 'Refreshing status…'
+          : 'Updating status…';
+        legendRow.append(el('span', 'bulk-pp-pages-status-hint', hintText));
       }
       controls.append(legendRow);
     }
@@ -1888,25 +1883,25 @@ function render(root, state) {
     pagesSection.append(controls);
 
     const pageWrap = el(
-      "div",
-      "bulk-pp-list-wrap bulk-pp-list-wrap-pages bulk-pp-list-wrap-fill",
+      'div',
+      'bulk-pp-list-wrap bulk-pp-list-wrap-pages bulk-pp-list-wrap-fill',
     );
-    pageWrap.id = "bulk-pp-page-list-wrap";
+    pageWrap.id = 'bulk-pp-page-list-wrap';
     if (!isFirstSessionStatusPending(state)) {
       if (state.pages.length > 0) {
         pageWrap.append(buildPageListColumnHeader());
       }
-      const pageList = el("ul", "bulk-pp-list");
-      pageList.id = "bulk-pp-page-list";
+      const pageList = el('ul', 'bulk-pp-list');
+      pageList.id = 'bulk-pp-page-list';
       if (state.pages.length === 0) {
         pageList.append(
-          el("li", "bulk-pp-list-empty", "No pages in this scope."),
+          el('li', 'bulk-pp-list-empty', 'No pages in this scope.'),
         );
       } else if (visiblePages.length === 0) {
         const emptyMsg = searchDraft
-          ? "No pages match this search."
-          : "No pages match this filter.";
-        pageList.append(el("li", "bulk-pp-list-empty", emptyMsg));
+          ? 'No pages match this search.'
+          : 'No pages match this filter.';
+        pageList.append(el('li', 'bulk-pp-list-empty', emptyMsg));
       } else {
         visiblePages.forEach((page) => {
           pageList.append(
@@ -1930,7 +1925,7 @@ function render(root, state) {
     contentBody.append(workspace);
 
     bindDeploymentFilterSelect(filterSelect, root, state);
-    bindSearchInput(searchInput, state, "page", () => {
+    bindSearchInput(searchInput, state, 'page', () => {
       patchPageSearchResults(root, state, siteCtx, buildPageRow);
     });
     syncSelectionUI(root, state);
@@ -1943,30 +1938,29 @@ function render(root, state) {
   }
 
   if (
-    status &&
-    !statusChecking &&
-    statusType === "error" &&
-    !isDaAccessError(status)
+    status
+    && !statusChecking
+    && statusType === 'error'
+    && !isDaAccessError(status)
   ) {
-    const statusEl = el("div", `bulk-pp-status bulk-pp-status-${statusType}`);
-    statusEl.setAttribute("role", "alert");
-    statusEl.setAttribute("aria-live", "polite");
-    statusEl.append(el("strong", null, status));
-    if (jobDetail)
-      statusEl.append(el("pre", "bulk-pp-error-detail", jobDetail));
+    const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType}`);
+    statusEl.setAttribute('role', 'alert');
+    statusEl.setAttribute('aria-live', 'polite');
+    statusEl.append(el('strong', null, status));
+    if (jobDetail) statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
     root.append(statusEl);
   } else if (
-    jobDetail &&
-    new URLSearchParams(window.location.search).has("debug")
+    jobDetail
+    && new URLSearchParams(window.location.search).has('debug')
   ) {
-    const statusEl = el("div", "bulk-pp-status bulk-pp-status-info");
-    statusEl.append(el("pre", "bulk-pp-error-detail", jobDetail));
+    const statusEl = el('div', 'bulk-pp-status bulk-pp-status-info');
+    statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
     root.append(statusEl);
   }
 
   requestAnimationFrame(() => {
     if (savedListScroll != null) {
-      const listWrap = document.getElementById("bulk-pp-page-list-wrap");
+      const listWrap = document.getElementById('bulk-pp-page-list-wrap');
       if (listWrap) listWrap.scrollTop = savedListScroll;
     }
   });
@@ -2017,10 +2011,9 @@ async function revalidateCachedStatusInBackground(
       { signal: controller.signal, folderPath: state.folderPath },
     );
     if (
-      controller.signal.aborted ||
-      !pathsMatchCurrentPages(state, pathsToCheck)
-    )
-      return;
+      controller.signal.aborted
+      || !pathsMatchCurrentPages(state, pathsToCheck)
+    ) return;
     commitPlatformStatus(state, { ...state.platformStatus, ...fresh });
     state.statusCheckFailed = false;
     state.statusError = null;
@@ -2028,8 +2021,8 @@ async function revalidateCachedStatusInBackground(
     refreshDeploymentUi(state);
     if (root) render(root, state);
   } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") return;
-    console.warn("[bulk-pp] background status revalidate failed", err);
+    if (err instanceof DOMException && err.name === 'AbortError') return;
+    console.warn('[bulk-pp] background status revalidate failed', err);
   } finally {
     if (state.statusRevalidateAbort === controller) {
       state.statusRevalidateAbort = null;
@@ -2057,7 +2050,7 @@ function startStatusCheck(
   folderCount,
   options = {},
 ) {
-  const background = Boolean(options.background);
+  const { background = false } = options;
   cancelStatusCheck(state, false);
   state.statusCancelled = false;
   state.statusCheckFailed = false;
@@ -2075,11 +2068,10 @@ function startStatusCheck(
     state.statusFetchBackground = false;
     state.statusFetched = false;
     markInitialStatusFetchComplete(state);
-    state.status =
-      folderCount === 0 && docCount === 0
-        ? `No folders or pages in ${location}.`
-        : `Loaded ${docCount} page(s) in ${location}.`;
-    state.statusType = "info";
+    state.status = folderCount === 0 && docCount === 0
+      ? `No folders or pages in ${location}.`
+      : `Loaded ${docCount} page(s) in ${location}.`;
+    state.statusType = 'info';
     render(/** @type {HTMLElement} */ (state.root), state);
     return;
   }
@@ -2089,8 +2081,8 @@ function startStatusCheck(
 
   // First-session load only: show cached dots immediately, refresh silently in background.
   if (
-    background &&
-    hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)
+    background
+    && hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)
   ) {
     state.statusChecking = false;
     state.statusFetchBackground = false;
@@ -2101,10 +2093,10 @@ function startStatusCheck(
     state.statusAbort = null;
     state.statusFetchStartedAt = null;
     state.status = null;
-    state.statusType = "info";
+    state.statusType = 'info';
     refreshDeploymentUi(state);
     if (root) render(root, state);
-    void revalidateCachedStatusInBackground(state, daFetch, pathsToCheck);
+    revalidateCachedStatusInBackground(state, daFetch, pathsToCheck);
     return;
   }
 
@@ -2148,20 +2140,20 @@ function startStatusCheck(
       state.statusProgressDone = pathsToCheck.length;
       state.statusProgressTotal = pathsToCheck.length;
       state.status = null;
-      state.statusType = "info";
+      state.statusType = 'info';
       refreshDeploymentUi(state);
       finishStatusFetch(state);
     })
     .catch((statusErr) => {
       if (
-        statusErr instanceof DOMException &&
-        statusErr.name === "AbortError"
+        statusErr instanceof DOMException
+        && statusErr.name === 'AbortError'
       ) {
         state.statusChecking = false;
         state.statusFetchBackground = false;
         state.statusAbort = null;
         state.statusFetchStartedAt = null;
-        const root = /** @type {HTMLElement | null} */ (state.root);
+        const rootNode = /** @type {HTMLElement | null} */ (state.root);
         const checked = state.statusProgressDone;
         const total = state.statusProgressTotal;
         if (checked > 0) {
@@ -2172,11 +2164,10 @@ function startStatusCheck(
         } else {
           markInitialStatusFetchComplete(state);
         }
-        state.statusPanelNote =
-          checked > 0
-            ? `Stopped after ${checked} of ${total} pages. Partial results are shown.`
-            : "Status check cancelled.";
-        if (root) render(root, state);
+        state.statusPanelNote = checked > 0
+          ? `Stopped after ${checked} of ${total} pages. Partial results are shown.`
+          : 'Status check cancelled.';
+        if (rootNode) render(rootNode, state);
         return;
       }
       state.statusChecking = false;
@@ -2184,17 +2175,17 @@ function startStatusCheck(
       state.statusAbort = null;
       state.statusFetchStartedAt = null;
       const hadProgress = state.statusProgressDone > 0;
-      const root = /** @type {HTMLElement | null} */ (state.root);
+      const rootNode = /** @type {HTMLElement | null} */ (state.root);
       if (hadProgress) {
         persistCurrentPlatformStatus(state);
         state.statusFetched = true;
         markInitialStatusFetchComplete(state);
         state.statusCheckFailed = true;
         state.statusError = formatStatusAccessMessage(
-          messageFromApiError(statusErr, "Status check failed.", "status"),
+          messageFromApiError(statusErr, 'Status check failed.', 'status'),
         );
         state.status = `${state.statusError} Partial results were saved.`;
-        state.statusType = "error";
+        state.statusType = 'error';
       } else if (
         hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)
       ) {
@@ -2203,21 +2194,20 @@ function startStatusCheck(
         markInitialStatusFetchComplete(state);
         state.statusCheckFailed = false;
         state.statusError = null;
-        state.status =
-          "Could not refresh deployment status. Showing last saved results.";
-        state.statusType = "info";
+        state.status = 'Could not refresh deployment status. Showing last saved results.';
+        state.statusType = 'info';
       } else {
         state.statusFetched = false;
         markInitialStatusFetchComplete(state);
         state.statusCheckFailed = true;
         state.statusError = formatStatusAccessMessage(
-          messageFromApiError(statusErr, "Status check failed.", "status"),
+          messageFromApiError(statusErr, 'Status check failed.', 'status'),
         );
         state.status = state.statusError;
-        state.statusType = "error";
+        state.statusType = 'error';
       }
-      console.warn("[bulk-pp] platform status failed", statusErr);
-      if (root) render(root, state);
+      console.warn('[bulk-pp] platform status failed', statusErr);
+      if (rootNode) render(rootNode, state);
     });
 }
 
@@ -2243,21 +2233,21 @@ function finishContentLoadWithoutStatus(
   state.platformStatus = {};
   if (folderCount === 0 && docCount === 0) {
     state.status = `No folders or pages in ${location}.`;
-  } else if (state.pageScope === "tree") {
+  } else if (state.pageScope === 'tree') {
     state.status = `Loaded ${docCount} page(s) under ${location} (all subdirectories).`;
   } else {
     state.status = `Loaded ${docCount} page(s) and ${folderCount} folder(s) in ${location}.`;
   }
-  state.statusType = "info";
+  state.statusType = 'info';
   render(/** @type {HTMLElement} */ (state.root), state);
 }
 
 async function main() {
-  const app = document.getElementById("app");
+  const app = document.getElementById('app');
   if (!app) return;
 
   const { context, actions } = await initSdk();
-  const hasSdkFetch = typeof actions.daFetch === "function";
+  const hasSdkFetch = typeof actions.daFetch === 'function';
   const daFetch = hasSdkFetch ? wrapDaFetch(actions.daFetch) : null;
   const ctx = resolveSiteContext(context);
 
@@ -2265,17 +2255,17 @@ async function main() {
   state.root = app;
   resetWorkspace(state);
   const urlParams = new URLSearchParams(window.location.search);
-  const urlRef = urlParams.get("ref");
+  const urlRef = urlParams.get('ref');
   if (urlRef) state.ref = urlRef;
-  const urlPath = urlParams.get("path");
-  const urlScope = urlParams.get("scope");
+  const urlPath = urlParams.get('path');
+  const urlScope = urlParams.get('scope');
   const persisted = readBrowseLocation(ctx.org, ctx.site, state.ref);
   if (urlPath) {
     state.folderPath = resolveContentFolderPath(normalizeFolderPath(urlPath));
   } else if (persisted?.folderPath) {
     state.folderPath = resolveContentFolderPath(persisted.folderPath);
   }
-  if (urlScope === "tree" || urlScope === "folder") {
+  if (urlScope === 'tree' || urlScope === 'folder') {
     state.pageScope = urlScope;
   } else if (persisted?.pageScope) {
     state.pageScope = persisted.pageScope;
@@ -2296,27 +2286,26 @@ async function main() {
     } else {
       state.statusFetched = false;
       markInitialStatusFetchComplete(state);
-      state.statusPanelNote = "Status check stopped.";
+      state.statusPanelNote = 'Status check stopped.';
     }
     const root = /** @type {HTMLElement | null} */ (state.root);
-    state.statusPanelNote =
-      checked > 0
-        ? `Stopped after ${checked} of ${total} pages. Partial results are shown.`
-        : "Status check cancelled.";
+    state.statusPanelNote = checked > 0
+      ? `Stopped after ${checked} of ${total} pages. Partial results are shown.`
+      : 'Status check cancelled.';
     if (root) render(root, state);
   };
 
   state.onCancelJob = () => {
     cancelBulkJob(state, false);
     if (app) syncSelectionUI(app, state);
-    const topic = /** @type {JobTopic} */ (state.jobTopic || "preview");
+    const topic = /** @type {JobTopic} */ (state.jobTopic || 'preview');
     const actionLabel = jobActionLabel(topic);
     showJobCancelledModal({
       message: `You stopped tracking this bulk ${actionLabel} operation. If it already started on the server, work may still be in progress. Check the Pages panel or run Fetch Deployment status again.`,
       topic,
       onClose: () => {
         state.status = null;
-        state.statusType = "info";
+        state.statusType = 'info';
         finishProgressModal(state);
       },
     });
@@ -2329,16 +2318,16 @@ async function main() {
     clearPagesStatusDisplay(state);
 
     state.folderPath = resolveContentFolderPath(targetPath);
-    state.pageSearch = "";
-    state.folderSearch = "";
-    state.pageFilter = "all";
+    state.pageSearch = '';
+    state.folderSearch = '';
+    state.pageFilter = 'all';
     syncBrowseLocation(state);
     await state.onFetch(true);
   };
 
   state.onToggleIncludeSubdirectories = async (enabled) => {
     if (isStatusFetchBlocking(state) || state.contentLoading) return;
-    const next = enabled ? "tree" : "folder";
+    const next = enabled ? 'tree' : 'folder';
     if (state.pageScope === next) return;
     closeProgressModal(/** @type {HTMLElement} */ (app));
     state.pageScope = next;
@@ -2355,9 +2344,9 @@ async function main() {
     }
 
     if (!fromFolderNav) {
-      state.pageFilter = "all";
-      state.pageSearch = "";
-      state.folderSearch = "";
+      state.pageFilter = 'all';
+      state.pageSearch = '';
+      state.folderSearch = '';
       state.selected.clear();
     }
 
@@ -2377,8 +2366,8 @@ async function main() {
     state.statusCheckFailed = false;
     state.statusError = null;
     state.statusPanelNote = null;
-    state.status = "Fetching content…";
-    state.statusType = "info";
+    state.status = 'Fetching content…';
+    state.statusType = 'info';
     render(app, state);
 
     try {
@@ -2388,9 +2377,9 @@ async function main() {
         state.site,
         state.folderPath,
       );
-      state.folders = browseEntries.filter((e) => e.kind === "folder");
+      state.folders = browseEntries.filter((e) => e.kind === 'folder');
 
-      if (state.pageScope === "tree") {
+      if (state.pageScope === 'tree') {
         const nestedPages = await collectPages(
           daFetch,
           state.org,
@@ -2399,13 +2388,13 @@ async function main() {
           -1,
         );
         state.pages = nestedPages.map((page) => ({
-          kind: "document",
+          kind: 'document',
           name: page.name,
           sourcePath: page.sourcePath,
           helixPath: page.helixPath,
         }));
       } else {
-        state.pages = browseEntries.filter((e) => e.kind === "document");
+        state.pages = browseEntries.filter((e) => e.kind === 'document');
       }
 
       if (fromFolderNav) {
@@ -2416,7 +2405,7 @@ async function main() {
         });
       }
       const docCount = state.pages.length;
-      const location = displayFolderPath(state.folderPath) || "site root";
+      const location = displayFolderPath(state.folderPath) || 'site root';
       state.initialContentLoaded = true;
       const backgroundStatus = state.firstSessionLoad;
       if (backgroundStatus) {
@@ -2452,18 +2441,18 @@ async function main() {
       state.pages = [];
       state.selected.clear();
       state.contentLoading = false;
-      state.error = messageFromApiError(err, "Failed to load content.", "list");
+      state.error = messageFromApiError(err, 'Failed to load content.', 'list');
       state.status = state.error;
-      state.statusType = "error";
+      state.statusType = 'error';
       render(app, state);
     }
   };
 
   state.onSelectAll = (checked) => {
     selectAllVisible(state, checked);
-    const root = state.root;
+    const { root } = state;
     if (!root) return;
-    if (root.querySelector("#bulk-pp-page-list")) {
+    if (root.querySelector('#bulk-pp-page-list')) {
       patchPageSearchResults(
         root,
         state,
@@ -2476,7 +2465,7 @@ async function main() {
   };
 
   state.onSelectionChange = () => {
-    const root = state.root;
+    const { root } = state;
     if (!root) return;
     syncSelectionUI(root, state);
   };
@@ -2499,16 +2488,15 @@ async function main() {
     state.jobStartedAt = Date.now();
     state.jobProgressProcessed = 0;
     state.jobProgressTotal = paths.length;
-    state.status =
-      topic === "live"
-        ? `Starting bulk publish for ${paths.length} page(s)…`
-        : `Starting bulk preview for ${paths.length} page(s)…`;
-    state.statusType = "info";
+    state.status = topic === 'live'
+      ? `Starting bulk publish for ${paths.length} page(s)…`
+      : `Starting bulk preview for ${paths.length} page(s)…`;
+    state.statusType = 'info';
     openJobModal(appRoot, topic, paths.length, () => state.onCancelJob());
 
     const host = buildSiteHost(state.org, state.site, state.ref);
-    const env = topic === "live" ? "live" : "preview";
-    const action = topic === "live" ? "Bulk publish" : "Bulk preview";
+    const env = topic === 'live' ? 'live' : 'preview';
+    const action = topic === 'live' ? 'Bulk publish' : 'Bulk preview';
 
     try {
       const bulkResp = await startBulkJob(
@@ -2536,17 +2524,16 @@ async function main() {
           state.ref,
           env,
         );
-        state.status =
-          topic === "live"
-            ? `Bulk publish scheduled (${paths.length} paths).`
-            : `Bulk preview scheduled (${paths.length} paths).`;
-        state.statusType = "success";
+        state.status = topic === 'live'
+          ? `Bulk publish scheduled (${paths.length} paths).`
+          : `Bulk preview scheduled (${paths.length} paths).`;
+        state.statusType = 'success';
         updateJobModal({
           jobStartedAt: state.jobStartedAt,
           processed: paths.length,
           total: paths.length,
           failed: 0,
-          stateLabel: "complete",
+          stateLabel: 'complete',
         });
         await refreshPlatformStatusAfterJob(state, daFetch, paths, topic);
         showJobCompleteModal({
@@ -2565,7 +2552,7 @@ async function main() {
         (job) => {
           if (state.jobAbort?.signal.aborted) return;
           const progress = job.progress || job.job?.progress;
-          if (progress && typeof progress === "object") {
+          if (progress && typeof progress === 'object') {
             const { total, processed, failed } =
               /** @type {{ total?: number, processed?: number, failed?: number }} */ (
                 progress
@@ -2579,7 +2566,7 @@ async function main() {
               processed: proc,
               total: tot || paths.length,
               failed: Number(failed ?? 0),
-              stateLabel: String(job.state || job.job?.state || "running"),
+              stateLabel: String(job.state || job.job?.state || 'running'),
             });
           }
         },
@@ -2593,18 +2580,17 @@ async function main() {
       state.statusType = outcome.statusType;
 
       let urls = [];
-      if (outcome.statusType === "success") {
+      if (outcome.statusType === 'success') {
         urls = buildUrlsForPaths(paths, state.org, state.site, state.ref, env);
         await refreshPlatformStatusAfterJob(state, daFetch, paths, topic);
       }
 
-      state.jobDetail =
-        outcome.statusType === "error" ||
-        new URLSearchParams(window.location.search).has("debug")
-          ? JSON.stringify(finalJob, null, 2)
-          : null;
+      state.jobDetail = outcome.statusType === 'error'
+        || new URLSearchParams(window.location.search).has('debug')
+        ? JSON.stringify(finalJob, null, 2)
+        : null;
 
-      if (outcome.statusType === "error") {
+      if (outcome.statusType === 'error') {
         showJobErrorModal({
           message: state.status,
           topic,
@@ -2621,7 +2607,7 @@ async function main() {
         });
       }
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       presentJobError(state, topic, err, topic);
     } finally {
       state.loading = false;
@@ -2649,98 +2635,94 @@ async function main() {
     state.jobStartedAt = Date.now();
     state.jobProgressProcessed = 0;
     state.jobProgressTotal = paths.length;
-    state.statusType = "info";
+    state.statusType = 'info';
     state.status = destructiveStartMessage(action, paths.length);
     openJobModal(appRoot, topic, paths.length, () => state.onCancelJob());
 
     /** @type {string[]} */
     const notes = [];
-    let statusType = "success";
+    let statusType = 'success';
 
     try {
-      if (action === "unpreview" || action === "delete") {
+      if (action === 'unpreview' || action === 'delete') {
         try {
           const outcome = await runRemovePartitionJob(
             state,
             daFetch,
-            "preview",
+            'preview',
             paths,
-            action === "delete" ? "Step 1 of 3 · Unpreview" : "Unpreview",
+            action === 'delete' ? 'Step 1 of 3 · Unpreview' : 'Unpreview',
           );
           notes.push(`Preview removal ${outcome.message}`);
-          if (outcome.statusType === "error") statusType = "error";
-          else if (outcome.statusType === "info" && statusType === "success")
-            statusType = "info";
+          if (outcome.statusType === 'error') statusType = 'error';
+          else if (outcome.statusType === 'info' && statusType === 'success') statusType = 'info';
         } catch (phaseErr) {
           if (
-            phaseErr instanceof DOMException &&
-            phaseErr.name === "AbortError"
-          )
-            return;
+            phaseErr instanceof DOMException
+            && phaseErr.name === 'AbortError'
+          ) return;
           notes.push(
-            `Preview removal failed: ${messageFromApiError(phaseErr, "Preview removal failed.", "unpreview")}`,
+            `Preview removal failed: ${messageFromApiError(phaseErr, 'Preview removal failed.', 'unpreview')}`,
           );
-          statusType = "error";
-          console.warn("[bulk-pp] unpreview phase failed", phaseErr);
+          statusType = 'error';
+          console.warn('[bulk-pp] unpreview phase failed', phaseErr);
         }
         if (
-          action === "delete" &&
-          statusType !== "error" &&
-          !state.jobAbort?.signal.aborted
+          action === 'delete'
+          && statusType !== 'error'
+          && !state.jobAbort?.signal.aborted
         ) {
           await refreshPlatformStatusAfterJob(
             state,
             daFetch,
             paths,
-            "unpreview",
+            'unpreview',
           );
         }
       }
 
       if (state.jobAbort?.signal.aborted) return;
 
-      if (action === "unpublish" || action === "delete") {
+      if (action === 'unpublish' || action === 'delete') {
         try {
           const outcome = await runRemovePartitionJob(
             state,
             daFetch,
-            "live",
+            'live',
             paths,
-            action === "delete" ? "Step 2 of 3 · Unpublish" : "Unpublish",
+            action === 'delete' ? 'Step 2 of 3 · Unpublish' : 'Unpublish',
           );
           notes.push(`Unpublish ${outcome.message}`);
-          if (outcome.statusType === "error") statusType = "error";
-          else if (outcome.statusType === "info" && statusType === "success")
-            statusType = "info";
+          if (outcome.statusType === 'error') statusType = 'error';
+          else if (outcome.statusType === 'info' && statusType === 'success') statusType = 'info';
         } catch (phaseErr) {
           if (
-            phaseErr instanceof DOMException &&
-            phaseErr.name === "AbortError"
-          )
-            return;
+            phaseErr instanceof DOMException
+            && phaseErr.name === 'AbortError'
+          ) return;
           notes.push(
-            `Unpublish failed: ${messageFromApiError(phaseErr, "Unpublish failed.", "unpublish")}`,
+            `Unpublish failed: ${messageFromApiError(phaseErr, 'Unpublish failed.', 'unpublish')}`,
           );
-          statusType = "error";
-          console.warn("[bulk-pp] unpublish phase failed", phaseErr);
+          statusType = 'error';
+          console.warn('[bulk-pp] unpublish phase failed', phaseErr);
         }
         if (
-          action === "delete" &&
-          statusType !== "error" &&
-          !state.jobAbort?.signal.aborted
+          action === 'delete'
+          && statusType !== 'error'
+          && !state.jobAbort?.signal.aborted
         ) {
           await refreshPlatformStatusAfterJob(
             state,
             daFetch,
             paths,
-            "unpublish",
+            'unpublish',
           );
         }
       }
 
       if (state.jobAbort?.signal.aborted) return;
 
-      if (action === "delete") {
+      if (action === 'delete') {
         const pages = paths.map((path) => pageByPath.get(path)).filter(Boolean);
         const daResult = await deleteDaDocumentsSequential(
           daFetch,
@@ -2752,7 +2734,7 @@ async function main() {
             setSequentialProgress(
               state,
               paths,
-              "Step 3 of 3 · Delete from DA",
+              'Step 3 of 3 · Delete from DA',
               processed,
               failed,
               total,
@@ -2764,28 +2746,28 @@ async function main() {
         if (daResult.deleted.length > 0) {
           removePagesFromState(state, daResult.deleted);
           notes.push(
-            `Deleted ${daResult.deleted.length} document${daResult.deleted.length === 1 ? "" : "s"} from DA`,
+            `Deleted ${daResult.deleted.length} document${daResult.deleted.length === 1 ? '' : 's'} from DA`,
           );
         }
         if (daResult.failed > 0) {
-          statusType = daResult.deleted.length > 0 ? "info" : "error";
+          statusType = daResult.deleted.length > 0 ? 'info' : 'error';
           const sample = daResult.errors
             .slice(0, 3)
             .map((e) => `${e.helixPath}: ${e.message}`)
-            .join("; ");
+            .join('; ');
           notes.push(
-            `${daResult.failed} delete${daResult.failed === 1 ? "" : "s"} failed${sample ? ` (${sample})` : ""}`,
+            `${daResult.failed} delete${daResult.failed === 1 ? '' : 's'} failed${sample ? ` (${sample})` : ''}`,
           );
         }
       }
 
       if (state.jobAbort?.signal.aborted) return;
 
-      if (statusType !== "error") {
+      if (statusType !== 'error') {
         await refreshPlatformStatusAfterJob(state, daFetch, paths, action);
       }
 
-      const summary = notes.filter(Boolean).join(". ") || "Operation finished.";
+      const summary = notes.filter(Boolean).join('. ') || 'Operation finished.';
       state.status = summary;
       state.statusType = statusType;
 
@@ -2794,10 +2776,10 @@ async function main() {
         processed: paths.length,
         total: paths.length,
         failed: 0,
-        stateLabel: "complete",
+        stateLabel: 'complete',
       });
 
-      if (statusType === "error") {
+      if (statusType === 'error') {
         showJobErrorModal({
           message: summary,
           topic,
@@ -2812,7 +2794,7 @@ async function main() {
         });
       }
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       presentJobError(state, topic, err, action);
     } finally {
       state.loading = false;
@@ -2824,7 +2806,7 @@ async function main() {
   if (!daFetch) {
     state.error = DA_LOGIN_REQUIRED_MESSAGE;
     state.status = null;
-    state.statusType = "info";
+    state.statusType = 'info';
     render(app, state);
     return;
   }
@@ -2832,31 +2814,31 @@ async function main() {
   if (!ctx.org || !ctx.site) {
     state.error = DA_SITE_CONTEXT_MESSAGE;
     state.status = null;
-    state.statusType = "info";
+    state.statusType = 'info';
     render(app, state);
     return;
   }
 
   state.contentLoading = true;
-  state.status = "Fetching content…";
-  state.statusType = "info";
+  state.status = 'Fetching content…';
+  state.statusType = 'info';
   render(app, state);
   await state.onFetch(false);
 }
 
 function showBootError(err) {
-  const app = document.getElementById("app");
+  const app = document.getElementById('app');
   if (!app) return;
   const message = err instanceof Error ? err.message : String(err);
   app.replaceChildren();
-  const panel = el("div", "bulk-pp-boot-error");
+  const panel = el('div', 'bulk-pp-boot-error');
   panel.append(
-    el("h1", null, `${APP_TITLE} failed to start`),
-    el("p", null, message),
+    el('h1', null, `${APP_TITLE} failed to start`),
+    el('p', null, message),
     el(
-      "p",
-      "bulk-pp-boot-error-hint",
-      "Hard refresh (Cmd+Shift+R). If this persists, check the browser console for the failing module.",
+      'p',
+      'bulk-pp-boot-error-hint',
+      'Hard refresh (Cmd+Shift+R). If this persists, check the browser console for the failing module.',
     ),
   );
   app.append(panel);
