@@ -1070,7 +1070,9 @@ function buildPagesSelectionRow(state, { visiblePages }) {
     || getActiveSelectionCount(state) === 0;
   selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
   selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
-  row.append(selectAllBtn, selectNoneBtn);
+  const actions = el('div', 'bulk-pp-pages-selection-actions');
+  actions.append(selectAllBtn, selectNoneBtn);
+  row.append(actions);
   return row;
 }
 
