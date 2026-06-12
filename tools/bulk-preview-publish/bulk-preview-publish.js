@@ -1317,6 +1317,9 @@ function buildPagesStatusSummary(state) {
   if (isDeploymentStatusPending(state)) {
     return buildPagesStatusSummaryLoading();
   }
+  if (!state.statusFetched) {
+    return buildPagesStatusSummaryCachedOnly();
+  }
   const helixPaths = state.pages.map((p) => p.helixPath);
   const hasAnyStatus = helixPaths.some((path) => {
     const entry = state.platformStatus[path];
@@ -1398,6 +1401,29 @@ function buildPagesFilterField(state, pageFilter, contentLoading) {
   });
   filterField.append(filterSelect);
   return { filterField, filterSelect };
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function buildRealtimeStatusButton(state) {
+  const btn = el(
+    'button',
+    'bulk-pp-btn bulk-pp-btn-text bulk-pp-pages-refresh-status',
+    'Real-time status',
+  );
+  btn.type = 'button';
+  btn.disabled = state.pages.length === 0
+    || state.contentLoading
+    || state.loading
+    || state.statusChecking;
+  setAccessibilityLabel(btn, 'Fetch the latest deployment status from server');
+  btn.addEventListener('click', () => {
+    if (typeof state.onRefreshStatus === 'function') {
+      state.onRefreshStatus();
+    }
+  });
+  return btn;
 }
 
 /**
@@ -1661,6 +1687,23 @@ function buildPagesStatusSummaryLoading() {
   return strip;
 }
 
+function buildPagesStatusSummaryCachedOnly() {
+  const strip = el(
+    'div',
+    'bulk-pp-pages-summary bulk-pp-pages-summary-pending',
+  );
+  strip.id = 'bulk-pp-pages-summary';
+  strip.setAttribute('aria-label', 'Deployment status from cache');
+  strip.append(
+    el(
+      'span',
+      'bulk-pp-pages-summary-pending-text',
+      'Showing cached status. Use Real-time status to refresh.',
+    ),
+  );
+  return strip;
+}
+
 /**
  * @param {HTMLElement} root
  * @param {ReturnType<typeof createAppState>} state
@@ -1854,6 +1897,7 @@ function render(root, state) {
         || isDeploymentStatusPending(state),
     );
     toolbarRow.append(filterField);
+    toolbarRow.append(buildRealtimeStatusButton(state));
     controls.append(toolbarRow);
 
     const statusNotice = buildPagesStatusNotice(state);
@@ -2039,7 +2083,7 @@ async function revalidateCachedStatusInBackground(
  * @param {string} location
  * @param {number} docCount
  * @param {number} folderCount
- * @param {{ background?: boolean }} [options]
+ * @param {{ background?: boolean, cacheOnly?: boolean, forceRefresh?: boolean }} [options]
  */
 function startStatusCheck(
   state,
@@ -2050,18 +2094,24 @@ function startStatusCheck(
   folderCount,
   options = {},
 ) {
-  const { background = false } = options;
+  const {
+    background = false,
+    cacheOnly = false,
+    forceRefresh = false,
+  } = options;
   cancelStatusCheck(state, false);
   state.statusCancelled = false;
   state.statusCheckFailed = false;
   state.statusError = null;
   state.statusPanelNote = null;
-  state.statusFetchBackground = background && pathsToCheck.length > 0;
-  state.statusChecking = pathsToCheck.length > 0;
+  state.statusFetchBackground = !cacheOnly && background && pathsToCheck.length > 0;
+  state.statusChecking = !cacheOnly && pathsToCheck.length > 0;
   state.statusProgressDone = 0;
   state.statusProgressTotal = pathsToCheck.length;
-  state.statusFetchStartedAt = pathsToCheck.length > 0 ? Date.now() : null;
-  state.statusAbort = new AbortController();
+  state.statusFetchStartedAt = !cacheOnly && pathsToCheck.length > 0
+    ? Date.now()
+    : null;
+  state.statusAbort = !cacheOnly ? new AbortController() : null;
 
   if (pathsToCheck.length === 0) {
     state.statusChecking = false;
@@ -2077,9 +2127,34 @@ function startStatusCheck(
   }
 
   const root = /** @type {HTMLElement | null} */ (state.root);
-  hydratePlatformStatusFromCache(state, pathsToCheck);
+  const { hydrated, complete } = hydratePlatformStatusFromCache(
+    state,
+    pathsToCheck,
+  );
 
-  // First-session load only: show cached dots immediately, refresh silently in background.
+  if (cacheOnly) {
+    state.statusChecking = false;
+    state.statusFetchBackground = false;
+    state.statusAbort = null;
+    state.statusFetchStartedAt = null;
+    state.statusProgressDone = Object.keys(state.platformStatus || {}).length;
+    state.statusProgressTotal = pathsToCheck.length;
+    state.statusFetched = complete;
+    state.statusType = 'info';
+    if (!hydrated) {
+      state.statusPanelNote = 'No cached deployment status for this folder yet. Use Real-time status to fetch and save it.';
+    } else if (!complete) {
+      state.statusPanelNote = 'Showing partial cached deployment status. Use Real-time status to refresh.';
+    } else {
+      state.status = null;
+    }
+    markInitialStatusFetchComplete(state);
+    refreshDeploymentUi(state);
+    if (root) render(root, state);
+    return;
+  }
+
+  // Cache complete for this view: serve from local cache only.
   if (
     background
     && hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)
@@ -2096,16 +2171,39 @@ function startStatusCheck(
     state.statusType = 'info';
     refreshDeploymentUi(state);
     if (root) render(root, state);
-    revalidateCachedStatusInBackground(state, daFetch, pathsToCheck);
     return;
   }
 
-  const pathsToFetch = background
-    ? getUncachedHelixPaths(state.org, state.site, state.ref, pathsToCheck)
-    : pathsToCheck;
+  let pathsToFetch = pathsToCheck;
+  if (forceRefresh) {
+    pathsToFetch = pathsToCheck;
+  } else if (background) {
+    pathsToFetch = getUncachedHelixPaths(
+      state.org,
+      state.site,
+      state.ref,
+      pathsToCheck,
+    );
+  }
   const cachedCount = background
     ? pathsToCheck.length - pathsToFetch.length
     : 0;
+  if (pathsToFetch.length === 0) {
+    state.statusChecking = false;
+    state.statusFetchBackground = false;
+    state.statusFetched = true;
+    markInitialStatusFetchComplete(state);
+    state.statusAbort = null;
+    state.statusFetchStartedAt = null;
+    state.statusProgressDone = pathsToCheck.length;
+    state.statusProgressTotal = pathsToCheck.length;
+    state.status = null;
+    state.statusType = 'info';
+    refreshDeploymentUi(state);
+    if (root) render(root, state);
+    return;
+  }
+
   state.statusProgressDone = cachedCount;
   state.statusProgressTotal = pathsToCheck.length;
 
@@ -2123,14 +2221,18 @@ function startStatusCheck(
       state.statusProgressTotal = pathsToCheck.length;
       refreshDeploymentUi(state);
     },
-    { signal: state.statusAbort.signal, folderPath: state.folderPath },
+    { signal: state.statusAbort?.signal, folderPath: state.folderPath },
   )
     .then((platformStatus) => {
       if (state.statusAbort?.signal.aborted) return;
-      commitPlatformStatus(state, {
-        ...state.platformStatus,
-        ...platformStatus,
-      });
+      if (forceRefresh) {
+        commitPlatformStatus(state, platformStatus, { replacePaths: pathsToCheck });
+      } else {
+        commitPlatformStatus(state, {
+          ...state.platformStatus,
+          ...platformStatus,
+        });
+      }
       state.statusChecking = false;
       state.statusFetchBackground = false;
       state.statusFetched = true;
@@ -2139,7 +2241,9 @@ function startStatusCheck(
       state.statusFetchStartedAt = null;
       state.statusProgressDone = pathsToCheck.length;
       state.statusProgressTotal = pathsToCheck.length;
-      state.status = null;
+      state.status = forceRefresh
+        ? 'Fetched the latest deployment status from server.'
+        : null;
       state.statusType = 'info';
       refreshDeploymentUi(state);
       finishStatusFetch(state);
@@ -2295,6 +2399,28 @@ async function main() {
     if (root) render(root, state);
   };
 
+  state.onRefreshStatus = () => {
+    if (!daFetch || state.contentLoading || state.loading || state.pages.length === 0) {
+      return;
+    }
+    if (state.statusChecking) {
+      return;
+    }
+    const location = displayFolderPath(state.folderPath) || 'site root';
+    const helixPaths = state.pages.map((p) => p.helixPath);
+    startStatusCheck(
+      state,
+      daFetch,
+      helixPaths,
+      location,
+      state.pages.length,
+      state.folders.length,
+      { forceRefresh: true },
+    );
+    const root = /** @type {HTMLElement | null} */ (state.root);
+    if (root) render(root, state);
+  };
+
   state.onCancelJob = () => {
     cancelBulkJob(state, false);
     if (app) syncSelectionUI(app, state);
@@ -2407,17 +2533,16 @@ async function main() {
       const docCount = state.pages.length;
       const location = displayFolderPath(state.folderPath) || 'site root';
       state.initialContentLoaded = true;
-      const backgroundStatus = state.firstSessionLoad;
-      if (backgroundStatus) {
+      const cacheOnlyStatus = state.firstSessionLoad;
+      if (cacheOnlyStatus) {
         state.firstSessionLoad = false;
       }
-      if (!backgroundStatus || docCount === 0) {
+      if (!cacheOnlyStatus || docCount === 0) {
         state.contentLoading = false;
       }
 
       if (docCount > 0) {
         const helixPaths = state.pages.map((p) => p.helixPath);
-        hydratePlatformStatusFromCache(state, helixPaths);
         startStatusCheck(
           state,
           daFetch,
@@ -2425,7 +2550,10 @@ async function main() {
           location,
           docCount,
           state.folders.length,
-          { background: backgroundStatus },
+          {
+            cacheOnly: cacheOnlyStatus,
+            background: !cacheOnlyStatus,
+          },
         );
         render(app, state);
       } else {
