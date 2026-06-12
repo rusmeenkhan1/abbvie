@@ -217,6 +217,26 @@ function clearWorkspaceDrafts() {
   state.folderSearch = '';
 }
 
+function clearBrowseSearch() {
+  state.pageSearch = '';
+  state.folderSearch = '';
+}
+
+function pagesByPath() {
+  return new Map(state.pages.map((page) => [page.helixPath, page]));
+}
+
+function selectedPages(paths = selectedPaths()) {
+  const pageIndex = pagesByPath();
+  return paths.map((path) => pageIndex.get(path)).filter(Boolean);
+}
+
+async function navigateToFolder(folderPath) {
+  state.folderPath = normalizePath(folderPath);
+  clearBrowseSearch();
+  await loadContent();
+}
+
 function parseJsonSafe(text) {
   if (!text) return null;
   try {
@@ -233,7 +253,8 @@ async function apiFetch(url, initOptions = {}) {
 }
 
 function classifyEntry(entry) {
-  const name = String(entry.name || '').trim();
+  const entryName = extractName(entry);
+  const name = String(entry.name || entryName).trim();
   const path = String(
     entry.path || entry.sourcePath || entry.urlPath || entry.pathname || '',
   ).trim();
@@ -244,7 +265,7 @@ function classifyEntry(entry) {
     entry['content-type'] || entry.contentType || '',
   ).toLowerCase();
   const ext = String(
-    entry.ext || extractName(entry).match(/\.([a-z0-9]+)$/i)?.[1] || '',
+    entry.ext || entryName.match(/\.([a-z0-9]+)$/i)?.[1] || '',
   ).toLowerCase();
 
   const isFlaggedDirectory = entry.isFolder === true
@@ -264,7 +285,7 @@ function classifyEntry(entry) {
 
   if (isFolder) return 'folder';
 
-  const lowerName = extractName(entry).toLowerCase();
+  const lowerName = entryName.toLowerCase();
   const hasNoExt = !ext && !hasExt(lowerName);
   const looksLikeDocument = contentType.startsWith('text/')
     || contentType.includes('markdown')
@@ -384,7 +405,7 @@ async function collectPagesRecursive(rootPath) {
   async function worker() {
     while (queue.length) {
       const folderPath = queue.shift();
-      if (folderPath) {
+      if (folderPath !== undefined) {
         const { folders, pages } = await listFolderEntries(folderPath);
         allPages.push(...pages);
         folders.forEach((folder) => queue.push(folder.folderPath));
@@ -777,8 +798,7 @@ async function runDeleteFlow() {
 
   openJob('Deleting pages', paths.length, 'Cancel delete', () => state.abortController?.abort());
 
-  const byPath = new Map(state.pages.map((p) => [p.helixPath, p]));
-  const pages = paths.map((p) => byPath.get(p)).filter(Boolean);
+  const pages = selectedPages(paths);
 
   let errors = 0;
 
@@ -871,14 +891,12 @@ async function runOpenUrls(kind) {
   const paths = selectedPaths();
   if (!paths.length) return;
 
-  const pagesByPath = new Map(
-    state.pages.map((page) => [page.helixPath, page]),
-  );
+  const pageIndex = pagesByPath();
 
   const urls = kind === 'da'
     ? paths
       .map((path) => {
-        const page = pagesByPath.get(path);
+        const page = pageIndex.get(path);
         return page ? buildDaEditUrl(page) : '';
       })
       .filter(Boolean)
@@ -989,12 +1007,7 @@ function buildFoldersPane() {
   } else {
     const rootBtn = h('button', 'coh-crumb-btn', 'Site root');
     rootBtn.type = 'button';
-    rootBtn.addEventListener('click', async () => {
-      state.folderPath = '';
-      state.pageSearch = '';
-      state.folderSearch = '';
-      await loadContent();
-    });
+    rootBtn.addEventListener('click', async () => navigateToFolder(''));
     breadcrumb.append(rootBtn);
 
     const segments = normalized.split('/').filter(Boolean);
@@ -1006,12 +1019,7 @@ function buildFoldersPane() {
         const path = segments.slice(0, index + 1).join('/');
         const btn = h('button', 'coh-crumb-btn', segment);
         btn.type = 'button';
-        btn.addEventListener('click', async () => {
-          state.folderPath = path;
-          state.pageSearch = '';
-          state.folderSearch = '';
-          await loadContent();
-        });
+        btn.addEventListener('click', async () => navigateToFolder(path));
         breadcrumb.append(btn);
       }
     });
@@ -1046,12 +1054,7 @@ function buildFoldersPane() {
       const icon = h('span', 'coh-icon', '📁');
       const btn = h('button', 'coh-folder-btn', folder.name);
       btn.type = 'button';
-      btn.addEventListener('click', async () => {
-        state.folderPath = folder.folderPath;
-        state.pageSearch = '';
-        state.folderSearch = '';
-        await loadContent();
-      });
+      btn.addEventListener('click', async () => navigateToFolder(folder.folderPath));
       row.append(icon, btn);
       list.append(row);
     });
