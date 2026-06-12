@@ -1381,7 +1381,9 @@ function mapStatusJobToEntries(jobData, helixPaths) {
     if (!helix) return;
     let patch = {};
     if (typeof item === 'string') {
-      patch = bucket === 'live' ? { publishedAt: Date.now() } : { previewedAt: Date.now() };
+      if (bucket === 'live') patch = { publishedAt: Date.now() };
+      else if (bucket === 'preview') patch = { previewedAt: Date.now() };
+      else patch = {};
     } else if (item && typeof item === 'object') {
       const row = /** @type {Record<string, unknown>} */ (item);
       patch = entryFromStatusRow({ ...row, _bucket: bucket || row._bucket });
@@ -1530,7 +1532,7 @@ async function fetchFolderWildcardPlatformStatus(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       paths: [wildcardPath],
-      select: ['preview', 'live'],
+      select: ['edit', 'preview', 'live'],
       forceAsync: true,
     }),
   });
@@ -1672,6 +1674,7 @@ export async function fetchPlatformStatusForPaths(
   let result = {};
   /** @type {string[]} */
   const bulkMatched = [];
+  let folderWildcardSucceeded = false;
 
   const shouldUseFolderWildcardBulk = typeof window !== 'undefined' && (() => {
     const params = new URLSearchParams(window.location.search);
@@ -1692,6 +1695,7 @@ export async function fetchPlatformStatusForPaths(
         unique,
         signal,
       );
+      folderWildcardSucceeded = true;
       unique.forEach((p) => {
         if (hasPlatformStatus(result[p])) bulkMatched.push(p);
       });
@@ -1719,7 +1723,15 @@ export async function fetchPlatformStatusForPaths(
   }
 
   const missing = unique.filter((p) => !hasPlatformStatus(result[p]));
-  const toFetch = useBulk && bulkMatched.length > 0 ? missing : unique;
+  const toFetch = (() => {
+    if (folderWildcardSucceeded) {
+      const params = new URLSearchParams(window.location.search);
+      const strictFallback = params.has('statusFallback')
+        || params.has('strictStatusFallback');
+      return strictFallback ? missing : [];
+    }
+    return useBulk && bulkMatched.length > 0 ? missing : unique;
+  })();
   const alreadyResolved = unique.length - toFetch.length;
 
   const reportProgress = (doneInBatch) => {
