@@ -581,7 +581,8 @@ html:has(.bulk-pp-body) {
   align-content: start;
   gap: 10px;
   padding-right: 6px;
-  width: 100%;
+  width: min(100%, 620px);
+  justify-self: end;
   max-width: none;
   min-width: 0;
 }
@@ -1015,7 +1016,7 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-pages-toolbar-row {
   display: grid;
-  grid-template-columns: minmax(240px, 520px) minmax(200px, 320px);
+  grid-template-columns: minmax(260px, 560px) minmax(260px, 620px);
   justify-content: space-between;
   align-items: stretch;
   gap: 12px 16px;
@@ -1056,11 +1057,12 @@ html:has(.bulk-pp-body) {
   border-radius: 0;
   background: transparent;
   font-size: 0.86rem;
-  width: min(100%, 420px);
+  width: 100%;
 }
 
 .bulk-pp-status-action-left {
   flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
 }
 
@@ -1079,7 +1081,7 @@ html:has(.bulk-pp-body) {
 .bulk-pp-pages-refresh-status {
   width: 100%;
   min-width: 0;
-  max-width: 420px;
+  max-width: none;
   min-height: 44px;
   padding: 0 16px;
   display: inline-flex;
@@ -1093,7 +1095,12 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-pages-header .bulk-pp-pages-summary {
   justify-self: end;
-  max-width: 100%;
+  width: 100%;
+  max-width: none;
+}
+
+.bulk-pp-pages-selection-row {
+  width: min(100%, 560px);
 }
 
 .bulk-pp-filter-select {
@@ -3029,6 +3036,7 @@ html:has(.bulk-pp-body) {
     gap: 12px;
     padding-right: 0;
     width: 100%;
+    justify-self: auto;
     max-width: none;
   }
 
@@ -3040,6 +3048,10 @@ html:has(.bulk-pp-body) {
 
   .bulk-pp-pages-refresh-status {
     max-width: none;
+  }
+
+  .bulk-pp-pages-selection-row {
+    width: 100%;
   }
 
 }
