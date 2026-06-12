@@ -31,7 +31,6 @@ import {
   buildOptimisticStatusPatch,
   commitPlatformStatus,
   getUncachedHelixPaths,
-  getStaleCachedHelixPaths,
   hasCompleteCachedStatus,
   hydratePlatformStatusFromCache,
   persistCurrentPlatformStatus,
@@ -2088,28 +2087,11 @@ function startStatusCheck(
   const root = /** @type {HTMLElement | null} */ (state.root);
   hydratePlatformStatusFromCache(state, pathsToCheck);
 
-  const pathsToFetch = getUncachedHelixPaths(
-    state.org,
-    state.site,
-    state.ref,
-    pathsToCheck,
-  );
-  const staleCachedPaths = getStaleCachedHelixPaths(
-    state.org,
-    state.site,
-    state.ref,
-    pathsToCheck,
-  );
-  const cachedCount = pathsToCheck.length - pathsToFetch.length;
-  state.statusProgressDone = cachedCount;
-  state.statusProgressTotal = pathsToCheck.length;
-
-  if (background && cachedCount > 0) {
-    // Unblock first-session overlay as soon as cached status is visible.
-    markInitialStatusFetchComplete(state);
-  }
-
-  if (pathsToFetch.length === 0) {
+  // First-session load only: show cached dots immediately, refresh silently in background.
+  if (
+    background &&
+    hasCompleteCachedStatus(state.org, state.site, state.ref, pathsToCheck)
+  ) {
     state.statusChecking = false;
     state.statusFetchBackground = false;
     state.statusFetched = true;
@@ -2122,11 +2104,18 @@ function startStatusCheck(
     state.statusType = "info";
     refreshDeploymentUi(state);
     if (root) render(root, state);
-    if (staleCachedPaths.length > 0) {
-      void revalidateCachedStatusInBackground(state, daFetch, staleCachedPaths);
-    }
+    void revalidateCachedStatusInBackground(state, daFetch, pathsToCheck);
     return;
   }
+
+  const pathsToFetch = background
+    ? getUncachedHelixPaths(state.org, state.site, state.ref, pathsToCheck)
+    : pathsToCheck;
+  const cachedCount = background
+    ? pathsToCheck.length - pathsToFetch.length
+    : 0;
+  state.statusProgressDone = cachedCount;
+  state.statusProgressTotal = pathsToCheck.length;
 
   refreshDeploymentUi(state);
 
@@ -2162,9 +2151,6 @@ function startStatusCheck(
       state.statusType = "info";
       refreshDeploymentUi(state);
       finishStatusFetch(state);
-      if (staleCachedPaths.length > 0) {
-        void revalidateCachedStatusInBackground(state, daFetch, staleCachedPaths);
-      }
     })
     .catch((statusErr) => {
       if (
