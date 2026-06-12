@@ -495,6 +495,12 @@ html:has(.bulk-pp-body) {
   overflow: hidden;
 }
 
+@media (width >= 960px) {
+  .bulk-pp-content-grid {
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  }
+}
+
 /* —— Breadcrumb (AEM browse-style pills) —— */
 .bulk-pp-content-section-folders .bulk-pp-breadcrumb {
   display: flex;
