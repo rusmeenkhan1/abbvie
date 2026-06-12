@@ -564,15 +564,13 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-pages-header-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(300px, 520px) minmax(0, 1fr);
+  align-items: end;
   gap: 12px 20px;
 }
 
 .bulk-pp-pages-header-main {
-  flex: 1 1 280px;
   min-width: 0;
 }
 
@@ -581,8 +579,8 @@ html:has(.bulk-pp-body) {
   grid-template-columns: minmax(360px, 1fr) auto;
   align-items: center;
   gap: 16px;
-  flex: 1 1 640px;
-  max-width: min(100%, 860px);
+  width: 100%;
+  max-width: none;
   min-width: 0;
 }
 
@@ -3011,7 +3009,7 @@ html:has(.bulk-pp-body) {
   }
 
   .bulk-pp-pages-header-top {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     align-items: stretch;
   }
 
