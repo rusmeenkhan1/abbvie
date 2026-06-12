@@ -5,6 +5,8 @@ const CACHE_VERSION = 1;
 /** @type {number} */
 const MAX_ENTRY_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 /** @type {number} */
+const RECENT_ENTRY_AGE_MS = 60 * 60 * 1000;
+/** @type {number} */
 const MAX_PATHS_PER_SITE = 8000;
 
 /**
@@ -97,6 +99,15 @@ function isFreshEntry(entry) {
 }
 
 /**
+ * @param {CachedStatusEntry | undefined} entry
+ * @param {number} maxAgeMs
+ */
+function isRecentEntry(entry, maxAgeMs) {
+  if (!entry || typeof entry.checkedAt !== 'number') return false;
+  return Date.now() - entry.checkedAt <= maxAgeMs;
+}
+
+/**
  * @param {string} org
  * @param {string} site
  * @param {string} ref
@@ -154,6 +165,31 @@ export function getUncachedHelixPaths(org, site, ref, helixPaths) {
   if (helixPaths.length === 0) return [];
   const siteCache = getSiteCache(org, site, ref);
   return helixPaths.filter((path) => !isFreshEntry(siteCache[path]));
+}
+
+/**
+ * Helix paths with a valid cache entry that should be refreshed in background.
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {string[]} helixPaths
+ * @param {number} [maxAgeMs]
+ * @returns {string[]}
+ */
+export function getStaleCachedHelixPaths(
+  org,
+  site,
+  ref,
+  helixPaths,
+  maxAgeMs = RECENT_ENTRY_AGE_MS,
+) {
+  if (helixPaths.length === 0) return [];
+  const siteCache = getSiteCache(org, site, ref);
+  return helixPaths.filter((path) => {
+    const entry = siteCache[path];
+    if (!isFreshEntry(entry)) return false;
+    return !isRecentEntry(entry, maxAgeMs);
+  });
 }
 
 /**

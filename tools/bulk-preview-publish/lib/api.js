@@ -18,11 +18,11 @@ const ADMIN_STATUS_POST_SUFFIX = 'index';
 const adminApiBase = HLX_ADMIN;
 
 /** Max concurrent per-page status GET workers. */
-export const STATUS_PARALLEL_BATCH_SIZE = 10;
+export const STATUS_PARALLEL_BATCH_SIZE = 20;
 /** Below this count, skip slow bulk jobs and fetch per-page in parallel. */
-export const STATUS_FAST_PER_PAGE_MAX = 10;
+export const STATUS_FAST_PER_PAGE_MAX = 25;
 /** Poll interval while waiting for a bulk status job (ms). */
-const STATUS_BULK_POLL_MS = 1500;
+const STATUS_BULK_POLL_MS = 1000;
 
 /**
  * Pass through to DA SDK daFetch (adds Bearer + x-content-source-authorization on admin.hlx.page).
@@ -1529,7 +1529,7 @@ async function fetchStatusParallel(daFetch, org, site, ref, helixPaths, onProgre
         result[path] = {};
       }
       done += 1;
-      if (onProgress) onProgress({ ...result }, done);
+      if (onProgress) onProgress({ [path]: result[path] }, done);
     }
   };
 
@@ -1630,9 +1630,8 @@ export async function fetchPlatformStatusForPaths(
       ref,
       toFetch,
       (partial, done) => {
-        toFetch.forEach((p) => {
-          const entry = partial[p];
-          if (hasPlatformStatus(entry)) result[p] = entry;
+        Object.entries(partial).forEach(([path, entry]) => {
+          if (hasPlatformStatus(entry)) result[path] = entry;
         });
         reportProgress(done);
       },
