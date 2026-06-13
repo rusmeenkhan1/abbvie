@@ -1862,12 +1862,6 @@ function render(root, state) {
         el('p', 'bulk-pp-list-empty bulk-pp-list-empty-error', error),
       );
     }
-  } else if (
-    state.pages.length === 0
-    && state.folders.length === 0
-    && !statusChecking
-  ) {
-    contentBody.append(buildEmptyBrowseState(state, safeFolder, workspaceLocked));
   } else {
     const workspace = el('div', 'bulk-pp-workspace');
     const contentGrid = el('div', 'bulk-pp-content-grid');
@@ -1913,7 +1907,7 @@ function render(root, state) {
     if (visibleFolders.length === 0) {
       const folderEmptyMsg = folderSearchDraft
         ? 'No folders match this search.'
-        : 'No subfolders here — pages in this folder are listed on the right.';
+        : 'no directory to show';
       folderList.append(el('li', 'bulk-pp-list-empty', folderEmptyMsg));
     } else {
       visibleFolders.forEach((folder) => {
@@ -2006,7 +2000,7 @@ function render(root, state) {
       pageList.id = 'bulk-pp-page-list';
       if (state.pages.length === 0) {
         pageList.append(
-          el('li', 'bulk-pp-list-empty', 'No pages in this scope.'),
+          el('li', 'bulk-pp-list-empty', 'no pages to show'),
         );
       } else if (visiblePages.length === 0) {
         const emptyMsg = searchDraft
