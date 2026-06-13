@@ -422,6 +422,41 @@ function buildBreadcrumb(folderPath, onNavigate, locked = false) {
   return nav;
 }
 
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {string} safeFolder
+ * @param {boolean} locked
+ */
+function buildEmptyBrowseState(state, safeFolder, locked) {
+  const wrap = el('div', 'bulk-pp-empty-browse-state');
+  const breadcrumb = buildBreadcrumb(
+    safeFolder,
+    (path) => state.onNavigate(path),
+    locked,
+  );
+  breadcrumb.classList.add('bulk-pp-empty-browse-breadcrumb');
+  wrap.append(breadcrumb);
+
+  const normalized = normalizeFolderPath(safeFolder);
+  if (normalized) {
+    const segments = normalized.split('/').filter(Boolean);
+    const parentPath = segments.slice(0, -1).join('/');
+    const upBtn = el(
+      'button',
+      'bulk-pp-btn bulk-pp-btn-secondary bulk-pp-empty-browse-up',
+      'Go to parent directory',
+    );
+    upBtn.type = 'button';
+    upBtn.disabled = locked;
+    setAccessibilityLabel(upBtn, 'Go to parent directory');
+    upBtn.addEventListener('click', () => state.onNavigate(parentPath));
+    wrap.append(upBtn);
+  }
+
+  wrap.append(el('p', 'bulk-pp-list-empty', 'No folders or pages in this location.'));
+  return wrap;
+}
+
 function formatRowModifiedLabel(entry, showStatus) {
   if (!showStatus || !entry) return '';
   const ts = Math.max(entry.previewedAt || 0, entry.publishedAt || 0);
@@ -1832,9 +1867,7 @@ function render(root, state) {
     && state.folders.length === 0
     && !statusChecking
   ) {
-    contentBody.append(
-      el('p', 'bulk-pp-list-empty', 'No folders or pages in this location.'),
-    );
+    contentBody.append(buildEmptyBrowseState(state, safeFolder, workspaceLocked));
   } else {
     const workspace = el('div', 'bulk-pp-workspace');
     const contentGrid = el('div', 'bulk-pp-content-grid');
