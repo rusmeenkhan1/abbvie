@@ -493,11 +493,25 @@ function formatRowModifiedLabel(entry, showStatus) {
   return ts ? formatStatusDate(ts) : '';
 }
 
-function buildPageListColumnHeader() {
+function buildPageListColumnHeader(state) {
   const head = el('div', 'bulk-pp-list-colhead bulk-pp-list-colhead-pages');
-  head.setAttribute('aria-hidden', 'true');
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.id = 'bulk-pp-select-all-colhead';
+  cb.className = 'bulk-pp-colhead-select-all-cb';
+  cb.setAttribute('aria-label', 'Select all pages');
+  cb.setAttribute('title', 'Select all pages');
+  if (state) {
+    const active = getActiveSelectionCount(state);
+    const total = getVisiblePages(state).length;
+    cb.checked = total > 0 && active === total;
+    cb.indeterminate = active > 0 && active < total;
+    cb.addEventListener('change', () => {
+      state.onSelectAll(cb.checked);
+    });
+  }
   head.append(
-    el('span', 'bulk-pp-list-colhead-check'),
+    cb,
     el('span', 'bulk-pp-list-colhead-icon'),
     el('span', 'bulk-pp-list-colhead-name', 'Name'),
     el('span', 'bulk-pp-list-colhead-modified', 'Modified'),
@@ -2118,7 +2132,7 @@ function render(root, state) {
     pageWrap.id = 'bulk-pp-page-list-wrap';
     if (!isFirstSessionStatusPending(state)) {
       if (state.pages.length > 0) {
-        pageWrap.append(buildPageListColumnHeader());
+        pageWrap.append(buildPageListColumnHeader(state));
       }
       const pageList = el('ul', 'bulk-pp-list');
       pageList.id = 'bulk-pp-page-list';
