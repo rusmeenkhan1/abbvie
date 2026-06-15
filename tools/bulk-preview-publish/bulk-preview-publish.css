@@ -565,7 +565,7 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-pages-header-top {
   display: grid;
-  grid-template-columns: minmax(280px, var(--pp-pages-left-col-max)) minmax(280px, var(--pp-pages-right-col-max));
+  grid-template-columns: minmax(260px, var(--pp-pages-left-col-max)) minmax(260px, var(--pp-pages-right-col-max));
   justify-content: space-between;
   align-items: start;
   gap: 12px 16px;
@@ -1017,7 +1017,7 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-pages-toolbar-row {
   display: grid;
-  grid-template-columns: minmax(260px, var(--pp-pages-left-col-max)) minmax(260px, var(--pp-pages-right-col-max));
+  grid-template-columns: minmax(220px, var(--pp-pages-left-col-max)) minmax(220px, var(--pp-pages-right-col-max));
   justify-content: space-between;
   align-items: stretch;
   gap: 12px 16px;
@@ -1608,8 +1608,8 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-content-section-pages {
-  --pp-pages-left-col-max: 560px;
-  --pp-pages-right-col-max: 620px;
+  --pp-pages-left-col-max: 470px;
+  --pp-pages-right-col-max: 500px;
 
   box-shadow: none;
   min-height: 0;
@@ -1626,12 +1626,17 @@ html:has(.bulk-pp-body) {
   min-height: calc(var(--pp-page-row-height) * var(--pp-page-list-min-rows));
   max-height: none;
   overflow-y: auto;
+  padding-bottom: 16px;
   overscroll-behavior: contain;
   border-top: 1px solid var(--pp-border);
   border-radius: 0;
   border-left: none;
   border-right: none;
   border-bottom: none;
+}
+
+.bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) .bulk-pp-content-section-pages .bulk-pp-list-wrap-fill {
+  padding-bottom: 104px;
 }
 
 .bulk-pp-list-wrap-pages .bulk-pp-list-item-document {
@@ -3108,6 +3113,10 @@ html:has(.bulk-pp-body) {
   .bulk-pp-pages-selection-actions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) .bulk-pp-content-section-pages .bulk-pp-list-wrap-fill {
+    padding-bottom: 154px;
   }
 
 }
