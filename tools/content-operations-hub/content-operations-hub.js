@@ -950,7 +950,7 @@ function buildSelectionActionBar(state) {
   selectAllBtn.disabled = blocked || getVisiblePages(state).length === 0;
   selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
 
-  const clearBtn = el('button', 'bulk-pp-selection-clear', 'Clear');
+  const clearBtn = el('button', 'bulk-pp-selection-clear', 'Clear selection');
   clearBtn.type = 'button';
   clearBtn.id = 'bulk-pp-select-none';
   setAccessibilityLabel(clearBtn, 'Clear selection');
@@ -1509,7 +1509,7 @@ function buildPagesStatusSummary(state) {
     return strip;
   }
   const {
-    live, orphanedLive, previewed, previewOnly, none, total,
+    live, previewOnly, none, total,
   } = deploymentCountsForPaths(
     state.platformStatus,
     helixPaths,
@@ -1524,11 +1524,9 @@ function buildPagesStatusSummary(state) {
 
   /** @type {[string, number, string][]} */
   const items = [
-    ['live', live, 'Published'],
-    ['orphaned-live', orphanedLive, 'Orphaned live'],
-    ['previewed', previewed, 'Previewed'],
-    ['preview', previewOnly, 'Preview only'],
-    ['none', none, 'Not deployed'],
+    ['live', live, 'Published pages'],
+    ['preview', previewOnly, 'Only Previewed Pages'],
+    ['none', none, 'Not deployed pages'],
     ['total', total, 'Total Pages'],
   ];
   items.forEach(([mod, value, label]) => {

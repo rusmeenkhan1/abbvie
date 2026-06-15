@@ -1089,7 +1089,7 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-pages-header .bulk-pp-pages-summary {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   width: 100%;
   margin: 0;
@@ -1232,9 +1232,9 @@ html:has(.bulk-pp-body) {
 .bulk-pp-pages-status-tools {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
-  padding: 6px 0 0;
+  padding: 4px 0 10px;
   background: transparent;
   border: none;
   border-radius: 0;
@@ -1247,21 +1247,22 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-pages-refresh-status {
-  width: 36px;
-  min-width: 36px;
-  max-width: 36px;
-  min-height: 36px;
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  min-height: 40px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0;
+  color: #fff;
 }
 
 .bulk-pp-pages-refresh-status svg {
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
 }
 
 .bulk-pp-pages-header .bulk-pp-pages-summary {
@@ -1647,8 +1648,10 @@ html:has(.bulk-pp-body) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
+  padding-top: 2px;
+  padding-bottom: 4px;
 }
 
 .bulk-pp-legend-item {
