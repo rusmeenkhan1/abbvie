@@ -943,9 +943,16 @@ function buildSelectionActionBar(state) {
   countEl.id = 'bulk-pp-selection-count';
   badge.append(countEl);
 
+  const selectAllBtn = el('button', 'bulk-pp-selection-clear', 'Select all');
+  selectAllBtn.type = 'button';
+  selectAllBtn.id = 'bulk-pp-select-all';
+  setAccessibilityLabel(selectAllBtn, 'Select all visible pages');
+  selectAllBtn.disabled = blocked || getVisiblePages(state).length === 0;
+  selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
+
   const clearBtn = el('button', 'bulk-pp-selection-clear', 'Clear');
   clearBtn.type = 'button';
-  clearBtn.id = 'bulk-pp-selection-clear';
+  clearBtn.id = 'bulk-pp-select-none';
   setAccessibilityLabel(clearBtn, 'Clear selection');
   clearBtn.disabled = blocked;
   clearBtn.addEventListener('click', () => state.onSelectAll(false));
@@ -965,7 +972,7 @@ function buildSelectionActionBar(state) {
   shareBtn.addEventListener('click', () => {
     void copySelectedPreviewUrls(state);
   });
-  left.append(badge, clearBtn);
+  left.append(badge, selectAllBtn, clearBtn);
 
   const actions = el('div', 'bulk-pp-selection-strip-actions');
   const deployGroup = el(
@@ -1224,27 +1231,6 @@ function buildPagesSelectionRow(state, { visiblePages }) {
   );
   selectionPill.id = 'bulk-pp-selection-pill';
   row.append(selectionPill);
-
-  const interactionsLocked = isStatusFetchBlocking(state);
-  const selectAllBtn = el(
-    'button',
-    'bulk-pp-btn bulk-pp-btn-text',
-    'Select all',
-  );
-  const selectNoneBtn = el('button', 'bulk-pp-btn bulk-pp-btn-text', 'Clear');
-  selectAllBtn.type = 'button';
-  selectNoneBtn.type = 'button';
-  selectAllBtn.id = 'bulk-pp-select-all';
-  selectNoneBtn.id = 'bulk-pp-select-none';
-  selectAllBtn.disabled = visiblePages.length === 0 || interactionsLocked;
-  selectNoneBtn.disabled = visiblePages.length === 0
-    || interactionsLocked
-    || getActiveSelectionCount(state) === 0;
-  selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
-  selectNoneBtn.addEventListener('click', () => state.onSelectAll(false));
-  const actions = el('div', 'bulk-pp-pages-selection-actions');
-  actions.append(selectAllBtn, selectNoneBtn);
-  row.append(actions);
   return row;
 }
 
@@ -2119,15 +2105,6 @@ function render(root, state) {
     );
     searchField.classList.add('bulk-pp-pages-search-field');
     toolbarRow.append(searchField, filterField);
-
-    if (!isFirstSessionStatusPending(state)) {
-      const selectionRow = buildPagesSelectionRow(
-        state,
-        { visiblePages, statusChecking },
-      );
-      selectionRow.classList.add('bulk-pp-pages-selection-inline');
-      toolbarRow.append(selectionRow);
-    }
 
     controls.append(toolbarRow);
 
