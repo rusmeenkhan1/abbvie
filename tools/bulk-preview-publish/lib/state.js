@@ -252,6 +252,7 @@ export function isFirstSessionStatusPending(state) {
  */
 export function markInitialStatusFetchComplete(state) {
   state.hasCompletedInitialStatusFetch = true;
+  state.firstSessionLoad = false;
   state.contentLoading = false;
 }
 

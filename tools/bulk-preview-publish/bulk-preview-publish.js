@@ -2410,8 +2410,21 @@ async function main() {
   const app = document.getElementById('app');
   if (!app) return;
 
-  const { context, actions } = await initSdk();
-  const hasSdkFetch = typeof actions.daFetch === 'function';
+  let { context, actions } = await initSdk();
+  let hasSdkFetch = typeof actions.daFetch === 'function';
+  const inDaAppShell = /\/app\/[^/]+\/[^/]+/.test(window.location.pathname);
+  // DA SDK can occasionally arrive a moment late on the first load.
+  if (!hasSdkFetch && inDaAppShell) {
+    await new Promise((resolve) => {
+      setTimeout(resolve, 900);
+    });
+    const retry = await initSdk();
+    if (typeof retry.actions?.daFetch === 'function') {
+      context = retry.context;
+      actions = retry.actions;
+      hasSdkFetch = true;
+    }
+  }
   const daFetch = hasSdkFetch ? wrapDaFetch(actions.daFetch) : null;
   const ctx = resolveSiteContext(context);
 
@@ -2557,6 +2570,7 @@ async function main() {
     render(app, state);
 
     try {
+      const isFirstWorkspaceLoad = !state.initialContentLoaded;
       const browseEntries = await listFolderEntries(
         daFetch,
         state.org,
@@ -2594,8 +2608,7 @@ async function main() {
       const location = displayFolderPath(state.folderPath) || 'site root';
       state.initialContentLoaded = true;
       const cacheOnlyStatus = false;
-      state.firstSessionLoad = false;
-      if (!cacheOnlyStatus || docCount === 0) {
+      if ((!cacheOnlyStatus || docCount === 0) && !isFirstWorkspaceLoad) {
         state.contentLoading = false;
       }
 
