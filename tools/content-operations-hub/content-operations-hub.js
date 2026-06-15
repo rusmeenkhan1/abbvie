@@ -145,7 +145,22 @@ const SDK_TIMEOUT_MS = 8000;
 let copyToastTimer = 0;
 
 const APP_TITLE = 'Content Operations Hub';
-const APP_DESCRIPTION = 'Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level.';
+const APP_DESCRIPTION = 'Browse site content, monitor deployment status, and run bulk preview, publish, and removal operations.';
+
+/**
+ * @param {string} label
+ * @param {string} value
+ * @param {boolean} [muted]
+ */
+function buildMetaBadge(label, value, muted = false) {
+  const badge = el('span', `bulk-pp-badge${muted ? ' bulk-pp-badge-muted' : ''}`);
+  badge.title = label;
+  badge.append(
+    el('span', 'bulk-pp-badge-label', label),
+    el('span', 'bulk-pp-badge-value', value),
+  );
+  return badge;
+}
 
 /** @type {ReadonlyArray<[keyof typeof STATUS_COLOR, string]>} */
 const STATUS_LEGEND_ITEMS = [
@@ -1538,10 +1553,10 @@ function buildPagesStatusSummary(state) {
 
   /** @type {[string, number, string][]} */
   const items = [
-    ['live', live, 'Published pages'],
-    ['preview', previewOnly, 'Only Previewed Pages'],
-    ['none', none, 'Not deployed pages'],
-    ['total', total, 'Total Pages'],
+    ['live', live, 'Live'],
+    ['preview', previewOnly, 'Preview'],
+    ['none', none, 'Draft'],
+    ['total', total, 'Total'],
   ];
   items.forEach(([mod, value, label]) => {
     const item = el(
@@ -1971,13 +1986,11 @@ function render(root, state) {
     el('p', 'bulk-pp-header-desc', APP_DESCRIPTION),
   );
   const headerMeta = el('div', 'bulk-pp-header-meta');
-  const branchBadge = el('span', 'bulk-pp-badge bulk-pp-badge-muted', ref);
-  branchBadge.title = 'Branch';
-  const repoBadge = el('span', 'bulk-pp-badge bulk-pp-badge-muted', site);
-  repoBadge.title = 'Repository';
-  const orgBadge = el('span', 'bulk-pp-badge', org);
-  orgBadge.title = 'Organization';
-  headerMeta.append(branchBadge, repoBadge, orgBadge);
+  headerMeta.append(
+    buildMetaBadge('Branch', ref, true),
+    buildMetaBadge('Repository', site, true),
+    buildMetaBadge('Organization', org),
+  );
   headerInner.append(headerBrand, headerMeta);
   header.append(headerInner);
   root.append(header);
@@ -1988,7 +2001,14 @@ function render(root, state) {
   );
   const contentHead = el('div', 'bulk-pp-panel-head');
   const contentHeadMain = el('div', 'bulk-pp-panel-head-main');
-  contentHeadMain.append(el('h2', null, 'Site content'));
+  contentHeadMain.append(
+    el('h2', null, 'Site content'),
+    el(
+      'p',
+      'bulk-pp-panel-head-desc',
+      'Navigate directories and manage pages at the current folder level.',
+    ),
+  );
   contentHead.append(contentHeadMain);
   contentPanel.append(contentHead);
   const contentBody = el('div', 'bulk-pp-panel-body bulk-pp-content-body');
@@ -2048,7 +2068,7 @@ function render(root, state) {
     if (visibleFolders.length === 0) {
       const folderEmptyMsg = folderSearchDraft
         ? 'No folders match this search.'
-        : 'no directory to show';
+        : 'No directories in this location.';
       folderList.append(el('li', 'bulk-pp-list-empty', folderEmptyMsg));
     } else {
       visibleFolders.forEach((folder) => {
@@ -2138,7 +2158,7 @@ function render(root, state) {
       pageList.id = 'bulk-pp-page-list';
       if (state.pages.length === 0) {
         pageList.append(
-          el('li', 'bulk-pp-list-empty', 'no pages to show'),
+          el('li', 'bulk-pp-list-empty', 'No pages in this location.'),
         );
       } else if (visiblePages.length === 0) {
         const emptyMsg = searchDraft
