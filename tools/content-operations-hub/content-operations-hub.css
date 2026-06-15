@@ -155,11 +155,13 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-status-modal {
-  width: min(100%, 560px);
-  padding: 28px 28px 24px;
-  border: 2px solid var(--pp-navy, #071d49);
-  border-radius: 14px;
-  box-shadow: var(--pp-shadow-lg);
+  width: min(100%, 620px);
+  padding: 28px 30px 24px;
+  border: 1px solid rgb(7 29 73 / 12%);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 98%) 0%, #fdfefe 100%);
+  box-shadow: 0 30px 68px rgb(7 29 73 / 30%), 0 10px 24px rgb(7 29 73 / 16%);
 }
 
 .bulk-pp-status-modal-head {
@@ -189,25 +191,28 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-status-modal-success-icon {
-  display: block;
-  width: auto;
-  height: auto;
-  margin: 0 auto 10px;
-  border-radius: 0;
-  background: transparent;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 2px auto 12px;
+  border-radius: 50%;
+  border: 1px solid rgb(0 102 245 / 24%);
+  background: radial-gradient(circle at 30% 30%, #e8f0fe 0%, #f3f7ff 70%);
   color: var(--pp-navy, #071d49);
-  font-size: 2rem;
+  font-size: 1.85rem;
   font-weight: 800;
   line-height: 1;
 }
 
 .bulk-pp-status-modal-complete-title {
-  margin: 0 0 6px;
-  font-size: 1.125rem;
-  font-weight: 700;
+  margin: 0 0 8px;
+  font-size: 2rem;
+  font-weight: 760;
   text-align: center;
   color: var(--pp-navy, #071d49);
   letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .bulk-pp-status-modal-error-title {
@@ -215,15 +220,15 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-status-modal-summary {
-  margin: 0 0 10px;
-  font-size: 0.9rem;
-  line-height: 1.55;
+  margin: 0 0 12px;
+  font-size: 0.94rem;
+  line-height: 1.52;
   text-align: center;
   color: var(--pp-modal-muted, #5c6578);
 }
 
 .bulk-pp-status-modal-hint {
-  margin: 0 0 20px;
+  margin: 4px 0 20px;
   font-size: 0.82rem;
   line-height: 1.5;
   text-align: center;
@@ -247,33 +252,50 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-status-modal-with-urls {
-  width: min(100%, 640px);
+  width: min(100%, 760px);
 }
 
 .bulk-pp-modal-url-results {
-  margin: 14px 0 0;
+  margin: 16px 0 0;
   text-align: left;
 }
 
 .bulk-pp-modal-url-host {
-  margin: 0 0 8px;
-  font-size: 0.78rem;
-  color: var(--pp-modal-muted, #5c6578);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 5px 12px;
+  border: 1px solid var(--pp-info-border);
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pp-info-text, #0d3d66);
+  background: var(--pp-info-bg, #eef4ff);
 }
 
 .bulk-pp-modal-url-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bulk-pp-modal-url-actions .bulk-pp-modal-btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
 }
 
 .bulk-pp-modal-url-list-wrap {
-  max-height: min(40vh, 280px);
+  max-height: min(40vh, 300px);
   overflow: auto;
   border: 1px solid var(--pp-border);
-  border-radius: var(--pp-radius-sm);
+  border-radius: 12px;
   background: var(--pp-surface-subtle, #f6f8fb);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%);
 }
 
 .bulk-pp-modal-url-list {
@@ -283,15 +305,21 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-modal-url-list li {
-  padding: 8px 12px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--pp-border);
-  font-size: 0.8rem;
+  font-size: 0.83rem;
+  font-weight: 500;
   line-height: 1.45;
   word-break: break-all;
+  transition: background var(--pp-transition);
 }
 
 .bulk-pp-modal-url-list li:last-child {
   border-bottom: none;
+}
+
+.bulk-pp-modal-url-list li:hover {
+  background: #f1f5fd;
 }
 
 .bulk-pp-modal-url-list a {
@@ -2475,6 +2503,19 @@ html:has(.bulk-pp-body) {
   border-color: rgb(0 102 245 / 28%);
 }
 
+.bulk-pp-modal-btn-insight {
+  background: linear-gradient(180deg, #f3f8ff 0%, #eaf2ff 100%);
+  border-color: rgb(0 102 245 / 34%);
+  color: #0d3d66;
+}
+
+.bulk-pp-modal-btn-insight:hover:not(:disabled) {
+  background: linear-gradient(180deg, #e7f1ff 0%, #dbe9ff 100%);
+  border-color: rgb(0 82 194 / 45%);
+  box-shadow: 0 2px 8px rgb(0 102 245 / 18%);
+  transform: translateY(-1px);
+}
+
 .bulk-pp-modal-btn:focus-visible {
   outline: 2px solid var(--pp-modal-blue);
   outline-offset: 2px;
@@ -2498,6 +2539,10 @@ html:has(.bulk-pp-body) {
   .bulk-pp-modal-btn {
     width: 100%;
     text-align: center;
+  }
+
+  .bulk-pp-modal-url-actions {
+    grid-template-columns: 1fr;
   }
 }
 

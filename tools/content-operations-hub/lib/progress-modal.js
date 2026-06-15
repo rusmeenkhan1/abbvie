@@ -310,11 +310,11 @@ function buildJobUrlResults(urls, host) {
   });
   const lhsBtn = el(
     'button',
-    'bulk-pp-modal-btn bulk-pp-modal-btn-ghost',
-    `Check LHS (${count})`,
+    'bulk-pp-modal-btn bulk-pp-modal-btn-insight',
+    `Check LHS for all (${count})`,
   );
   lhsBtn.type = 'button';
-  lhsBtn.title = `Check Lighthouse for ${count} URL${count === 1 ? '' : 's'}`;
+  lhsBtn.title = `Run Lighthouse checks for ${count} URL${count === 1 ? '' : 's'}`;
   lhsBtn.addEventListener('click', () => {
     const handleCheckLhs = async () => {
       const psUrls = urls.map((url) => {
