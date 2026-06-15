@@ -1402,7 +1402,7 @@ function buildPagesStatusSummary(state) {
     ['live', live, 'Published'],
     ['preview', previewOnly, 'Preview only'],
     ['none', none, 'Not deployed'],
-    ['total', total, 'Total in view'],
+    ['total', total, 'Total Pages'],
   ];
   items.forEach(([mod, value, label]) => {
     const item = el(
@@ -1458,8 +1458,8 @@ function buildRealtimeStatusButton(state) {
     || state.contentLoading
     || state.loading
     || state.statusChecking;
-  setAccessibilityLabel(btn, 'Fetch latest status for listed pages');
-  btn.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 3.5v3.2h-3.2"/></svg><span>Fetch deployment status</span>';
+  setAccessibilityLabel(btn, 'Refresh deployment status for listed pages');
+  btn.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 3.5v3.2h-3.2"/></svg><span>Refresh deployment status</span>';
   btn.addEventListener('click', () => {
     if (typeof state.onRefreshStatus === 'function') {
       state.onRefreshStatus();
@@ -1496,11 +1496,11 @@ function buildStatusActionCard(state) {
   const label = el('span', 'bulk-pp-status-action-label');
   const when = formatStatusFetchedAt(state.statusFetchedAt);
   if (!when) {
-    label.textContent = 'Status not fetched yet';
+    label.textContent = 'Deployment status not fetched yet';
   } else {
     label.textContent = state.statusFetchedFromCache
-      ? `Last fetched at ${when} (from cache)`
-      : `Last fetched at ${when}`;
+      ? `Deployment status fetched at ${when} (cached)`
+      : `Deployment status fetched at ${when}`;
   }
   left.append(label);
 

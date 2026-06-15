@@ -284,7 +284,7 @@ export function confirmOpenUrlsInNewTabs(count) {
 export function confirmPreviewSelected(count) {
   return showConfirmModal({
     title: 'Preview selected pages?',
-    body: `You are about to create preview deployments for ${count} selected page${count === 1 ? '' : 's'} on the preview site (.aem.page).`,
+    body: `You are about to preview ${count} selected page${count === 1 ? '' : 's'}.`,
     confirmLabel: 'Preview selected',
     cancelLabel: 'Cancel',
     variant: 'warning',
@@ -298,7 +298,7 @@ export function confirmPreviewSelected(count) {
 export function confirmPublishToLive(count) {
   return showConfirmModal({
     title: 'Publish to production?',
-    body: `You are about to publish ${count} page${count === 1 ? '' : 's'} to the live site (.aem.live). This updates production content.`,
+    body: `You are about to publish ${count} selected page${count === 1 ? '' : 's'}.`,
     confirmLabel: 'Publish to production',
     cancelLabel: 'Cancel',
     variant: 'warning',
