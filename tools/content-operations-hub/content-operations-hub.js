@@ -381,39 +381,71 @@ function syncBrowseLocation(state) {
  * @param {ReturnType<typeof createAppState>} state
  * @param {boolean} workspaceLocked
  */
-function buildPagesSectionHead() {
-  const head = el('div', 'bulk-pp-section-head');
-  const titleWrap = el('div', 'bulk-pp-section-title-wrap');
-  const icon = el('span', 'bulk-pp-section-icon bulk-pp-section-icon-pages');
-  icon.setAttribute('aria-hidden', 'true');
-  titleWrap.append(icon, el('h3', 'bulk-pp-section-title', 'Pages'));
-  head.append(titleWrap);
-  return head;
+function buildPagesScopeControl(state, workspaceLocked) {
+  const locked = workspaceLocked || state.contentLoading;
+  const isTree = state.pageScope === 'tree';
+  const card = el('div', 'bulk-pp-pages-scope-card');
+  card.setAttribute('role', 'group');
+  card.setAttribute('aria-label', 'Page scope');
+
+  const head = el('div', 'bulk-pp-pages-scope-head');
+  head.append(
+    el('span', 'bulk-pp-pages-scope-title', 'Page scope'),
+    el(
+      'span',
+      'bulk-pp-pages-scope-hint',
+      isTree
+        ? 'Lists pages in this folder and all nested folders.'
+        : 'Lists pages directly in this folder only.',
+    ),
+  );
+  card.append(head);
+
+  const segment = el('div', 'bulk-pp-pages-scope-segment');
+  const folderBtn = el('button', 'bulk-pp-pages-scope-segment-btn');
+  folderBtn.type = 'button';
+  folderBtn.textContent = 'This folder only';
+  folderBtn.disabled = locked;
+  folderBtn.classList.toggle('bulk-pp-pages-scope-segment-btn-active', !isTree);
+  folderBtn.setAttribute('aria-pressed', isTree ? 'false' : 'true');
+
+  const treeBtn = el('button', 'bulk-pp-pages-scope-segment-btn');
+  treeBtn.type = 'button';
+  treeBtn.textContent = 'Include subfolders';
+  treeBtn.disabled = locked;
+  treeBtn.classList.toggle('bulk-pp-pages-scope-segment-btn-active', isTree);
+  treeBtn.setAttribute('aria-pressed', isTree ? 'true' : 'false');
+
+  folderBtn.addEventListener('click', () => {
+    if (!locked && isTree) state.onToggleIncludeSubdirectories(false);
+  });
+  treeBtn.addEventListener('click', () => {
+    if (!locked && !isTree) state.onToggleIncludeSubdirectories(true);
+  });
+
+  segment.append(folderBtn, treeBtn);
+  card.append(segment);
+  return card;
 }
 
 /**
  * @param {ReturnType<typeof createAppState>} state
- * @param {boolean} workspaceLocked
  */
-function buildPagesScopeRow(state, workspaceLocked) {
-  const locked = workspaceLocked || state.contentLoading;
-  const scopeRow = el('div', 'bulk-pp-pages-scope-row');
-  const scopeCheck = el('input');
-  scopeCheck.type = 'checkbox';
-  scopeCheck.id = 'bulk-pp-include-subdirectories';
-  scopeCheck.checked = state.pageScope === 'tree';
-  scopeCheck.disabled = locked;
-  scopeCheck.addEventListener('change', () => {
-    state.onToggleIncludeSubdirectories(scopeCheck.checked);
-  });
-  const scopeLabel = el('label', 'bulk-pp-pages-scope-check');
-  scopeLabel.htmlFor = 'bulk-pp-include-subdirectories';
-  scopeLabel.append(
-    scopeCheck,
-    document.createTextNode(' Include all subdirectories'),
-  );
-  scopeRow.append(scopeLabel);
-  return scopeRow;
+function buildPagesLocationMeta(state) {
+  const count = state.pages.length;
+  const meta = el('p', 'bulk-pp-pages-location-meta');
+  if (count === 0) {
+    meta.textContent = state.pageScope === 'tree'
+      ? 'No pages in this folder or subfolders.'
+      : 'No pages in this folder.';
+    meta.classList.add('bulk-pp-pages-location-meta-empty');
+    return meta;
+  }
+  const noun = count === 1 ? 'page' : 'pages';
+  meta.textContent = state.pageScope === 'tree'
+    ? `${count} ${noun} in this folder and subfolders`
+    : `${count} ${noun} in this folder`;
+  return meta;
 }
 
 /**
@@ -1279,29 +1311,32 @@ function buildPagesHeader(state, workspaceLocked, statusTools = null) {
   const header = el('div', 'bulk-pp-pages-header');
   const topRow = el('div', 'bulk-pp-pages-header-top');
   const mainSection = el('div', 'bulk-pp-pages-header-main');
+
+  const locationBlock = el('div', 'bulk-pp-pages-location');
   const breadcrumb = buildBreadcrumb(
     state.folderPath,
     (path) => state.onNavigate(path),
     workspaceLocked,
   );
   breadcrumb.classList.add('bulk-pp-pages-breadcrumb');
-  const directoryBlock = el('div', 'bulk-pp-pages-directory');
-  directoryBlock.append(
-    el('span', 'bulk-pp-pages-directory-label', 'Current directory'),
+  locationBlock.append(
+    el('h3', 'bulk-pp-pages-location-title', 'Page location'),
     breadcrumb,
-    buildPagesScopeRow(state, workspaceLocked),
+    buildPagesLocationMeta(state),
+    buildPagesScopeControl(state, workspaceLocked),
   );
-  mainSection.append(buildPagesSectionHead(), directoryBlock);
+  mainSection.append(locationBlock);
 
   const aside = el('div', 'bulk-pp-pages-header-aside');
   if (state.pages.length > 0) {
+    aside.append(el('h3', 'bulk-pp-pages-aside-title', 'Deployment status'));
     aside.append(buildPagesStatusSummary(state));
     aside.append(buildStatusActionCard(state));
     if (statusTools) aside.append(statusTools);
   } else {
-    const countEl = el('span', 'bulk-pp-section-count', '0');
-    countEl.id = 'bulk-pp-page-count';
-    aside.append(countEl);
+    aside.append(el('h3', 'bulk-pp-pages-aside-title', 'Deployment status'));
+    const emptyAside = el('p', 'bulk-pp-pages-aside-empty', 'Load a folder with pages to see deployment counts.');
+    aside.append(emptyAside);
   }
   topRow.append(mainSection, aside);
   header.append(topRow);
@@ -1613,15 +1648,18 @@ function buildPagesFilterField(state, pageFilter, contentLoading) {
 function buildRealtimeStatusButton(state) {
   const btn = el(
     'button',
-    'bulk-pp-btn bulk-pp-btn-fetch-deployment bulk-pp-pages-refresh-status',
+    'bulk-pp-btn bulk-pp-btn-refresh-status bulk-pp-pages-refresh-status',
   );
   btn.type = 'button';
   btn.disabled = state.pages.length === 0
     || state.contentLoading
     || state.loading
     || state.statusChecking;
-  setAccessibilityLabel(btn, 'Fetch live deployment status');
-  btn.innerHTML = '<svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 3.5v3.2h-3.2"/></svg>';
+  setAccessibilityLabel(btn, 'Refresh deployment status');
+  const icon = el('span', 'bulk-pp-btn-refresh-status-icon');
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 3.5v3.2h-3.2"/></svg>';
+  btn.append(icon, el('span', 'bulk-pp-btn-refresh-status-label', 'Refresh status'));
   btn.addEventListener('click', () => {
     if (typeof state.onRefreshStatus === 'function') {
       state.onRefreshStatus();
@@ -1653,21 +1691,18 @@ function formatStatusFetchedAt(ts) {
  */
 function buildStatusActionCard(state) {
   const card = el('div', 'bulk-pp-status-action-card');
-
-  const left = el('div', 'bulk-pp-status-action-left');
-  const label = el('span', 'bulk-pp-status-action-label');
+  const meta = el('span', 'bulk-pp-status-action-label');
   const when = formatStatusFetchedAt(state.statusFetchedAt);
   if (!when) {
-    label.textContent = 'Last fetched: not yet fetched';
+    meta.textContent = 'Status not loaded yet';
+  } else if (state.statusFetchedFromCache) {
+    meta.textContent = `Updated ${when} · cached`;
   } else {
-    label.textContent = state.statusFetchedFromCache
-      ? `Last fetched: ${when} (cached)`
-      : `Last fetched: ${when}`;
+    meta.textContent = `Updated ${when}`;
   }
-  left.append(label);
-  left.append(buildRealtimeStatusButton(state));
-
-  card.append(left);
+  const actions = el('div', 'bulk-pp-status-action-right');
+  actions.append(buildRealtimeStatusButton(state));
+  card.append(meta, actions);
   return card;
 }
 
