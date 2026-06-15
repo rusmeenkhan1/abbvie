@@ -160,14 +160,29 @@ const SELECTION_STRIP_OPS = [
   { id: 'live', label: 'Publish', variant: 'primary' },
 ];
 
-/** @type {{ id: PageOperationId, label: string, danger?: boolean }[]} */
-const MORE_SELECTION_ITEMS = [
-  { id: 'unpreview', label: 'Remove from preview' },
-  { id: 'unpublish', label: 'Remove from publish' },
-  { id: 'delete', label: 'Delete from DA', danger: true },
-  { id: 'open-da', label: 'Open in DA' },
-  { id: 'open-preview', label: 'Open preview URLs (.page)' },
-  { id: 'open-live', label: 'Open publish URLs (.live)' },
+/** @type {{ title: string, items: { id: PageOperationId, label: string, danger?: boolean }[] }[]} */
+const MORE_SELECTION_GROUPS = [
+  {
+    title: 'Navigation',
+    items: [
+      { id: 'open-da', label: 'Open in DA' },
+      { id: 'open-preview', label: 'Open preview URLs (.page)' },
+      { id: 'open-live', label: 'Open publish URLs (.live)' },
+    ],
+  },
+  {
+    title: 'Publishing',
+    items: [
+      { id: 'unpreview', label: 'Remove from preview' },
+      { id: 'unpublish', label: 'Remove from publish' },
+    ],
+  },
+  {
+    title: 'Danger zone',
+    items: [
+      { id: 'delete', label: 'Delete from DA', danger: true },
+    ],
+  },
 ];
 
 /** @type {Record<string, string>} */
@@ -876,22 +891,28 @@ function buildSelectionActionBar(state) {
   const menu = el('div', 'bulk-pp-selection-more-menu');
   menu.setAttribute('role', 'menu');
   const menuPanel = el('div', 'bulk-pp-selection-more-menu-panel');
-  MORE_SELECTION_ITEMS.forEach(({ id, label, danger }) => {
-    const item = el('button', 'bulk-pp-selection-more-item');
-    item.type = 'button';
-    item.setAttribute('role', 'menuitem');
-    if (danger) item.classList.add('bulk-pp-selection-more-item-danger');
-    item.disabled = blocked;
-    item.append(
-      buildSelectionOpIcon(id),
-      el('span', 'bulk-pp-selection-more-item-label', label),
-    );
-    item.addEventListener('click', () => {
-      runPageOperation(state, id);
-      moreBtn.setAttribute('aria-expanded', 'false');
-      menu.classList.remove('bulk-pp-selection-more-menu-open');
+  MORE_SELECTION_GROUPS.forEach(({ title, items }, groupIndex) => {
+    if (groupIndex > 0) {
+      menuPanel.append(el('div', 'bulk-pp-selection-more-divider'));
+    }
+    menuPanel.append(el('div', 'bulk-pp-selection-more-section-title', title));
+    items.forEach(({ id, label, danger }) => {
+      const item = el('button', 'bulk-pp-selection-more-item');
+      item.type = 'button';
+      item.setAttribute('role', 'menuitem');
+      if (danger) item.classList.add('bulk-pp-selection-more-item-danger');
+      item.disabled = blocked;
+      item.append(
+        buildSelectionOpIcon(id),
+        el('span', 'bulk-pp-selection-more-item-label', label),
+      );
+      item.addEventListener('click', () => {
+        runPageOperation(state, id);
+        moreBtn.setAttribute('aria-expanded', 'false');
+        menu.classList.remove('bulk-pp-selection-more-menu-open');
+      });
+      menuPanel.append(item);
     });
-    menuPanel.append(item);
   });
   menu.append(menuPanel);
 
@@ -1043,7 +1064,10 @@ function clearPagesStatusDisplay(state) {
 function patchPagesHeader(root, state) {
   const host = safeQuery(root, '.bulk-pp-pages-header');
   if (!host) return;
-  host.replaceWith(buildPagesHeader(state, isStatusFetchBlocking(state)));
+  const statusTools = safeQuery(host, '.bulk-pp-pages-status-tools');
+  host.replaceWith(
+    buildPagesHeader(state, isStatusFetchBlocking(state), statusTools),
+  );
 }
 
 /**
@@ -1115,7 +1139,7 @@ function buildPagesSelectionRow(state, { visiblePages }) {
  * @param {ReturnType<typeof createAppState>} state
  * @param {boolean} workspaceLocked
  */
-function buildPagesHeader(state, workspaceLocked) {
+function buildPagesHeader(state, workspaceLocked, statusTools = null) {
   const header = el('div', 'bulk-pp-pages-header');
   const topRow = el('div', 'bulk-pp-pages-header-top');
   const mainSection = el('div', 'bulk-pp-pages-header-main');
@@ -1137,6 +1161,7 @@ function buildPagesHeader(state, workspaceLocked) {
   if (state.pages.length > 0) {
     aside.append(buildPagesStatusSummary(state));
     aside.append(buildStatusActionCard(state));
+    if (statusTools) aside.append(statusTools);
   } else {
     const countEl = el('span', 'bulk-pp-section-count', '0');
     countEl.id = 'bulk-pp-page-count';
@@ -1496,11 +1521,11 @@ function buildStatusActionCard(state) {
   const label = el('span', 'bulk-pp-status-action-label');
   const when = formatStatusFetchedAt(state.statusFetchedAt);
   if (!when) {
-    label.textContent = 'Deployment status not fetched yet';
+    label.textContent = 'Last fetched: not yet fetched';
   } else {
     label.textContent = state.statusFetchedFromCache
-      ? `Deployment status fetched at ${when} (cached)`
-      : `Deployment status fetched at ${when}`;
+      ? `Last fetched: ${when} (cached)`
+      : `Last fetched: ${when}`;
   }
   left.append(label);
 
@@ -1935,24 +1960,8 @@ function render(root, state) {
     if (shouldShowStatusProgressBar(state)) {
       pagesSection.append(buildPagesStatusProgressBar(state));
     }
-    pagesSection.append(buildPagesHeader(state, workspaceLocked));
-
-    const controls = el('div', 'bulk-pp-pages-controls');
-
-    const toolbarRow = el('div', 'bulk-pp-pages-toolbar-row');
-    const pageSearchDisabled = workspaceLocked || state.pages.length === 0;
-    const { wrap: searchField, input: searchInput } = buildSearchField(
-      'bulk-pp-page-search',
-      'Search page',
-      String(pageSearch || ''),
-      pageSearchDisabled,
-      searchHintText(pageSearch),
-    );
-    searchField.classList.add('bulk-pp-pages-search-field');
-    toolbarRow.append(searchField);
 
     const statusTools = el('div', 'bulk-pp-pages-status-tools');
-
     const { filterField, filterSelect } = buildPagesFilterField(
       state,
       String(pageFilter || 'all'),
@@ -1961,11 +1970,6 @@ function render(root, state) {
         || isDeploymentStatusPending(state),
     );
     statusTools.append(filterField);
-    toolbarRow.append(statusTools);
-    controls.append(toolbarRow);
-
-    const statusNotice = buildPagesStatusNotice(state);
-    if (statusNotice) controls.append(statusNotice);
 
     if (state.pages.length > 0 && !isFirstSessionStatusPending(state)) {
       const legendRow = el('div', 'bulk-pp-pages-legend-row');
@@ -1982,6 +1986,26 @@ function render(root, state) {
       }
       statusTools.append(legendRow);
     }
+
+    pagesSection.append(buildPagesHeader(state, workspaceLocked, statusTools));
+
+    const controls = el('div', 'bulk-pp-pages-controls');
+
+    const toolbarRow = el('div', 'bulk-pp-pages-toolbar-row');
+    const pageSearchDisabled = workspaceLocked || state.pages.length === 0;
+    const { wrap: searchField, input: searchInput } = buildSearchField(
+      'bulk-pp-page-search',
+      'Search page',
+      String(pageSearch || ''),
+      pageSearchDisabled,
+      searchHintText(pageSearch),
+    );
+    searchField.classList.add('bulk-pp-pages-search-field');
+    toolbarRow.append(searchField);
+    controls.append(toolbarRow);
+
+    const statusNotice = buildPagesStatusNotice(state);
+    if (statusNotice) controls.append(statusNotice);
 
     if (!isFirstSessionStatusPending(state)) {
       controls.append(
