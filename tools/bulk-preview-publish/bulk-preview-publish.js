@@ -1951,6 +1951,8 @@ function render(root, state) {
     searchField.classList.add('bulk-pp-pages-search-field');
     toolbarRow.append(searchField);
 
+    const statusTools = el('div', 'bulk-pp-pages-status-tools');
+
     const { filterField, filterSelect } = buildPagesFilterField(
       state,
       String(pageFilter || 'all'),
@@ -1958,7 +1960,8 @@ function render(root, state) {
         || workspaceLocked
         || isDeploymentStatusPending(state),
     );
-    toolbarRow.append(filterField);
+    statusTools.append(filterField);
+    toolbarRow.append(statusTools);
     controls.append(toolbarRow);
 
     const statusNotice = buildPagesStatusNotice(state);
@@ -1977,7 +1980,7 @@ function render(root, state) {
           : 'Updating status…';
         legendRow.append(el('span', 'bulk-pp-pages-status-hint', hintText));
       }
-      controls.append(legendRow);
+      statusTools.append(legendRow);
     }
 
     if (!isFirstSessionStatusPending(state)) {
