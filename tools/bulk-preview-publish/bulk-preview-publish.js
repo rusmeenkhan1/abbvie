@@ -1104,10 +1104,17 @@ function refreshDeploymentUi(state) {
  */
 function buildPagesSelectionRow(state, { visiblePages }) {
   const row = el('div', 'bulk-pp-pages-selection-row');
+  const activeCount = getActiveSelectionCount(state);
+  row.classList.add(
+    activeCount > 0 ? 'bulk-pp-pages-selection-row-active' : 'bulk-pp-pages-selection-row-idle',
+  );
   const selectionPill = el(
     'span',
     'bulk-pp-selection-pill',
     formatSelectionPillText(state),
+  );
+  selectionPill.classList.add(
+    activeCount > 0 ? 'bulk-pp-selection-pill-active' : 'bulk-pp-selection-pill-idle',
   );
   selectionPill.id = 'bulk-pp-selection-pill';
   row.append(selectionPill);
@@ -1969,7 +1976,6 @@ function render(root, state) {
         || workspaceLocked
         || isDeploymentStatusPending(state),
     );
-    statusTools.append(filterField);
 
     if (state.pages.length > 0 && !isFirstSessionStatusPending(state)) {
       const legendRow = el('div', 'bulk-pp-pages-legend-row');
@@ -2001,7 +2007,7 @@ function render(root, state) {
       searchHintText(pageSearch),
     );
     searchField.classList.add('bulk-pp-pages-search-field');
-    toolbarRow.append(searchField);
+    toolbarRow.append(searchField, filterField);
     controls.append(toolbarRow);
 
     const statusNotice = buildPagesStatusNotice(state);

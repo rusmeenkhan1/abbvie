@@ -17,21 +17,21 @@ import { el } from './dom.js';
 function syncPageRowDaLinks(root, state) {
   const multi = getActiveSelectionCount(state) > 1;
   const locked = isStatusFetchBlocking(state);
-  root.querySelectorAll('.bulk-pp-btn-open-da').forEach((el) => {
-    if (!(el instanceof HTMLAnchorElement)) return;
-    const href = el.dataset.href || '';
+  root.querySelectorAll('.bulk-pp-btn-open-da').forEach((linkEl) => {
+    if (!(linkEl instanceof HTMLAnchorElement)) return;
+    const href = linkEl.dataset.href || '';
     if (locked || multi) {
-      el.classList.add('bulk-pp-btn-open-da-disabled');
-      el.setAttribute('aria-disabled', 'true');
-      el.removeAttribute('href');
-      el.title = multi
+      linkEl.classList.add('bulk-pp-btn-open-da-disabled');
+      linkEl.setAttribute('aria-disabled', 'true');
+      linkEl.removeAttribute('href');
+      linkEl.title = multi
         ? 'Use More → Open in DA when multiple pages are selected'
         : 'Unavailable while status is loading';
     } else {
-      el.classList.remove('bulk-pp-btn-open-da-disabled');
-      el.removeAttribute('aria-disabled');
-      if (href) el.href = href;
-      el.title = 'Open this page in Document Authoring';
+      linkEl.classList.remove('bulk-pp-btn-open-da-disabled');
+      linkEl.removeAttribute('aria-disabled');
+      if (href) linkEl.href = href;
+      linkEl.title = 'Open this page in Document Authoring';
     }
   });
 }
@@ -54,8 +54,8 @@ function syncSelectionActionBar(root, state) {
   const clearBtn = root.querySelector('#bulk-pp-selection-clear');
   if (clearBtn instanceof HTMLButtonElement) clearBtn.disabled = blocked;
 
-  root.querySelectorAll('.bulk-pp-selection-strip-btn, .bulk-pp-selection-more-item').forEach((el) => {
-    if (el instanceof HTMLButtonElement) el.disabled = blocked;
+  root.querySelectorAll('.bulk-pp-selection-strip-btn, .bulk-pp-selection-more-item').forEach((btnEl) => {
+    if (btnEl instanceof HTMLButtonElement) btnEl.disabled = blocked;
   });
 
   syncPageRowDaLinks(root, state);
@@ -128,7 +128,23 @@ export function syncSelectionUI(root, state) {
   const listBusy = visiblePages.length === 0 || isStatusFetchBlocking(state);
 
   const pill = root.querySelector('#bulk-pp-selection-pill');
-  if (pill) pill.textContent = formatSelectionPillText(state);
+  if (pill) {
+    pill.textContent = formatSelectionPillText(state);
+    pill.classList.toggle('bulk-pp-selection-pill-active', activeCount > 0);
+    pill.classList.toggle('bulk-pp-selection-pill-idle', activeCount === 0);
+  }
+
+  const selectionRow = root.querySelector('.bulk-pp-pages-selection-row');
+  if (selectionRow instanceof HTMLElement) {
+    selectionRow.classList.toggle(
+      'bulk-pp-pages-selection-row-active',
+      activeCount > 0,
+    );
+    selectionRow.classList.toggle(
+      'bulk-pp-pages-selection-row-idle',
+      activeCount === 0,
+    );
+  }
 
   root.querySelectorAll('.bulk-pp-page-cb').forEach((cb) => {
     if (!(cb instanceof HTMLInputElement)) return;
@@ -149,7 +165,11 @@ export function syncSelectionUI(root, state) {
 /**
  * @param {HTMLElement} root
  * @param {ReturnType<typeof import('./state.js').createAppState>} state
- * @param {(folder: { name: string, folderPath: string }, onNavigate: (p: string) => void, locked: boolean) => HTMLElement} buildFolderRow
+ * @param {(
+ *   folder: { name: string, folderPath: string },
+ *   onNavigate: (p: string) => void,
+ *   locked: boolean,
+ * ) => HTMLElement} buildFolderRow
  */
 export function patchFolderSearchResults(root, state, buildFolderRow) {
   const visibleFolders = getVisibleFolders(state);
@@ -245,7 +265,7 @@ export function patchPageSearchResults(root, state, siteCtx, buildPageRow) {
  */
 export function bindSearchInput(input, state, kind, patchFn) {
   const syncFromInput = () => {
-    const value = input.value;
+    const { value } = input;
     if (kind === 'folder') state.folderSearch = value;
     else state.pageSearch = value;
     patchFn();
