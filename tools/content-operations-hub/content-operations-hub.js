@@ -57,6 +57,7 @@ import {
   confirmOpenUrlsInNewTabs,
 } from './lib/modal.js';
 import {
+  copyTextToClipboard,
   openUrlsInNewTabsQuiet,
   shouldWarnPopupBlock,
 } from './lib/ui-utils.js';
@@ -141,6 +142,7 @@ const STATUS_COLOR = {
 
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
+let copyToastTimer = 0;
 
 const APP_TITLE = 'Content Operations Hub';
 const APP_DESCRIPTION = 'Browse folders, select pages, and run bulk preview, publish, or removal at the current directory level.';
@@ -209,6 +211,8 @@ const SELECTION_OP_ICONS = {
     '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5a8 8 0 0 1 0 11M8 2.5a8 8 0 0 0 0 11"/></svg>',
   'open-live':
     '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5l1.6 3.2 3.6.5-2.6 2.5.6 3.6L8 10.4l-3.2 1.7.6-3.6-2.6-2.5 3.6-.5L8 2.5Z"/></svg>',
+  share:
+    '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 8.2 9.6 6.4M6.5 7.8l3.1 1.8"/><circle cx="4.6" cy="8" r="1.7"/><circle cx="11.6" cy="4" r="1.7"/><circle cx="11.6" cy="12" r="1.7"/></svg>',
   'check-lhs-page':
     '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14h12M8 1v10M4 7l4-6 4 6"/></svg>',
   'check-lhs-live':
@@ -680,6 +684,58 @@ async function openSelectedUrls(state, env) {
   await openEnvUrls(state, env, getSelectedHelixPaths(state));
 }
 
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+async function copySelectedPreviewUrls(state) {
+  const paths = getSelectedHelixPaths(state);
+  if (paths.length === 0) return;
+  const urls = buildUrlsForPaths(
+    paths,
+    state.org,
+    state.site,
+    state.ref,
+    'preview',
+  );
+  try {
+    await copyTextToClipboard(urls.join('\n'));
+    const noun = urls.length === 1 ? 'URL' : 'URLs';
+    state.status = `Copied ${urls.length} .page ${noun} to clipboard.`;
+    state.statusType = 'success';
+    showCopyToast('Copied', 'URLs have been copied to the clipboard.');
+  } catch {
+    state.status = 'Unable to copy .page URLs. Check clipboard permissions and try again.';
+    state.statusType = 'error';
+  }
+  if (state.root) render(/** @type {HTMLElement} */ (state.root), state);
+}
+
+/**
+ * @param {string} title
+ * @param {string} message
+ */
+function showCopyToast(title, message) {
+  const existing = document.querySelector('.bulk-pp-copy-toast');
+  if (existing) existing.remove();
+  if (copyToastTimer) window.clearTimeout(copyToastTimer);
+
+  const toast = el('div', 'bulk-pp-copy-toast');
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
+
+  const head = el('div', 'bulk-pp-copy-toast-head');
+  const icon = el('span', 'bulk-pp-copy-toast-icon', 'i');
+  icon.setAttribute('aria-hidden', 'true');
+  head.append(icon, el('span', 'bulk-pp-copy-toast-title', title));
+  toast.append(head, el('p', 'bulk-pp-copy-toast-message', message));
+
+  document.body.append(toast);
+  copyToastTimer = window.setTimeout(() => {
+    toast.remove();
+    copyToastTimer = 0;
+  }, 2600);
+}
+
 async function openSelectedDa(state) {
   const pageByPath = new Map(state.pages.map((p) => [p.helixPath, p]));
   const urls = getSelectedHelixPaths(state)
@@ -893,7 +949,23 @@ function buildSelectionActionBar(state) {
   setAccessibilityLabel(clearBtn, 'Clear selection');
   clearBtn.disabled = blocked;
   clearBtn.addEventListener('click', () => state.onSelectAll(false));
-  left.append(badge, clearBtn);
+  const shareBtn = el(
+    'button',
+    'bulk-pp-selection-strip-btn bulk-pp-selection-strip-btn-share',
+    '',
+  );
+  shareBtn.type = 'button';
+  shareBtn.id = 'bulk-pp-selection-share';
+  setAccessibilityLabel(shareBtn, 'Share selected preview URLs');
+  shareBtn.disabled = blocked;
+  shareBtn.append(
+    buildSelectionOpIcon('share'),
+    el('span', 'bulk-pp-selection-op-label', 'Share'),
+  );
+  shareBtn.addEventListener('click', () => {
+    void copySelectedPreviewUrls(state);
+  });
+  left.append(badge, shareBtn, clearBtn);
 
   const actions = el('div', 'bulk-pp-selection-strip-actions');
   const deployGroup = el(
@@ -1451,7 +1523,7 @@ function buildPagesStatusSummary(state) {
     return strip;
   }
   const {
-    live, previewed, previewOnly, none, total,
+    live, orphanedLive, previewed, previewOnly, none, total,
   } = deploymentCountsForPaths(
     state.platformStatus,
     helixPaths,
@@ -1467,6 +1539,7 @@ function buildPagesStatusSummary(state) {
   /** @type {[string, number, string][]} */
   const items = [
     ['live', live, 'Published'],
+    ['orphaned-live', orphanedLive, 'Orphaned live'],
     ['previewed', previewed, 'Previewed'],
     ['preview', previewOnly, 'Preview only'],
     ['none', none, 'Not deployed'],
@@ -1759,10 +1832,11 @@ function deploymentCountsForPaths(platformStatus, helixPaths) {
   });
   const pages = helixPaths.map((helixPath) => ({ helixPath }));
   const {
-    live, preview, none, previewed,
+    live, preview, none, previewed, orphanedLive,
   } = countStatusBreakdown(statusMap, pages);
   return {
     live,
+    orphanedLive,
     previewed,
     previewOnly: preview,
     none,

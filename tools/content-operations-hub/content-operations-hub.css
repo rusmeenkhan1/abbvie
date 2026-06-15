@@ -760,6 +760,17 @@ html:has(.bulk-pp-body) {
   cursor: not-allowed;
 }
 
+.bulk-pp-selection-strip-btn-share {
+  border-color: rgb(255 255 255 / 26%);
+  color: var(--pp-selection-bar-text);
+}
+
+.bulk-pp-selection-strip-btn-share:hover:not(:disabled) {
+  background: var(--pp-selection-bar-hover);
+  border-color: transparent;
+  color: #fff;
+}
+
 .bulk-pp-selection-strip-actions {
   display: flex;
   flex-wrap: wrap;
@@ -872,6 +883,70 @@ html:has(.bulk-pp-body) {
   border-right: 4px solid transparent;
   border-top: 5px solid currentcolor;
   opacity: 0.85;
+}
+
+.bulk-pp-copy-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 86px;
+  z-index: 1100;
+  min-width: 300px;
+  max-width: 360px;
+  transform: translateX(-50%);
+  border-radius: 6px;
+  background: #3f66ef;
+  color: #fff;
+  box-shadow: 0 14px 26px rgb(27 46 112 / 34%);
+  overflow: hidden;
+  animation: bulk-pp-copy-toast-in 0.18s ease-out;
+}
+
+.bulk-pp-copy-toast-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-bottom: 1px solid rgb(255 255 255 / 22%);
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.bulk-pp-copy-toast-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid rgb(255 255 255 / 88%);
+  border-radius: 50%;
+  font-size: 0.62rem;
+  font-style: normal;
+  line-height: 1;
+}
+
+.bulk-pp-copy-toast-title {
+  color: #fff;
+}
+
+.bulk-pp-copy-toast-message {
+  margin: 0;
+  padding: 9px 12px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: rgb(255 255 255 / 92%);
+}
+
+@keyframes bulk-pp-copy-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .bulk-pp-selection-strip-btn:focus-visible,
@@ -1014,7 +1089,7 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-pages-header .bulk-pp-pages-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1px;
   width: 100%;
   margin: 0;
@@ -1075,6 +1150,10 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-pages-summary-live .bulk-pp-pages-summary-value {
   color: var(--pp-status-green);
+}
+
+.bulk-pp-pages-summary-orphaned-live .bulk-pp-pages-summary-value {
+  color: #c2410c;
 }
 
 .bulk-pp-pages-summary-preview .bulk-pp-pages-summary-value {
