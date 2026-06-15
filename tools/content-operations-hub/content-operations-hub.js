@@ -1004,27 +1004,25 @@ function buildSelectionActionBar(state) {
 
   const left = el('div', 'bulk-pp-selection-strip-left');
   const badge = el('div', 'bulk-pp-selection-strip-badge');
+
+  const dismissBtn = el('button', 'bulk-pp-selection-dismiss');
+  dismissBtn.type = 'button';
+  dismissBtn.id = 'bulk-pp-selection-clear';
+  dismissBtn.innerHTML = '<span aria-hidden="true">&times;</span>';
+  setAccessibilityLabel(dismissBtn, 'Clear selection');
+  dismissBtn.addEventListener('click', () => {
+    state.selected.clear();
+    state.onSelectionChange();
+  });
+
   const countEl = el(
     'span',
     'bulk-pp-selection-count',
     formatSelectionBarText(count),
   );
   countEl.id = 'bulk-pp-selection-count';
-  badge.append(countEl);
+  badge.append(dismissBtn, countEl);
 
-  const selectAllBtn = el('button', 'bulk-pp-selection-clear', 'Select all');
-  selectAllBtn.type = 'button';
-  selectAllBtn.id = 'bulk-pp-select-all';
-  setAccessibilityLabel(selectAllBtn, 'Select all visible pages');
-  selectAllBtn.disabled = blocked || getVisiblePages(state).length === 0;
-  selectAllBtn.addEventListener('click', () => state.onSelectAll(true));
-
-  const clearBtn = el('button', 'bulk-pp-selection-clear', 'Clear selection');
-  clearBtn.type = 'button';
-  clearBtn.id = 'bulk-pp-select-none';
-  setAccessibilityLabel(clearBtn, 'Clear selection');
-  clearBtn.disabled = blocked;
-  clearBtn.addEventListener('click', () => state.onSelectAll(false));
   const shareBtn = el(
     'button',
     'bulk-pp-selection-strip-btn bulk-pp-selection-strip-btn-share',
@@ -1041,7 +1039,7 @@ function buildSelectionActionBar(state) {
   shareBtn.addEventListener('click', () => {
     void copySelectedPreviewUrls(state);
   });
-  left.append(badge, selectAllBtn, clearBtn);
+  left.append(badge);
 
   const actions = el('div', 'bulk-pp-selection-strip-actions');
   const deployGroup = el(

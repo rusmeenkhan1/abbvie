@@ -52,7 +52,9 @@ function syncSelectionActionBar(root, state) {
   if (countEl) countEl.textContent = count === 1 ? '1 page selected' : `${count} pages selected`;
 
   const clearBtn = root.querySelector('#bulk-pp-selection-clear');
-  if (clearBtn instanceof HTMLButtonElement) clearBtn.disabled = blocked;
+  if (clearBtn instanceof HTMLButtonElement) {
+    clearBtn.disabled = count === 0;
+  }
 
   root.querySelectorAll('.bulk-pp-selection-strip-btn, .bulk-pp-selection-more-item').forEach((btnEl) => {
     if (btnEl instanceof HTMLButtonElement) btnEl.disabled = blocked;
@@ -125,7 +127,6 @@ function syncSearchHint(hint, message) {
 export function syncSelectionUI(root, state) {
   const { visible: visiblePages } = getVisiblePages(state);
   const activeCount = getActiveSelectionCount(state);
-  const listBusy = visiblePages.length === 0 || isStatusFetchBlocking(state);
 
   const pill = root.querySelector('#bulk-pp-selection-pill');
   if (pill) {
@@ -152,11 +153,10 @@ export function syncSelectionUI(root, state) {
     cb.checked = state.selected.has(path);
   });
 
-  const selectAllBtn = root.querySelector('#bulk-pp-select-all');
-  const selectNoneBtn = root.querySelector('#bulk-pp-select-none');
-  if (selectAllBtn instanceof HTMLButtonElement) selectAllBtn.disabled = listBusy;
-  if (selectNoneBtn instanceof HTMLButtonElement) {
-    selectNoneBtn.disabled = listBusy || activeCount === 0;
+  const colheadCb = root.querySelector('#bulk-pp-select-all-colhead');
+  if (colheadCb instanceof HTMLInputElement) {
+    colheadCb.checked = visiblePages.length > 0 && activeCount === visiblePages.length;
+    colheadCb.indeterminate = activeCount > 0 && activeCount < visiblePages.length;
   }
 
   syncSelectionActionBar(root, state);
