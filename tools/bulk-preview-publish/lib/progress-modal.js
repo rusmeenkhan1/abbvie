@@ -117,7 +117,9 @@ function openProgressModal(appRoot, kind, opts) {
   dialog.append(head, body);
   backdrop.append(dialog);
   document.body.append(backdrop);
-  modalRef = { kind, backdrop, panel: body, ids };
+  modalRef = {
+    kind, backdrop, panel: body, ids,
+  };
   setAppModalOpen(appRoot);
 }
 
@@ -359,7 +361,9 @@ function jobHeadCompleteTitle(topic) {
  */
 export function showJobCompleteModal(opts) {
   if (!modalRef || modalRef.kind !== 'job') return;
-  const { summary, topic, urls = [], host = '', onClose } = opts;
+  const {
+    summary, topic, urls = [], host = '', onClose,
+  } = opts;
   const completeTitle = jobCompleteTitle(topic);
   const destructive = topic === 'unpreview' || topic === 'unpublish' || topic === 'delete';
   const hasUrls = !destructive && urls.length > 0;
@@ -415,7 +419,9 @@ function jobHeadErrorTitle(topic) {
  */
 export function showJobErrorModal(opts) {
   if (!modalRef || modalRef.kind !== 'job') return;
-  const { message, topic, onClose, hint = '' } = opts;
+  const {
+    message, topic, onClose, hint = '',
+  } = opts;
   const body = [
     el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-error-title', jobErrorTitle(topic)),
     el('p', 'bulk-pp-status-modal-summary bulk-pp-status-modal-error', message),

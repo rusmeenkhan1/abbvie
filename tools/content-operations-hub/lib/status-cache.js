@@ -261,7 +261,6 @@ export function buildOptimisticStatusPatch(topic, helixPaths, existing = {}) {
       const entry = {};
       if (prev.previewedAt) entry.previewedAt = prev.previewedAt;
       patch[path] = entry;
-      return;
     }
   });
 
@@ -321,7 +320,7 @@ export function commitPlatformStatus(state, platformStatus, options = {}) {
   const replacePaths = options.replacePaths?.length
     ? new Set(options.replacePaths)
     : null;
-  const removalTopic = options.removalTopic;
+  const { removalTopic } = options;
   const next = { ...state.platformStatus };
   /** @type {Record<string, { previewedAt?: number, publishedAt?: number }>} */
   const mergedPatch = {};

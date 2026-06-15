@@ -31,7 +31,7 @@ export function helixToWebPath(helixPath) {
   );
   if (norm === '/index' || norm.endsWith('/index')) {
     const parent = norm === '/index' ? '' : norm.slice(0, -'/index'.length);
-    return parent ? parent : '/';
+    return parent || '/';
   }
   return norm;
 }
