@@ -136,7 +136,7 @@ function destructiveStartMessage(action, count) {
 /** @type {Record<'untouched'|'previewed'|'published', string>} */
 const STATUS_COLOR = {
   untouched: '#c9252d',
-  previewed: '#c9940a',
+  previewed: '#d6ad00',
   published: '#2d8a4e',
 };
 
@@ -965,7 +965,7 @@ function buildSelectionActionBar(state) {
   shareBtn.addEventListener('click', () => {
     void copySelectedPreviewUrls(state);
   });
-  left.append(badge, shareBtn, clearBtn);
+  left.append(badge, clearBtn);
 
   const actions = el('div', 'bulk-pp-selection-strip-actions');
   const deployGroup = el(
@@ -978,7 +978,7 @@ function buildSelectionActionBar(state) {
     btn.disabled = blocked;
     deployGroup.append(btn);
   });
-  actions.append(deployGroup);
+  actions.append(deployGroup, shareBtn);
 
   const moreWrap = el('div', 'bulk-pp-selection-more-wrap');
   const moreBtn = el(
@@ -1599,8 +1599,8 @@ function buildRealtimeStatusButton(state) {
     || state.contentLoading
     || state.loading
     || state.statusChecking;
-  setAccessibilityLabel(btn, 'Refresh deployment status for listed pages');
-  btn.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 3.5v3.2h-3.2"/></svg><span>Refresh deployment status</span>';
+  setAccessibilityLabel(btn, 'Fetch live deployment status');
+  btn.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 3.5v3.2h-3.2"/></svg>';
   btn.addEventListener('click', () => {
     if (typeof state.onRefreshStatus === 'function') {
       state.onRefreshStatus();
