@@ -66,8 +66,8 @@ export function formatDeploymentSummary(platformStatus, pageList) {
 /** @type {ReadonlyArray<[string, string]>} */
 export const PAGE_FILTERS = [
   ['all', 'All pages'],
-  ['never-previewed', 'Never previewed'],
-  ['never-published', 'Never published'],
+  ['never-previewed', 'Not previewed'],
+  ['never-published', 'Not published'],
   ['recent-preview', 'Recently previewed'],
   ['recent-publish', 'Recently published'],
   ['oldest-preview', 'Oldest previewed'],

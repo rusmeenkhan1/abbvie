@@ -58,7 +58,7 @@ export function displayFolderPath(path) {
 }
 
 /**
- * DA may pass the app route (tools/bulk-preview-publish) as context.path — not content.
+ * DA may pass the app route (tools/content-operations-hub) as context.path — not content.
  * @param {string} path
  * @returns {boolean}
  */
@@ -66,7 +66,7 @@ export function isAppRoutePath(path) {
   const normalized = normalizeFolderPath(path);
   if (!normalized) return false;
   if (normalized === 'tools' || normalized.startsWith('tools/')) return true;
-  return normalized.includes('bulk-preview-publish') && normalized.startsWith('tools');
+  return normalized.includes('content-operations-hub') && normalized.startsWith('tools');
 }
 
 /**
