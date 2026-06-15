@@ -36,19 +36,28 @@ function historyMapFrom(platformStatus, pageList) {
 /**
  * @param {HistoryMap} statusMap
  * @param {{ helixPath: string }[]} pageList
- * @returns {{ preview: number, live: number, none: number }}
+ * @returns {{ preview: number, live: number, none: number, previewed: number }}
  */
 export function countStatusBreakdown(statusMap, pageList) {
   let preview = 0;
   let live = 0;
   let none = 0;
+  let previewed = 0;
   pageList.forEach((p) => {
     const e = statusMap[p.helixPath];
-    if (e?.publishedAt) live += 1;
-    else if (e?.previewedAt) preview += 1;
-    else none += 1;
+    if (e?.publishedAt) {
+      live += 1;
+      if (e.previewedAt) previewed += 1;
+    } else if (e?.previewedAt) {
+      preview += 1;
+      previewed += 1;
+    } else {
+      none += 1;
+    }
   });
-  return { preview, live, none };
+  return {
+    preview, live, none, previewed,
+  };
 }
 
 /**
@@ -56,11 +65,13 @@ export function countStatusBreakdown(statusMap, pageList) {
  * @param {{ helixPath: string }[]} pageList
  */
 export function formatDeploymentSummary(platformStatus, pageList) {
-  const { live, preview, none } = countStatusBreakdown(
+  const {
+    live, preview, none, previewed,
+  } = countStatusBreakdown(
     historyMapFrom(platformStatus, pageList),
     pageList,
   );
-  return `${live} live · ${preview} preview only · ${none} not deployed (${pageList.length} total)`;
+  return `${live} live · ${previewed} previewed · ${preview} preview only · ${none} not deployed (${pageList.length} total)`;
 }
 
 /** @type {ReadonlyArray<[string, string]>} */

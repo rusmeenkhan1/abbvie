@@ -1451,7 +1451,7 @@ function buildPagesStatusSummary(state) {
     return strip;
   }
   const {
-    live, previewOnly, none, total,
+    live, previewed, previewOnly, none, total,
   } = deploymentCountsForPaths(
     state.platformStatus,
     helixPaths,
@@ -1467,6 +1467,7 @@ function buildPagesStatusSummary(state) {
   /** @type {[string, number, string][]} */
   const items = [
     ['live', live, 'Published'],
+    ['previewed', previewed, 'Previewed'],
     ['preview', previewOnly, 'Preview only'],
     ['none', none, 'Not deployed'],
     ['total', total, 'Total Pages'],
@@ -1757,9 +1758,12 @@ function deploymentCountsForPaths(platformStatus, helixPaths) {
     statusMap[path] = platformStatus[path] || {};
   });
   const pages = helixPaths.map((helixPath) => ({ helixPath }));
-  const { live, preview, none } = countStatusBreakdown(statusMap, pages);
+  const {
+    live, preview, none, previewed,
+  } = countStatusBreakdown(statusMap, pages);
   return {
     live,
+    previewed,
     previewOnly: preview,
     none,
     total: helixPaths.length,
