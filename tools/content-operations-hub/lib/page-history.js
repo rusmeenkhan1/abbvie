@@ -74,21 +74,21 @@ export function countStatusBreakdown(statusMap, pageList) {
  */
 export function formatDeploymentSummary(platformStatus, pageList) {
   const {
-    live, preview, none, previewed, orphanedLive,
+    live, preview, none, orphanedLive,
   } = countStatusBreakdown(
     historyMapFrom(platformStatus, pageList),
     pageList,
   );
-  return `${live} live · ${orphanedLive} orphaned live · ${previewed} previewed · ${preview} preview only · ${none} not deployed (${pageList.length} total)`;
+  return `${live} published · ${orphanedLive} published without preview · ${preview} preview only · ${none} draft (${pageList.length} total)`;
 }
 
 /** @type {ReadonlyArray<[string, string]>} */
 export const PAGE_FILTERS = [
   ['all', 'All pages'],
-  ['never-previewed', 'Not previewed'],
+  ['never-previewed', 'Draft (not previewed)'],
   ['never-published', 'Not published'],
   ['preview-only', 'Preview only'],
-  ['orphaned-live', 'Orphaned live'],
+  ['orphaned-live', 'Published without preview'],
   ['recent-preview', 'Recently previewed'],
   ['recent-publish', 'Recently published'],
   ['oldest-preview', 'Oldest previewed'],
@@ -223,6 +223,6 @@ export function formatStatusDate(ts) {
  */
 export function statusLabel(status) {
   if (status === 'published') return 'Published';
-  if (status === 'previewed') return 'only previewed';
-  return 'not previewed';
+  if (status === 'previewed') return 'Preview only';
+  return 'Draft';
 }

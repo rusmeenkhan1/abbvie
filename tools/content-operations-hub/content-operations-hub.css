@@ -148,7 +148,6 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp.bulk-pp-modal-open {
-  filter: blur(5px);
   pointer-events: none;
   user-select: none;
 }
@@ -1055,6 +1054,87 @@ html:has(.bulk-pp-body) {
   position: relative;
 }
 
+.bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) > .bulk-pp-status {
+  bottom: 88px;
+}
+
+.bulk-pp-folder-tree-children-empty {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bulk-pp-folder-tree-empty-note {
+  padding: 8px 12px 8px calc(var(--pp-tree-depth, 0) * 16px + 34px);
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--pp-text-subtle);
+  list-style: none;
+}
+
+/* —— Copy toast —— */
+.bulk-pp-copy-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10050;
+  min-width: 240px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border-radius: var(--pp-radius-sm);
+  background: var(--pp-surface);
+  border: 1px solid var(--pp-border);
+  box-shadow: var(--pp-shadow-lg);
+  animation: bulk-pp-toast-in 0.22s ease-out;
+}
+
+@keyframes bulk-pp-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bulk-pp-copy-toast-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.bulk-pp-copy-toast-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--pp-success-bg);
+  color: var(--pp-success-text);
+  flex-shrink: 0;
+}
+
+.bulk-pp-copy-toast-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--pp-navy);
+  letter-spacing: -0.01em;
+}
+
+.bulk-pp-copy-toast-message {
+  margin: 0;
+  padding-left: 38px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--pp-text-muted);
+}
+
 .bulk-pp-selection-more-menu {
   display: none;
   position: absolute;
@@ -1065,11 +1145,14 @@ html:has(.bulk-pp-body) {
   background: transparent;
   border: none;
   box-shadow: none;
+  max-height: min(60vh, 420px);
 }
 
 .bulk-pp-selection-more-menu-panel {
   min-width: 268px;
   max-width: min(340px, 90vw);
+  max-height: inherit;
+  overflow-y: auto;
   padding: 6px;
   border-radius: var(--pp-radius-sm);
   background: #fff;
@@ -1244,7 +1327,7 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-pages-toolbar-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
   justify-content: stretch;
   align-items: center;
   gap: 8px;
@@ -1558,12 +1641,15 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-first-session-loading .bulk-pp-header,
-.bulk-pp-first-session-loading .bulk-pp-panel-content,
-.bulk-pp-first-session-loading #bulk-pp-selection-bar {
-  filter: blur(4px);
-  opacity: 0.45;
+.bulk-pp-first-session-loading .bulk-pp-panel-content {
+  opacity: 0.88;
   pointer-events: none;
   user-select: none;
+}
+
+.bulk-pp-first-session-loading #bulk-pp-selection-bar {
+  opacity: 0.88;
+  pointer-events: none;
 }
 
 .bulk-pp-first-session-overlay {
@@ -1971,7 +2057,8 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-list-wrap-pages .bulk-pp-btn-open-da {
   min-height: 28px;
-  padding: 4px 11px;
+  min-width: 44px;
+  padding: 4px 10px;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -2035,6 +2122,11 @@ html:has(.bulk-pp-body) {
 .bulk-pp-item-modified:empty,
 .bulk-pp-item-modified[aria-hidden='true'] {
   visibility: hidden;
+}
+
+.bulk-pp-item-modified-muted {
+  color: var(--pp-text-subtle);
+  font-weight: 400;
 }
 
 .bulk-pp-row-actions {
@@ -2194,12 +2286,17 @@ html:has(.bulk-pp-body) {
 .bulk-pp-status-fetch-active .bulk-pp-content-section-folders,
 .bulk-pp-status-fetch-active .bulk-pp-pages-header,
 .bulk-pp-status-fetch-active .bulk-pp-pages-controls,
-.bulk-pp-status-fetch-active .bulk-pp-list-wrap-pages,
-.bulk-pp-status-fetch-active #bulk-pp-selection-bar {
-  filter: blur(3px);
-  opacity: 0.48;
+.bulk-pp-status-fetch-active .bulk-pp-list-wrap-pages {
+  opacity: 0.55;
   pointer-events: none;
   user-select: none;
+}
+
+.bulk-pp-status-fetch-active #bulk-pp-selection-bar {
+  opacity: 1;
+  filter: none;
+  pointer-events: auto;
+  user-select: auto;
 }
 
 .bulk-pp-status-fetch-active .bulk-pp-pages-status-progress {
@@ -2489,10 +2586,6 @@ html:has(.bulk-pp-body) {
 .bulk-pp-folder-tree-label:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.bulk-pp-folder-tree-children-empty {
-  min-height: 0;
 }
 
 .bulk-pp-folder-tree-search {

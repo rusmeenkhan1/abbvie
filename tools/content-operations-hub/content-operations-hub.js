@@ -76,6 +76,7 @@ import { formatRuntimeStatusEta } from './lib/status-estimate.js';
 import {
   bindSearchInput,
   buildSearchField,
+  pagesLocationMetaText,
   patchFolderSearchResults,
   patchPageSearchResults,
   searchHintText,
@@ -172,7 +173,7 @@ function buildMetaBadge(label, value, muted = false) {
 
 /** @type {ReadonlyArray<[keyof typeof STATUS_COLOR, string]>} */
 const STATUS_LEGEND_ITEMS = [
-  ['untouched', 'Not previewed'],
+  ['untouched', 'Draft'],
   ['previewed', 'Preview only'],
   ['published', 'Published'],
 ];
@@ -188,31 +189,31 @@ const SELECTION_STRIP_OPS = [
 /** @type {{ title: string, items: { id: PageOperationId, label: string, danger?: boolean }[] }[]} */
 const MORE_SELECTION_GROUPS = [
   {
-    title: 'Navigation',
+    title: 'Open',
     items: [
-      { id: 'open-da', label: 'Open in DA' },
+      { id: 'open-da', label: 'Open in Document Authoring' },
       { id: 'open-preview', label: 'Open preview URLs (.page)' },
-      { id: 'open-live', label: 'Open publish URLs (.live)' },
+      { id: 'open-live', label: 'Open published URLs (.live)' },
     ],
   },
   {
     title: 'Performance',
     items: [
-      { id: 'check-lhs-page', label: 'LHS score for .page URL' },
-      { id: 'check-lhs-live', label: 'LHS score for .live URL' },
+      { id: 'check-lhs-page', label: 'PageSpeed — preview URLs' },
+      { id: 'check-lhs-live', label: 'PageSpeed — published URLs' },
     ],
   },
   {
-    title: 'Publishing',
+    title: 'Unpublish',
     items: [
       { id: 'unpreview', label: 'Remove from preview' },
       { id: 'unpublish', label: 'Remove from publish' },
     ],
   },
   {
-    title: 'Danger zone',
+    title: 'Remove content',
     items: [
-      { id: 'delete', label: 'Delete from DA', danger: true },
+      { id: 'delete', label: 'Delete from authoring', danger: true },
     ],
   },
 ];
@@ -432,19 +433,13 @@ function buildPagesScopeControl(state, workspaceLocked) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function buildPagesLocationMeta(state) {
-  const count = state.pages.length;
   const meta = el('p', 'bulk-pp-pages-location-meta');
-  if (count === 0) {
-    meta.textContent = state.pageScope === 'tree'
-      ? 'No pages in this folder or subfolders.'
-      : 'No pages in this folder.';
+  meta.id = 'bulk-pp-page-count';
+  const text = pagesLocationMetaText(state);
+  if (state.pages.length === 0) {
     meta.classList.add('bulk-pp-pages-location-meta-empty');
-    return meta;
   }
-  const noun = count === 1 ? 'page' : 'pages';
-  meta.textContent = state.pageScope === 'tree'
-    ? `${count} ${noun} in this folder and subfolders`
-    : `${count} ${noun} in this folder`;
+  meta.textContent = text;
   return meta;
 }
 
@@ -543,9 +538,10 @@ function buildEmptyBrowseState(state, safeFolder, locked) {
 }
 
 function formatRowModifiedLabel(entry, showStatus) {
-  if (!showStatus || !entry) return '';
+  if (!showStatus) return '—';
+  if (!entry) return '—';
   const ts = Math.max(entry.previewedAt || 0, entry.publishedAt || 0);
-  return ts ? formatStatusDate(ts) : '';
+  return ts ? formatStatusDate(ts) : '—';
 }
 
 function buildPageListColumnHeader(state) {
@@ -569,7 +565,7 @@ function buildPageListColumnHeader(state) {
     cb,
     el('span', 'bulk-pp-list-colhead-icon'),
     el('span', 'bulk-pp-list-colhead-name', 'Name'),
-    el('span', 'bulk-pp-list-colhead-modified', 'Modified'),
+    el('span', 'bulk-pp-list-colhead-modified', 'Last deployed'),
     el('span', 'bulk-pp-list-colhead-actions'),
   );
   return head;
@@ -665,7 +661,7 @@ function buildPageRow(
 
   const modifiedText = formatRowModifiedLabel(entry, showStatus);
   const modifiedEl = el('span', 'bulk-pp-item-modified', modifiedText);
-  if (!modifiedText) modifiedEl.setAttribute('aria-hidden', 'true');
+  if (modifiedText === '—' && !showStatus) modifiedEl.classList.add('bulk-pp-item-modified-muted');
 
   const rowActions = el('div', 'bulk-pp-row-actions');
   const daUrl = buildDaEditUrl(
@@ -677,13 +673,13 @@ function buildPageRow(
   );
   const multiSelected = getActiveSelectionCount(state) > 1;
   const daDisabled = interactionsLocked || multiSelected;
-  const daLink = el('a', 'bulk-pp-btn bulk-pp-btn-open-da', 'DA');
+  const daLink = el('a', 'bulk-pp-btn bulk-pp-btn-open-da', 'Edit');
   daLink.dataset.href = daUrl;
   if (daDisabled) {
     daLink.classList.add('bulk-pp-btn-open-da-disabled');
     daLink.setAttribute('aria-disabled', 'true');
     const disabledLabel = multiSelected
-      ? 'Use More → Open in DA when multiple pages are selected'
+      ? 'Use More → Open in Document Authoring when multiple pages are selected'
       : 'Unavailable while status is loading';
     setAccessibilityLabel(daLink, disabledLabel);
     daLink.addEventListener('click', (e) => {
@@ -768,15 +764,15 @@ async function copySelectedPreviewUrls(state) {
   );
   try {
     await copyTextToClipboard(urls.join('\n'));
-    const noun = urls.length === 1 ? 'URL' : 'URLs';
-    state.status = `Copied ${urls.length} .page ${noun} to clipboard.`;
-    state.statusType = 'success';
-    showCopyToast('Copied', 'URLs have been copied to the clipboard.');
+    showCopyToast(
+      'Copied to clipboard',
+      `${urls.length} preview ${urls.length === 1 ? 'URL' : 'URLs'} ready to paste.`,
+    );
   } catch {
-    state.status = 'Unable to copy .page URLs. Check clipboard permissions and try again.';
+    state.status = 'Unable to copy preview URLs. Check clipboard permissions and try again.';
     state.statusType = 'error';
+    if (state.root) render(/** @type {HTMLElement} */ (state.root), state);
   }
-  if (state.root) render(/** @type {HTMLElement} */ (state.root), state);
 }
 
 /**
@@ -793,8 +789,9 @@ function showCopyToast(title, message) {
   toast.setAttribute('aria-live', 'polite');
 
   const head = el('div', 'bulk-pp-copy-toast-head');
-  const icon = el('span', 'bulk-pp-copy-toast-icon', 'i');
+  const icon = el('span', 'bulk-pp-copy-toast-icon');
   icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5 7-7"/></svg>';
   head.append(icon, el('span', 'bulk-pp-copy-toast-title', title));
   toast.append(head, el('p', 'bulk-pp-copy-toast-message', message));
 
@@ -1594,8 +1591,8 @@ function buildPagesStatusSummary(state) {
 
   /** @type {[string, number, string][]} */
   const items = [
-    ['live', live, 'Live'],
-    ['preview', previewOnly, 'Preview'],
+    ['live', live, 'Published'],
+    ['preview', previewOnly, 'Preview only'],
     ['none', none, 'Draft'],
     ['total', total, 'Total'],
   ];
@@ -1694,9 +1691,9 @@ function buildStatusActionCard(state) {
   if (!when) {
     meta.textContent = 'Status not loaded yet';
   } else if (state.statusFetchedFromCache) {
-    meta.textContent = `Updated ${when} · cached`;
+    meta.textContent = `Last updated ${when} (from cache)`;
   } else {
-    meta.textContent = `Updated ${when}`;
+    meta.textContent = `Last updated ${when}`;
   }
   const actions = el('div', 'bulk-pp-status-action-right');
   actions.append(buildRealtimeStatusButton(state));
@@ -1751,15 +1748,16 @@ function buildPagesStatusProgressBar(state) {
     el(
       'span',
       'bulk-pp-pages-status-progress-title',
-      'Fetching deployment status',
+      'Checking deployment status',
     ),
   );
   const stopBtn = el(
     'button',
     'bulk-pp-btn bulk-pp-btn-text bulk-pp-pages-status-progress-stop',
-    'Stop',
+    'Cancel',
   );
   stopBtn.type = 'button';
+  setAccessibilityLabel(stopBtn, 'Cancel deployment status fetch');
   stopBtn.addEventListener('click', () => state.onCancelStatus());
   head.append(stopBtn);
   bar.append(head);
@@ -1928,13 +1926,13 @@ function buildContentLoadingPanel(isFirstLoad = false) {
   spinner.setAttribute('aria-hidden', 'true');
   inner.append(
     spinner,
-    el('p', 'bulk-pp-content-loading-title', 'Fetching content…'),
+    el('p', 'bulk-pp-content-loading-title', 'Loading content'),
     el(
       'p',
       'bulk-pp-content-loading-sub',
       isFirstLoad
-        ? 'Loading folders, pages, and deployment status…'
-        : 'Updating folders and pages…',
+        ? 'Reading folders, pages, and deployment status for this location.'
+        : 'Refreshing the current folder…',
     ),
   );
   loading.append(inner);
@@ -1946,13 +1944,18 @@ function buildFirstSessionFetchOverlay() {
   overlay.id = 'bulk-pp-first-session-overlay';
   overlay.setAttribute('role', 'status');
   overlay.setAttribute('aria-live', 'polite');
-  overlay.setAttribute('aria-label', 'Fetching content');
+  overlay.setAttribute('aria-label', 'Loading deployment status');
   const inner = el('div', 'bulk-pp-first-session-overlay-inner');
   const spinner = el('div', 'bulk-pp-spinner');
   spinner.setAttribute('aria-hidden', 'true');
   inner.append(
     spinner,
-    el('p', 'bulk-pp-content-loading-title', 'Fetching content…'),
+    el('p', 'bulk-pp-content-loading-title', 'Checking deployment status'),
+    el(
+      'p',
+      'bulk-pp-content-loading-sub',
+      'This runs once when you open a folder. You can continue browsing afterward.',
+    ),
   );
   overlay.append(inner);
   return overlay;
@@ -2026,7 +2029,7 @@ function render(root, state) {
   const headerMeta = el('div', 'bulk-pp-header-meta');
   headerMeta.append(
     buildMetaBadge('Branch', ref, true),
-    buildMetaBadge('Repository', site, true),
+    buildMetaBadge('Site', site, true),
     buildMetaBadge('Organization', org),
   );
   headerInner.append(headerBrand, headerMeta);
@@ -2151,7 +2154,7 @@ function render(root, state) {
     const pageSearchDisabled = workspaceLocked || state.pages.length === 0;
     const { wrap: searchField, input: searchInput } = buildSearchField(
       'bulk-pp-page-search',
-      'Search page',
+      'Search pages',
       String(pageSearch || ''),
       pageSearchDisabled,
       searchHintText(pageSearch),
@@ -2224,11 +2227,11 @@ function render(root, state) {
   if (
     status
     && !statusChecking
-    && statusType === 'error'
     && !isDaAccessError(status)
+    && (statusType === 'error' || statusType === 'success' || statusType === 'info')
   ) {
     const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType}`);
-    statusEl.setAttribute('role', 'alert');
+    statusEl.setAttribute('role', statusType === 'error' ? 'alert' : 'status');
     statusEl.setAttribute('aria-live', 'polite');
     statusEl.append(el('strong', null, status));
     if (jobDetail) statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
@@ -2679,7 +2682,7 @@ async function main() {
     const topic = /** @type {JobTopic} */ (state.jobTopic || 'preview');
     const actionLabel = jobActionLabel(topic);
     showJobCancelledModal({
-      message: `You stopped tracking this bulk ${actionLabel} operation. If it already started on the server, work may still be in progress. Check the Pages panel or run Fetch Deployment status again.`,
+      message: `You stopped tracking this bulk ${actionLabel} operation. If it already started on the server, work may still be in progress. Refresh deployment status to see the latest state.`,
       topic,
       onClose: () => {
         state.status = null;
@@ -3242,7 +3245,7 @@ function showBootError(err) {
     el(
       'p',
       'bulk-pp-boot-error-hint',
-      'Hard refresh (Cmd+Shift+R). If this persists, check the browser console for the failing module.',
+      'Hard refresh (Cmd+Shift+R on Mac, Ctrl+Shift+R on Windows). If this persists, check the browser console for the failing module.',
     ),
   );
   app.append(panel);

@@ -1,5 +1,4 @@
 import {
-  formatSelectionPillText,
   getActiveSelectionCount,
   getVisiblePages,
   isStatusFetchBlocking,
@@ -25,7 +24,7 @@ function syncPageRowDaLinks(root, state) {
       linkEl.setAttribute('aria-disabled', 'true');
       linkEl.removeAttribute('href');
       linkEl.title = multi
-        ? 'Use More → Open in DA when multiple pages are selected'
+        ? 'Use More → Open in Document Authoring when multiple pages are selected'
         : 'Unavailable while status is loading';
     } else {
       linkEl.classList.remove('bulk-pp-btn-open-da-disabled');
@@ -101,6 +100,9 @@ export function searchHintText(draft) {
   if (q.length >= SEARCH_MIN_LEN) {
     return `Filtering by “${q}”`;
   }
+  if (q.length > 0) {
+    return `Type at least ${SEARCH_MIN_LEN} characters to search`;
+  }
   return null;
 }
 
@@ -127,25 +129,6 @@ function syncSearchHint(hint, message) {
 export function syncSelectionUI(root, state) {
   const { visible: visiblePages } = getVisiblePages(state);
   const activeCount = getActiveSelectionCount(state);
-
-  const pill = root.querySelector('#bulk-pp-selection-pill');
-  if (pill) {
-    pill.textContent = formatSelectionPillText(state);
-    pill.classList.toggle('bulk-pp-selection-pill-active', activeCount > 0);
-    pill.classList.toggle('bulk-pp-selection-pill-idle', activeCount === 0);
-  }
-
-  const selectionRow = root.querySelector('.bulk-pp-pages-selection-row');
-  if (selectionRow instanceof HTMLElement) {
-    selectionRow.classList.toggle(
-      'bulk-pp-pages-selection-row-active',
-      activeCount > 0,
-    );
-    selectionRow.classList.toggle(
-      'bulk-pp-pages-selection-row-idle',
-      activeCount === 0,
-    );
-  }
 
   root.querySelectorAll('.bulk-pp-page-cb').forEach((cb) => {
     if (!(cb instanceof HTMLInputElement)) return;
@@ -181,6 +164,34 @@ export function patchFolderSearchResults(root, state) {
 }
 
 /**
+ * @param {ReturnType<typeof import('./state.js').createAppState>} state
+ * @param {number} [visibleCount]
+ */
+export function pagesLocationMetaText(state, visibleCount) {
+  const total = state.pages.length;
+  if (total === 0) {
+    return state.pageScope === 'tree'
+      ? 'No pages in this folder or subfolders.'
+      : 'No pages in this folder.';
+  }
+  const scopeSuffix = state.pageScope === 'tree'
+    ? ' in this folder and subfolders'
+    : ' in this folder';
+  const draft = String(state.pageSearch || '').trim();
+  const filtered = visibleCount != null && visibleCount !== total;
+  const filterActive = state.pageFilter && state.pageFilter !== 'all';
+  if (filtered || filterActive) {
+    const noun = visibleCount === 1 ? 'page' : 'pages';
+    if (draft.length >= SEARCH_MIN_LEN) {
+      return `Showing ${visibleCount} of ${total} ${noun} matching search${scopeSuffix}`;
+    }
+    return `Showing ${visibleCount} of ${total} ${noun}${scopeSuffix}`;
+  }
+  const noun = total === 1 ? 'page' : 'pages';
+  return `${total} ${noun}${scopeSuffix}`;
+}
+
+/**
  * @param {HTMLElement} root
  * @param {ReturnType<typeof import('./state.js').createAppState>} state
  * @param {{ org: string, site: string, ref: string }} siteCtx
@@ -189,13 +200,10 @@ export function patchFolderSearchResults(root, state) {
 export function patchPageSearchResults(root, state, siteCtx, buildPageRow) {
   const { visible: visiblePages, statusMap, browseFolder } = getVisiblePages(state);
   const draft = String(state.pageSearch || '').trim();
-  const tooShort = draft.length > 0 && draft.length < SEARCH_MIN_LEN;
 
   const count = root.querySelector('#bulk-pp-page-count');
   if (count) {
-    count.textContent = draft && !tooShort
-      ? `${visiblePages.length} of ${state.pages.length}`
-      : String(state.pages.length);
+    count.textContent = pagesLocationMetaText(state, visiblePages.length);
   }
 
   syncSearchHint(
@@ -207,7 +215,7 @@ export function patchPageSearchResults(root, state, siteCtx, buildPageRow) {
   if (!list) return;
   list.replaceChildren();
   if (state.pages.length === 0) {
-    list.append(el('li', 'bulk-pp-list-empty', 'No pages in this scope.'));
+    list.append(el('li', 'bulk-pp-list-empty', 'No pages in this location.'));
   } else if (visiblePages.length === 0) {
     const emptyMsg = draft
       ? 'No pages match this search.'

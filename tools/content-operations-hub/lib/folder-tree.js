@@ -267,7 +267,9 @@ function buildFolderTreeNode(folder, depth, state, onNavigate, locked) {
     });
     node.append(childList);
   } else if (expanded && children && children.length === 0) {
-    node.append(el('ul', 'bulk-pp-folder-tree-children bulk-pp-folder-tree-children-empty'));
+    const emptyChild = el('ul', 'bulk-pp-folder-tree-children bulk-pp-folder-tree-children-empty');
+    emptyChild.append(el('li', 'bulk-pp-folder-tree-empty-note', 'No subfolders'));
+    node.append(emptyChild);
   }
 
   return node;
@@ -348,7 +350,9 @@ export function buildFolderTree(state, onNavigate, locked) {
     });
     rootNode.append(childList);
   } else if (rootExpanded && rootChildren.length === 0 && Object.prototype.hasOwnProperty.call(state.folderTreeCache, '')) {
-    rootNode.append(el('ul', 'bulk-pp-folder-tree-children bulk-pp-folder-tree-children-empty'));
+    const emptyChild = el('ul', 'bulk-pp-folder-tree-children bulk-pp-folder-tree-children-empty');
+    emptyChild.append(el('li', 'bulk-pp-folder-tree-empty-note', 'No subfolders'));
+    rootNode.append(emptyChild);
   }
 
   tree.append(rootNode);
