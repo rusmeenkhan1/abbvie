@@ -1,7 +1,6 @@
 import {
   formatSelectionPillText,
   getActiveSelectionCount,
-  getVisibleFolders,
   getVisiblePages,
   isStatusFetchBlocking,
   shouldShowPageStatus,
@@ -9,6 +8,7 @@ import {
 } from './state.js';
 import { isJobModalOpen } from './progress-modal.js';
 import { el } from './dom.js';
+import { patchFolderTree } from './folder-tree.js';
 
 /**
  * @param {HTMLElement} root
@@ -165,46 +165,19 @@ export function syncSelectionUI(root, state) {
 /**
  * @param {HTMLElement} root
  * @param {ReturnType<typeof import('./state.js').createAppState>} state
- * @param {(
- *   folder: { name: string, folderPath: string },
- *   onNavigate: (p: string) => void,
- *   locked: boolean,
- * ) => HTMLElement} buildFolderRow
  */
-export function patchFolderSearchResults(root, state, buildFolderRow) {
-  const visibleFolders = getVisibleFolders(state);
-  const draft = String(state.folderSearch || '').trim();
-  const tooShort = draft.length > 0 && draft.length < SEARCH_MIN_LEN;
-
-  const count = root.querySelector('#bulk-pp-folder-count');
-  if (count) {
-    count.textContent = draft && !tooShort
-      ? `${visibleFolders.length} of ${state.folders.length}`
-      : String(state.folders.length);
-  }
+export function patchFolderSearchResults(root, state) {
+  patchFolderTree(
+    root,
+    state,
+    (path) => state.onNavigate(path),
+    isStatusFetchBlocking(state),
+  );
 
   syncSearchHint(
     root.querySelector('#bulk-pp-folder-search-hint'),
     searchHintText(state.folderSearch),
   );
-
-  const list = root.querySelector('#bulk-pp-folder-list');
-  if (!list) return;
-  list.replaceChildren();
-  if (visibleFolders.length === 0) {
-    const emptyMsg = draft
-      ? 'No folders match this search.'
-      : 'No folders in this location.';
-    list.append(el('li', 'bulk-pp-list-empty', emptyMsg));
-  } else {
-    visibleFolders.forEach((folder) => {
-      list.append(buildFolderRow(
-        folder,
-        (path) => state.onNavigate(path),
-        isStatusFetchBlocking(state),
-      ));
-    });
-  }
 }
 
 /**

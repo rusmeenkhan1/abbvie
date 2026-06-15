@@ -91,7 +91,6 @@ import {
   getActiveSelectionCount,
   getSelectedHelixPaths,
   getVisiblePages,
-  getVisibleFolders,
   isDeploymentStatusPending,
   isFirstSessionStatusPending,
   isStatusFetchBlocking,
@@ -103,6 +102,15 @@ import {
   resetPagesViewState,
   selectAllVisible,
 } from './lib/state.js';
+import {
+  expandFolderAncestors,
+  getFolderCountLabel,
+  hydrateFolderTreeToPath,
+  loadFolderTreeChildren,
+  patchFolderTree,
+  renderFolderTree,
+  seedFolderTreeCache,
+} from './lib/folder-tree.js';
 import { el } from './lib/dom.js';
 
 /* ========================================
@@ -1153,7 +1161,7 @@ function applyOperationWorkspaceReset(state) {
     { org: state.org, site: state.site, ref: state.ref },
     buildPageRow,
   );
-  patchFolderSearchResults(root, state, buildFolderRow);
+  patchFolderSearchResults(root, state);
   syncSelectionUI(root, state);
 }
 
@@ -1960,13 +1968,10 @@ function render(root, state) {
     statusMap,
     browseFolder,
   } = getVisiblePages(state);
-  const visibleFolders = getVisibleFolders(state);
   const workspaceLocked = isStatusFetchBlocking(state);
   const safeFolder = resolveContentFolderPath(folderPath);
   const searchDraft = String(pageSearch || '').trim();
   const searchTooShort = searchDraft.length > 0 && searchDraft.length < SEARCH_MIN_LEN;
-  const folderSearchDraft = String(folderSearch || '').trim();
-  const folderSearchTooShort = folderSearchDraft.length > 0 && folderSearchDraft.length < SEARCH_MIN_LEN;
 
   root.replaceChildren();
   root.classList.add('bulk-pp-shell');
@@ -2031,29 +2036,19 @@ function render(root, state) {
       'section',
       'bulk-pp-content-section bulk-pp-content-section-folders',
     );
-    const folderCountLabel = folderSearchDraft && !folderSearchTooShort
-      ? `${visibleFolders.length} of ${state.folders.length}`
-      : String(state.folders.length);
     folderSection.append(
       buildSectionHead(
         'Directories',
-        folderCountLabel,
+        getFolderCountLabel(state),
         'bulk-pp-folder-count',
         'folders',
       ),
     );
-    folderSection.append(
-      buildBreadcrumb(
-        safeFolder,
-        (path) => state.onNavigate(path),
-        workspaceLocked,
-      ),
-    );
 
-    const folderSearchDisabled = workspaceLocked || state.folders.length === 0;
+    const folderSearchDisabled = workspaceLocked;
     const { wrap: folderSearchField, input: folderSearchInput } = buildSearchField(
       'bulk-pp-folder-search',
-      'Search folder',
+      'Search folders',
       String(folderSearch || ''),
       folderSearchDisabled,
       searchHintText(folderSearch),
@@ -2062,31 +2057,24 @@ function render(root, state) {
     folderSearchRow.append(folderSearchField);
     folderSection.append(folderSearchRow);
 
-    const folderWrap = el('div', 'bulk-pp-list-wrap bulk-pp-list-wrap-folders');
-    const folderList = el('ul', 'bulk-pp-list');
-    folderList.id = 'bulk-pp-folder-list';
-    if (visibleFolders.length === 0) {
-      const folderEmptyMsg = folderSearchDraft
-        ? 'No folders match this search.'
-        : 'No directories in this location.';
-      folderList.append(el('li', 'bulk-pp-list-empty', folderEmptyMsg));
-    } else {
-      visibleFolders.forEach((folder) => {
-        folderList.append(
-          buildFolderRow(
-            folder,
-            (path) => state.onNavigate(path),
-            workspaceLocked,
-          ),
-        );
-      });
-    }
-    folderWrap.append(folderList);
+    const folderWrap = el(
+      'div',
+      'bulk-pp-list-wrap bulk-pp-list-wrap-folders bulk-pp-list-wrap-tree',
+    );
+    const folderTreeHost = el('div', 'bulk-pp-folder-tree-host');
+    folderTreeHost.id = 'bulk-pp-folder-tree-host';
+    renderFolderTree(
+      folderTreeHost,
+      state,
+      (path) => state.onNavigate(path),
+      workspaceLocked,
+    );
+    folderWrap.append(folderTreeHost);
     folderSection.append(folderWrap);
     contentGrid.append(folderSection);
 
     bindSearchInput(folderSearchInput, state, 'folder', () => {
-      patchFolderSearchResults(root, state, buildFolderRow);
+      patchFolderSearchResults(root, state);
     });
 
     const pagesSection = el(
@@ -2675,11 +2663,34 @@ async function main() {
     clearPagesStatusDisplay(state);
 
     state.folderPath = resolveContentFolderPath(targetPath);
+    expandFolderAncestors(state, targetPath);
     state.pageSearch = '';
     state.folderSearch = '';
     state.pageFilter = 'all';
     syncBrowseLocation(state);
     await state.onFetch(true);
+  };
+
+  state.onExpandFolder = async (folderPath, expand) => {
+    if (isStatusFetchBlocking(state) || state.contentLoading) return;
+    const key = normalizeFolderPath(folderPath);
+    if (!expand) {
+      state.expandedFolders.delete(key);
+    } else {
+      state.expandedFolders.add(key);
+      if (!state.folderTreeCache[key]) {
+        await loadFolderTreeChildren(state, daFetch, key);
+      }
+    }
+    const rootEl = /** @type {HTMLElement | null} */ (state.root);
+    if (rootEl) {
+      patchFolderTree(
+        rootEl,
+        state,
+        (path) => state.onNavigate(path),
+        isStatusFetchBlocking(state),
+      );
+    }
   };
 
   state.onToggleIncludeSubdirectories = async (enabled) => {
@@ -2736,6 +2747,9 @@ async function main() {
         state.folderPath,
       );
       state.folders = browseEntries.filter((e) => e.kind === 'folder');
+      seedFolderTreeCache(state, state.folderPath, state.folders);
+      expandFolderAncestors(state, state.folderPath);
+      await hydrateFolderTreeToPath(state, daFetch, state.folderPath);
 
       if (state.pageScope === 'tree') {
         const nestedPages = await collectPages(
