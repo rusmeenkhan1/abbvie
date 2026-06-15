@@ -87,6 +87,8 @@ export const PAGE_FILTERS = [
   ['all', 'All pages'],
   ['never-previewed', 'Not previewed'],
   ['never-published', 'Not published'],
+  ['preview-only', 'Preview only'],
+  ['orphaned-live', 'Orphaned live'],
   ['recent-preview', 'Recently previewed'],
   ['recent-publish', 'Recently published'],
   ['oldest-preview', 'Oldest previewed'],
@@ -158,6 +160,12 @@ export function filterAndSortPages(
       break;
     case 'never-published':
       filtered = withMeta.filter((m) => !m.entry.publishedAt);
+      break;
+    case 'preview-only':
+      filtered = withMeta.filter((m) => m.entry.previewedAt && !m.entry.publishedAt);
+      break;
+    case 'orphaned-live':
+      filtered = withMeta.filter((m) => m.entry.publishedAt && !m.entry.previewedAt);
       break;
     case 'recent-preview':
       filtered = withMeta.filter((m) => m.entry.previewedAt);

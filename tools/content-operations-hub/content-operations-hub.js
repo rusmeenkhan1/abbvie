@@ -1600,7 +1600,7 @@ function buildRealtimeStatusButton(state) {
     || state.loading
     || state.statusChecking;
   setAccessibilityLabel(btn, 'Fetch live deployment status');
-  btn.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 3.5v3.2h-3.2"/></svg>';
+  btn.innerHTML = '<svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 3.5v3.2h-3.2"/></svg>';
   btn.addEventListener('click', () => {
     if (typeof state.onRefreshStatus === 'function') {
       state.onRefreshStatus();
@@ -1644,11 +1644,9 @@ function buildStatusActionCard(state) {
       : `Last fetched: ${when}`;
   }
   left.append(label);
+  left.append(buildRealtimeStatusButton(state));
 
-  const right = el('div', 'bulk-pp-status-action-right');
-  right.append(buildRealtimeStatusButton(state));
-
-  card.append(left, right);
+  card.append(left);
   return card;
 }
 
