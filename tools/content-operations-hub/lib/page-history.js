@@ -2,7 +2,7 @@ import {
   formatPageListLabel,
   pageListRelativePath,
   sortPagesByListPath,
-} from './paths.js';
+} from "./paths.js";
 
 /**
  * @typedef {{ previewedAt?: number, publishedAt?: number }} PageHistoryEntry
@@ -14,9 +14,9 @@ import {
  * @returns {'published'|'previewed'|'untouched'}
  */
 export function getPageStatus(entry) {
-  if (entry?.publishedAt) return 'published';
-  if (entry?.previewedAt) return 'previewed';
-  return 'untouched';
+  if (entry?.publishedAt) return "published";
+  if (entry?.previewedAt) return "previewed";
+  return "untouched";
 }
 
 /**
@@ -65,20 +65,20 @@ export function formatDeploymentSummary(platformStatus, pageList) {
 
 /** @type {ReadonlyArray<[string, string]>} */
 export const PAGE_FILTERS = [
-  ['all', 'All pages'],
-  ['never-previewed', 'Not previewed'],
-  ['never-published', 'Not published'],
-  ['recent-preview', 'Recently previewed'],
-  ['recent-publish', 'Recently published'],
-  ['oldest-preview', 'Oldest previewed'],
-  ['oldest-publish', 'Oldest published'],
+  ["all", "All pages"],
+  ["never-previewed", "Not previewed"],
+  ["never-published", "Not published"],
+  ["recent-preview", "Recently previewed"],
+  ["recent-publish", "Recently published"],
+  ["oldest-preview", "Oldest previewed"],
+  ["oldest-publish", "Oldest published"],
 ];
 
 const DATE_SORT_FILTERS = new Set([
-  'recent-preview',
-  'recent-publish',
-  'oldest-preview',
-  'oldest-publish',
+  "recent-preview",
+  "recent-publish",
+  "oldest-preview",
+  "oldest-publish",
 ]);
 
 /**
@@ -89,20 +89,41 @@ const DATE_SORT_FILTERS = new Set([
  * @param {number} [minLen]
  * @returns {{ helixPath: string, name?: string }[]}
  */
-export function filterPagesBySearch(pages, query, browseFolder = '', minLen = 3) {
-  const q = String(query || '').trim().toLowerCase();
+export function filterPagesBySearch(
+  pages,
+  query,
+  browseFolder = "",
+  minLen = 3,
+) {
+  const q = String(query || "")
+    .trim()
+    .toLowerCase();
   if (!q) return pages;
   if (q.length < minLen) return pages;
   return pages.filter((page) => {
-    const name = String(page.name || '').toLowerCase();
-    const path = pageListRelativePath(page.helixPath, browseFolder).toLowerCase();
-    const { title } = formatPageListLabel(page.helixPath, page.name, browseFolder);
-    return name.includes(q) || path.includes(q) || title.toLowerCase().includes(q);
+    const name = String(page.name || "").toLowerCase();
+    const path = pageListRelativePath(
+      page.helixPath,
+      browseFolder,
+    ).toLowerCase();
+    const { title } = formatPageListLabel(
+      page.helixPath,
+      page.name,
+      browseFolder,
+    );
+    return (
+      name.includes(q) || path.includes(q) || title.toLowerCase().includes(q)
+    );
   });
 }
 
-export function filterAndSortPages(pages, history, filterId, browseFolder = '') {
-  if (filterId === 'all') return sortPagesByListPath(pages, browseFolder);
+export function filterAndSortPages(
+  pages,
+  history,
+  filterId,
+  browseFolder = "",
+) {
+  if (filterId === "all") return sortPagesByListPath(pages, browseFolder);
 
   const withMeta = pages.map((page) => ({
     page,
@@ -113,27 +134,35 @@ export function filterAndSortPages(pages, history, filterId, browseFolder = '') 
   let filtered;
 
   switch (filterId) {
-    case 'never-previewed':
+    case "never-previewed":
       filtered = withMeta.filter((m) => !m.entry.previewedAt);
       break;
-    case 'never-published':
+    case "never-published":
       filtered = withMeta.filter((m) => !m.entry.publishedAt);
       break;
-    case 'recent-preview':
+    case "recent-preview":
       filtered = withMeta.filter((m) => m.entry.previewedAt);
-      filtered.sort((a, b) => (b.entry.previewedAt || 0) - (a.entry.previewedAt || 0));
+      filtered.sort(
+        (a, b) => (b.entry.previewedAt || 0) - (a.entry.previewedAt || 0),
+      );
       break;
-    case 'recent-publish':
+    case "recent-publish":
       filtered = withMeta.filter((m) => m.entry.publishedAt);
-      filtered.sort((a, b) => (b.entry.publishedAt || 0) - (a.entry.publishedAt || 0));
+      filtered.sort(
+        (a, b) => (b.entry.publishedAt || 0) - (a.entry.publishedAt || 0),
+      );
       break;
-    case 'oldest-preview':
+    case "oldest-preview":
       filtered = withMeta.filter((m) => m.entry.previewedAt);
-      filtered.sort((a, b) => (a.entry.previewedAt || 0) - (b.entry.previewedAt || 0));
+      filtered.sort(
+        (a, b) => (a.entry.previewedAt || 0) - (b.entry.previewedAt || 0),
+      );
       break;
-    case 'oldest-publish':
+    case "oldest-publish":
       filtered = withMeta.filter((m) => m.entry.publishedAt);
-      filtered.sort((a, b) => (a.entry.publishedAt || 0) - (b.entry.publishedAt || 0));
+      filtered.sort(
+        (a, b) => (a.entry.publishedAt || 0) - (b.entry.publishedAt || 0),
+      );
       break;
     default:
       return sortPagesByListPath(pages, browseFolder);
@@ -151,13 +180,13 @@ export function filterAndSortPages(pages, history, filterId, browseFolder = '') 
  * @returns {string}
  */
 export function formatStatusDate(ts) {
-  if (!ts) return '';
+  if (!ts) return "";
   return new Date(ts).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -166,7 +195,7 @@ export function formatStatusDate(ts) {
  * @returns {string}
  */
 export function statusLabel(status) {
-  if (status === 'published') return 'Published';
-  if (status === 'previewed') return 'only previewed';
-  return 'not previewed';
+  if (status === "published") return "Published";
+  if (status === "previewed") return "only previewed";
+  return "not previewed";
 }

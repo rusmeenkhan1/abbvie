@@ -117,7 +117,9 @@ function openProgressModal(appRoot, kind, opts) {
   dialog.append(head, body);
   backdrop.append(dialog);
   document.body.append(backdrop);
-  modalRef = { kind, backdrop, panel: body, ids };
+  modalRef = {
+    kind, backdrop, panel: body, ids,
+  };
   setAppModalOpen(appRoot);
 }
 
@@ -306,7 +308,28 @@ function buildJobUrlResults(urls, host) {
       openUrlsInNewTabsQuiet(urls);
     }).catch(() => {});
   });
-  actions.append(copyBtn, openBtn);
+  const lhsBtn = el(
+    'button',
+    'bulk-pp-modal-btn bulk-pp-modal-btn-ghost',
+    `Check LHS (${count})`,
+  );
+  lhsBtn.type = 'button';
+  lhsBtn.title = `Check Lighthouse for ${count} URL${count === 1 ? '' : 's'}`;
+  lhsBtn.addEventListener('click', () => {
+    const handleCheckLhs = async () => {
+      const psUrls = urls.map((url) => {
+        const encoded = encodeURIComponent(url);
+        return `https://pagespeed.web.dev/analysis?url=${encoded}`;
+      });
+      openUrlsInNewTabsQuiet(psUrls);
+    };
+    Promise.resolve(confirmOpenUrlsInNewTabs(count)).then((ok) => {
+      if (ok) {
+        handleCheckLhs();
+      }
+    }).catch(() => {});
+  });
+  actions.append(copyBtn, openBtn, lhsBtn);
   section.append(actions);
 
   const listWrap = el('div', 'bulk-pp-modal-url-list-wrap');
@@ -359,7 +382,9 @@ function jobHeadCompleteTitle(topic) {
  */
 export function showJobCompleteModal(opts) {
   if (!modalRef || modalRef.kind !== 'job') return;
-  const { summary, topic, urls = [], host = '', onClose } = opts;
+  const {
+    summary, topic, urls = [], host = '', onClose,
+  } = opts;
   const completeTitle = jobCompleteTitle(topic);
   const destructive = topic === 'unpreview' || topic === 'unpublish' || topic === 'delete';
   const hasUrls = !destructive && urls.length > 0;
@@ -415,7 +440,9 @@ function jobHeadErrorTitle(topic) {
  */
 export function showJobErrorModal(opts) {
   if (!modalRef || modalRef.kind !== 'job') return;
-  const { message, topic, onClose, hint = '' } = opts;
+  const {
+    message, topic, onClose, hint = '',
+  } = opts;
   const body = [
     el('h3', 'bulk-pp-status-modal-complete-title bulk-pp-status-modal-error-title', jobErrorTitle(topic)),
     el('p', 'bulk-pp-status-modal-summary bulk-pp-status-modal-error', message),

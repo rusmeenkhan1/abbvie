@@ -2008,21 +2008,16 @@ function render(root, state) {
     );
     searchField.classList.add('bulk-pp-pages-search-field');
     toolbarRow.append(searchField, filterField);
-
-    if (!isFirstSessionStatusPending(state)) {
-      const selectionRow = buildPagesSelectionRow(
-        state,
-        { visiblePages, statusChecking },
-      );
-      selectionRow.classList.add('bulk-pp-pages-selection-inline');
-      toolbarRow.append(selectionRow);
-    }
-
     controls.append(toolbarRow);
 
     const statusNotice = buildPagesStatusNotice(state);
     if (statusNotice) controls.append(statusNotice);
 
+    if (!isFirstSessionStatusPending(state)) {
+      controls.append(
+        buildPagesSelectionRow(state, { visiblePages, statusChecking }),
+      );
+    }
     pagesSection.append(controls);
 
     const pageWrap = el(

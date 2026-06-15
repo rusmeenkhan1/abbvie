@@ -171,6 +171,13 @@ const MORE_SELECTION_GROUPS = [
     ],
   },
   {
+    title: 'Performance',
+    items: [
+      { id: 'check-lhs-page', label: 'LHS score for .page URL' },
+      { id: 'check-lhs-live', label: 'LHS score for .live URL' },
+    ],
+  },
+  {
     title: 'Publishing',
     items: [
       { id: 'unpreview', label: 'Remove from preview' },
@@ -202,6 +209,10 @@ const SELECTION_OP_ICONS = {
     '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5a8 8 0 0 1 0 11M8 2.5a8 8 0 0 0 0 11"/></svg>',
   'open-live':
     '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5l1.6 3.2 3.6.5-2.6 2.5.6 3.6L8 10.4l-3.2 1.7.6-3.6-2.6-2.5 3.6-.5L8 2.5Z"/></svg>',
+  'check-lhs-page':
+    '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14h12M8 1v10M4 7l4-6 4 6"/></svg>',
+  'check-lhs-live':
+    '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14h12M8 1v10M4 7l4-6 4 6"/></svg>',
   more: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12" cy="8" r="1"/></svg>',
 };
 
@@ -686,6 +697,21 @@ async function openSelectedDa(state) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
+ * @param {'preview'|'live'} env
+ */
+async function checkLhsForSelectedUrls(state, env) {
+  const paths = getSelectedHelixPaths(state);
+  if (paths.length === 0) return;
+  const contentUrls = buildUrlsForPaths(paths, state.org, state.site, state.ref, env);
+  const psUrls = contentUrls.map((url) => {
+    const encoded = encodeURIComponent(url);
+    return `https://pagespeed.web.dev/analysis?url=${encoded}`;
+  });
+  await openUrlsInNewTabs(psUrls, state);
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
  * @returns {boolean}
  */
 function isOperationBlocked(state) {
@@ -774,6 +800,14 @@ async function runPageOperation(state, operationId) {
     }
     if (operationId === 'open-live') {
       await openSelectedUrls(state, 'live');
+      return;
+    }
+    if (operationId === 'check-lhs-page') {
+      await checkLhsForSelectedUrls(state, 'preview');
+      return;
+    }
+    if (operationId === 'check-lhs-live') {
+      await checkLhsForSelectedUrls(state, 'live');
     }
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') return;
