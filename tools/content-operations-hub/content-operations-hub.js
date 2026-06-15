@@ -1255,7 +1255,8 @@ async function refreshPlatformStatusAfterJob(state, daFetch, paths, topic) {
     paths,
     state.platformStatus,
   );
-  if (Object.keys(optimistic).length > 0) {
+  // Always apply optimistic updates for removal operations, even if patch is empty
+  if (Object.keys(optimistic).length > 0 || isRemoval) {
     commitPlatformStatus(
       state,
       optimistic,
