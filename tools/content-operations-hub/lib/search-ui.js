@@ -55,6 +55,16 @@ function syncSelectionActionBar(root, state) {
     clearBtn.disabled = count === 0;
   }
 
+  const shareTip = root.querySelector('#bulk-pp-selection-share-tooltip');
+  const shareBtn = root.querySelector('#bulk-pp-selection-share');
+  const shareLabel = count === 1
+    ? 'Copy preview URL to clipboard'
+    : `Copy ${count} preview URLs to clipboard`;
+  if (shareTip) shareTip.textContent = shareLabel;
+  if (shareBtn instanceof HTMLButtonElement) {
+    shareBtn.setAttribute('aria-label', shareLabel);
+  }
+
   root.querySelectorAll('.bulk-pp-selection-strip-btn, .bulk-pp-selection-more-item').forEach((btnEl) => {
     if (btnEl instanceof HTMLButtonElement) btnEl.disabled = blocked;
   });

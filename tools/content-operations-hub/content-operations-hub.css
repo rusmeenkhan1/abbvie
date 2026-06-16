@@ -1174,15 +1174,72 @@ html:has(.bulk-pp-body) {
   border-color: rgb(255 255 255 / 28%);
 }
 
+.bulk-pp-selection-strip-btn-share {
+  border-color: rgb(255 255 255 / 28%);
+}
+
+.bulk-pp-selection-share-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.bulk-pp-selection-share-tooltip {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 5;
+  min-width: 180px;
+  max-width: min(280px, 70vw);
+  padding: 8px 11px;
+  border-radius: var(--pp-radius-xs);
+  background: #fff;
+  border: 1px solid var(--pp-border);
+  box-shadow: var(--pp-shadow-lg);
+  color: var(--pp-navy);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    visibility 0.16s ease;
+}
+
+.bulk-pp-selection-share-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 18px;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-right: 1px solid var(--pp-border);
+  border-bottom: 1px solid var(--pp-border);
+  transform: rotate(45deg) translate(-4px, -5px);
+}
+
+.bulk-pp-selection-share-wrap:hover:not(:has(.bulk-pp-selection-strip-btn:disabled)) .bulk-pp-selection-share-tooltip,
+.bulk-pp-selection-share-wrap:focus-within:not(:has(.bulk-pp-selection-strip-btn:disabled)) .bulk-pp-selection-share-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
 .bulk-pp-selection-more-trigger {
   color: rgb(255 255 255 / 88%);
 }
 
 .bulk-pp-selection-strip-btn-deploy:hover:not(:disabled),
-.bulk-pp-selection-strip-btn-primary:hover:not(:disabled),
+.bulk-pp-selection-strip-btn-share:hover:not(:disabled),
 .bulk-pp-selection-more-trigger:hover:not(:disabled) {
   background: var(--pp-selection-bar-hover);
-  border-color: transparent;
+  border-color: rgb(255 255 255 / 42%);
   color: #fff;
 }
 

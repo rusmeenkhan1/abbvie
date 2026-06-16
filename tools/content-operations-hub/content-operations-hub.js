@@ -1069,6 +1069,7 @@ function buildSelectionActionBar(state) {
   countEl.id = 'bulk-pp-selection-count';
   badge.append(dismissBtn, countEl);
 
+  const shareWrap = el('div', 'bulk-pp-selection-share-wrap');
   const shareBtn = el(
     'button',
     'bulk-pp-selection-strip-btn bulk-pp-selection-strip-btn-share',
@@ -1076,7 +1077,7 @@ function buildSelectionActionBar(state) {
   );
   shareBtn.type = 'button';
   shareBtn.id = 'bulk-pp-selection-share';
-  setAccessibilityLabel(shareBtn, 'Share selected preview URLs');
+  setAccessibilityLabel(shareBtn, formatShareTooltipText(count));
   shareBtn.disabled = blocked;
   shareBtn.append(
     buildSelectionOpIcon('share'),
@@ -1085,6 +1086,13 @@ function buildSelectionActionBar(state) {
   shareBtn.addEventListener('click', () => {
     void copySelectedPreviewUrls(state);
   });
+  const shareTip = el(
+    'span',
+    'bulk-pp-selection-share-tooltip',
+    formatShareTooltipText(count),
+  );
+  shareTip.id = 'bulk-pp-selection-share-tooltip';
+  shareWrap.append(shareBtn, shareTip);
   left.append(badge);
 
   const actions = el('div', 'bulk-pp-selection-strip-actions');
@@ -1098,7 +1106,7 @@ function buildSelectionActionBar(state) {
     btn.disabled = blocked;
     deployGroup.append(btn);
   });
-  actions.append(deployGroup, shareBtn);
+  actions.append(deployGroup, shareWrap);
 
   const moreWrap = el('div', 'bulk-pp-selection-more-wrap');
   const moreBtn = el(
@@ -1157,6 +1165,14 @@ function buildSelectionActionBar(state) {
  */
 function formatSelectionBarText(count) {
   return count === 1 ? '1 page selected' : `${count} pages selected`;
+}
+
+/**
+ * @param {number} count
+ */
+function formatShareTooltipText(count) {
+  if (count === 1) return 'Copy preview URL to clipboard';
+  return `Copy ${count} preview URLs to clipboard`;
 }
 
 /* ========================================
