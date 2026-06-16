@@ -339,6 +339,16 @@ export function getSelectedHelixPaths(state) {
 }
 
 /**
+ * Page records for the current selection (visible in the loaded list).
+ * @param {ReturnType<typeof createAppState>} state
+ * @returns {DocumentEntry[]}
+ */
+export function getSelectedPages(state) {
+  const paths = new Set(getSelectedHelixPaths(state));
+  return state.pages.filter((p) => paths.has(p.helixPath));
+}
+
+/**
  * @param {ReturnType<typeof createAppState>} state
  * @param {boolean} checked
  */

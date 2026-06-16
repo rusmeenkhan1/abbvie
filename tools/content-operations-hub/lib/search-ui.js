@@ -1,13 +1,49 @@
 import {
   getActiveSelectionCount,
+  getSelectedPages,
   getVisiblePages,
   isStatusFetchBlocking,
   shouldShowPageStatus,
   SEARCH_MIN_LEN,
 } from './state.js';
 import { isJobModalOpen } from './progress-modal.js';
+import { formatPageListLabel } from './paths.js';
 import { el } from './dom.js';
 import { patchFolderTree } from './folder-tree.js';
+
+const SELECTION_CHIP_LIMIT = 14;
+
+/**
+ * Renders selected page names as chips in the bottom selection strip.
+ * @param {HTMLElement} host
+ * @param {ReturnType<typeof import('./state.js').createAppState>} state
+ */
+export function populateSelectionPageChips(host, state) {
+  host.replaceChildren();
+  const pages = getSelectedPages(state);
+  if (pages.length === 0) {
+    host.hidden = true;
+    return;
+  }
+  host.hidden = false;
+  const browseFolder = state.folderPath || '';
+  pages.slice(0, SELECTION_CHIP_LIMIT).forEach((page) => {
+    const { title } = formatPageListLabel(page.helixPath, page.name, browseFolder);
+    const chip = el('span', 'bulk-pp-selection-chip', title);
+    chip.title = title;
+    host.append(chip);
+  });
+  const remaining = pages.length - SELECTION_CHIP_LIMIT;
+  if (remaining > 0) {
+    const more = el(
+      'span',
+      'bulk-pp-selection-chip bulk-pp-selection-chip-more',
+      `+${remaining} more`,
+    );
+    more.title = `${remaining} additional selected pages`;
+    host.append(more);
+  }
+}
 
 /**
  * @param {HTMLElement} root
@@ -53,6 +89,11 @@ function syncSelectionActionBar(root, state) {
   const clearBtn = root.querySelector('#bulk-pp-selection-clear');
   if (clearBtn instanceof HTMLButtonElement) {
     clearBtn.disabled = count === 0;
+  }
+
+  const pagesRow = root.querySelector('#bulk-pp-selection-pages');
+  if (pagesRow instanceof HTMLElement) {
+    populateSelectionPageChips(pagesRow, state);
   }
 
   root.querySelectorAll('.bulk-pp-selection-strip-btn, .bulk-pp-selection-more-item').forEach((btnEl) => {

@@ -980,12 +980,11 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-selection-strip {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 16px;
-  min-height: 52px;
-  padding: 8px 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 14px 12px;
   border-radius: var(--pp-radius);
   background: var(--pp-command-bg);
   color: var(--pp-command-text);
@@ -993,6 +992,57 @@ html:has(.bulk-pp-body) {
   box-shadow: var(--pp-command-shadow);
   backdrop-filter: blur(12px);
   pointer-events: auto;
+}
+
+.bulk-pp-selection-strip-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.bulk-pp-selection-strip-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-start;
+  gap: 6px;
+  min-height: 28px;
+  max-height: 58px;
+  overflow: hidden;
+  padding-top: 2px;
+  border-top: 1px solid rgb(255 255 255 / 14%);
+}
+
+.bulk-pp-selection-strip-pages[hidden] {
+  display: none;
+}
+
+.bulk-pp-selection-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(220px, 42vw);
+  min-height: 26px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+  border: 1px solid rgb(255 255 255 / 22%);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: rgb(255 255 255 / 94%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bulk-pp-selection-chip-more {
+  flex-shrink: 0;
+  max-width: none;
+  background: rgb(255 255 255 / 18%);
+  border-color: rgb(255 255 255 / 28%);
+  font-weight: 700;
 }
 
 .bulk-pp-selection-strip-left {
@@ -2355,7 +2405,7 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) .bulk-pp-content-section-pages .bulk-pp-list-wrap-fill {
-  padding-bottom: 104px;
+  padding-bottom: 148px;
 }
 
 .bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) .bulk-pp-content-section-pages .bulk-pp-page-list-scroll {
@@ -4038,9 +4088,24 @@ html:has(.bulk-pp-body) {
   .bulk-pp-selection-strip {
     flex-direction: column;
     align-items: stretch;
-    padding: 10px;
+    padding: 10px 12px 12px;
     gap: 10px;
     border-radius: var(--pp-radius-sm);
+  }
+
+  .bulk-pp-selection-strip-main {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .bulk-pp-selection-strip-pages {
+    max-height: 72px;
+  }
+
+  .bulk-pp-selection-chip {
+    max-width: min(240px, 88vw);
+    font-size: 0.75rem;
   }
 
   .bulk-pp-selection-strip-left {
@@ -4095,7 +4160,7 @@ html:has(.bulk-pp-body) {
   }
 
   .bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) .bulk-pp-content-section-pages .bulk-pp-list-wrap-fill {
-    padding-bottom: 154px;
+    padding-bottom: 196px;
   }
 
 }
