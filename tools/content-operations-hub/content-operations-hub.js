@@ -153,6 +153,8 @@ const STATUS_LEGEND_ITEMS = [
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 let copyToastTimer = 0;
+let transientStatusTimer = 0;
+let transientStatusKey = '';
 
 const APP_TITLE = 'Content Operations Hub';
 const APP_DESCRIPTION = 'Browse site content, monitor deployment status, and run bulk preview, publish, and removal operations.';
@@ -800,6 +802,60 @@ function showCopyToast(title, message) {
     toast.remove();
     copyToastTimer = 0;
   }, 2600);
+}
+
+/**
+ * @param {'error'|'success'|'info'} statusType
+ */
+function statusAutoDismissDelay(statusType) {
+  return statusType === 'error' ? 9000 : 5200;
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function clearTransientStatus(state) {
+  state.status = null;
+  state.jobDetail = null;
+  if (transientStatusTimer) {
+    window.clearTimeout(transientStatusTimer);
+    transientStatusTimer = 0;
+  }
+  transientStatusKey = '';
+  const root = /** @type {HTMLElement | null} */ (state.root);
+  if (root) render(root, state);
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {'error'|'success'|'info'} statusType
+ */
+function scheduleTransientStatusClear(state, statusType) {
+  const statusText = state.status || '';
+  const detail = state.jobDetail || '';
+  const key = `${statusType}:${statusText}:${detail}`;
+  if (transientStatusKey === key && transientStatusTimer) return;
+  if (transientStatusTimer) {
+    window.clearTimeout(transientStatusTimer);
+    transientStatusTimer = 0;
+  }
+  transientStatusKey = key;
+  const delay = statusAutoDismissDelay(statusType);
+  transientStatusTimer = window.setTimeout(() => {
+    if (
+      state.status === statusText
+      && (state.jobDetail || '') === detail
+      && state.statusType === statusType
+      && !state.loading
+      && !state.statusChecking
+      && !state.contentLoading
+    ) {
+      clearTransientStatus(state);
+      return;
+    }
+    transientStatusTimer = 0;
+    transientStatusKey = '';
+  }, delay);
 }
 
 async function openSelectedDa(state) {
@@ -1894,6 +1950,9 @@ function finishProgressModal(state) {
   state.jobTopic = null;
   state.jobAbort = null;
   state.jobStartedAt = null;
+  if (state.statusType === 'success') {
+    state.status = null;
+  }
   if (root) render(root, state);
 }
 
@@ -2213,13 +2272,31 @@ function render(root, state) {
     && !statusChecking
     && !contentLoading
     && !isDaAccessError(status)
-    && (statusType === 'error' || statusType === 'success' || statusType === 'info')
+    && (statusType === 'error' || statusType === 'info')
   ) {
     const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType}`);
     statusEl.setAttribute('role', statusType === 'error' ? 'alert' : 'status');
     statusEl.setAttribute('aria-live', 'polite');
-    statusEl.append(el('strong', null, status));
+    const body = el('div', 'bulk-pp-status-main');
+    const icon = el('span', `bulk-pp-status-icon bulk-pp-status-icon-${statusType}`);
+    icon.setAttribute('aria-hidden', 'true');
+    const iconSvg = statusType === 'error'
+      ? '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"></circle><path d="M8 4.5v4"></path><path d="M8 11.5h.01"></path></svg>'
+      : '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>';
+    icon.innerHTML = iconSvg;
+    const text = el('div', 'bulk-pp-status-text');
+    text.append(el('strong', null, status));
+    body.append(icon, text);
+    statusEl.append(body);
     if (jobDetail) statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
+
+    const closeBtn = el('button', 'bulk-pp-status-close', 'Dismiss');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Dismiss status message');
+    closeBtn.addEventListener('click', () => clearTransientStatus(state));
+    statusEl.append(closeBtn);
+
+    scheduleTransientStatusClear(state, statusType);
     root.append(statusEl);
   } else if (
     jobDetail
@@ -2228,6 +2305,12 @@ function render(root, state) {
     const statusEl = el('div', 'bulk-pp-status bulk-pp-status-info');
     statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
     root.append(statusEl);
+  } else {
+    if (transientStatusTimer) {
+      window.clearTimeout(transientStatusTimer);
+      transientStatusTimer = 0;
+    }
+    transientStatusKey = '';
   }
 
   requestAnimationFrame(() => {
@@ -2916,10 +2999,11 @@ async function main() {
           state.ref,
           env,
         );
-        state.status = topic === 'live'
+        const summary = topic === 'live'
           ? `Bulk publish scheduled (${paths.length} paths).`
           : `Bulk preview scheduled (${paths.length} paths).`;
         state.statusType = 'success';
+        state.status = null;
         updateJobModal({
           jobStartedAt: state.jobStartedAt,
           processed: paths.length,
@@ -2929,7 +3013,7 @@ async function main() {
         });
         await refreshPlatformStatusAfterJob(state, daFetch, paths, topic);
         showJobCompleteModal({
-          summary: state.status,
+          summary,
           topic,
           urls,
           host,
@@ -2968,8 +3052,9 @@ async function main() {
       if (state.jobAbort?.signal.aborted) return;
 
       const outcome = resolveJobOutcome(finalJob);
-      state.status = `${action} ${outcome.message}`;
+      const statusMessage = `${action} ${outcome.message}`;
       state.statusType = outcome.statusType;
+      state.status = outcome.statusType === 'error' ? statusMessage : null;
 
       let urls = [];
       if (outcome.statusType === 'success') {
@@ -2984,14 +3069,14 @@ async function main() {
 
       if (outcome.statusType === 'error') {
         showJobErrorModal({
-          message: state.status,
+          message: statusMessage,
           topic,
-          hint: permissionErrorHint(0, state.status),
+          hint: permissionErrorHint(0, statusMessage),
           onClose: () => finishProgressModal(state),
         });
       } else {
         showJobCompleteModal({
-          summary: state.status,
+          summary: statusMessage,
           topic,
           urls,
           host,
@@ -3160,8 +3245,8 @@ async function main() {
       }
 
       const summary = notes.filter(Boolean).join('. ') || 'Operation finished.';
-      state.status = summary;
       state.statusType = statusType;
+      state.status = statusType === 'error' ? summary : null;
 
       updateJobModal({
         jobStartedAt: state.jobStartedAt,

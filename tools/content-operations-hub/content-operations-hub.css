@@ -3828,10 +3828,35 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-status {
-  padding: 14px 18px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px;
   border-radius: var(--pp-radius-sm);
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+.bulk-pp-status-main {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.bulk-pp-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+}
+
+.bulk-pp-status-text {
+  min-width: 0;
 }
 
 .bulk-pp-status-info {
@@ -3855,13 +3880,42 @@ html:has(.bulk-pp-body) {
 .bulk-pp-status strong {
   display: block;
   font-weight: 700;
-  margin-bottom: 2px;
+  margin: 0;
+}
+
+.bulk-pp-status-close {
+  appearance: none;
+  border: 1px solid currentcolor;
+  background: transparent;
+  color: inherit;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 6px 10px;
+  cursor: pointer;
+  opacity: 0.9;
+  transition:
+    opacity var(--pp-transition),
+    background var(--pp-transition);
+}
+
+.bulk-pp-status-close:hover {
+  opacity: 1;
+  background: rgb(255 255 255 / 36%);
+}
+
+.bulk-pp-status-close:focus-visible {
+  outline: 2px solid currentcolor;
+  outline-offset: 2px;
 }
 
 .bulk-pp-error-detail {
+  grid-column: 1 / -1;
   font-family: var(--pp-mono);
   font-size: 0.78rem;
-  margin-top: 10px;
+  margin: 0;
   padding: 10px;
   background: rgb(0 0 0 / 4%);
   border-radius: 4px;
@@ -3875,6 +3929,14 @@ html:has(.bulk-pp-body) {
 @media (width <= 640px) {
   .bulk-pp {
     padding: 10px 10px 24px;
+  }
+
+  .bulk-pp-status {
+    grid-template-columns: 1fr;
+  }
+
+  .bulk-pp-status-close {
+    justify-self: start;
   }
 
   .bulk-pp-header-inner {
