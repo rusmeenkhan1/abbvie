@@ -666,7 +666,6 @@ html:has(.bulk-pp-body) {
 .bulk-pp-pages-header .bulk-pp-breadcrumb-root {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   padding: 5px 10px;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -679,19 +678,6 @@ html:has(.bulk-pp-body) {
     border-color var(--pp-transition),
     color var(--pp-transition),
     box-shadow var(--pp-transition);
-}
-
-.bulk-pp-pages-header .bulk-pp-breadcrumb-segment-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 0;
-  color: var(--pp-blue);
-  opacity: 0.9;
-}
-
-.bulk-pp-pages-header .bulk-pp-breadcrumb-segment-text {
-  line-height: 1.2;
 }
 
 .bulk-pp-pages-header .bulk-pp-breadcrumb-segment:hover:not(:disabled),

@@ -460,11 +460,13 @@ function buildSectionHead(title, count, countId = '', variant = 'folders') {
   return head;
 }
 
+const BREADCRUMB_FOLDER_ICON = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5h4.2L8 7h5.5a1 1 0 0 1 1 1v5.5a1 1 0 0 1-1 1H2.5a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z"/></svg>';
+
 function buildBreadcrumbCurrentLabel(text) {
   const current = el('span', 'bulk-pp-breadcrumb-current');
   const icon = el('span', 'bulk-pp-breadcrumb-current-icon');
   icon.setAttribute('aria-hidden', 'true');
-  icon.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5 8 2.5l5.5 4v6.5a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V6.5Z"/><path d="M6 14.5V9h4v5.5"/></svg>';
+  icon.innerHTML = BREADCRUMB_FOLDER_ICON;
   current.append(icon, el('span', 'bulk-pp-breadcrumb-current-text', text));
   setAccessibilityLabel(current, `Current folder: ${text}`);
   return current;
@@ -480,9 +482,8 @@ function buildBreadcrumb(folderPath, onNavigate, locked = false) {
     return nav;
   }
 
-  const rootBtn = el('button', 'bulk-pp-breadcrumb-segment bulk-pp-breadcrumb-root');
+  const rootBtn = el('button', 'bulk-pp-breadcrumb-segment bulk-pp-breadcrumb-root', 'Site root');
   rootBtn.type = 'button';
-  rootBtn.innerHTML = '<span class="bulk-pp-breadcrumb-segment-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5 8 2.5l5.5 4v6.5a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V6.5Z"/></svg></span><span class="bulk-pp-breadcrumb-segment-text">Site root</span>';
   rootBtn.disabled = locked;
   if (!locked) {
     setAccessibilityLabel(rootBtn, 'Go to site root');
