@@ -46,6 +46,7 @@ import {
 } from './lib/urls.js';
 import {
   formatStatusDate,
+  formatLastDeployedColumnLabel,
   formatStatusFetchedAt,
   getPageStatus,
   PAGE_FILTERS,
@@ -381,27 +382,14 @@ function syncBrowseLocation(state) {
 function buildPagesScopeControl(state, workspaceLocked) {
   const locked = workspaceLocked || state.contentLoading;
   const isTree = state.pageScope === 'tree';
-  const card = el('div', 'bulk-pp-pages-scope-card');
-  card.setAttribute('role', 'group');
-  card.setAttribute('aria-label', 'Page scope');
-
-  const head = el('div', 'bulk-pp-pages-scope-head');
-  head.append(
-    el('span', 'bulk-pp-pages-scope-title', 'Page scope'),
-    el(
-      'span',
-      'bulk-pp-pages-scope-hint',
-      isTree
-        ? 'Lists pages in this folder and all nested folders.'
-        : 'Lists pages directly in this folder only.',
-    ),
-  );
-  card.append(head);
+  const wrap = el('div', 'bulk-pp-pages-scope-inline');
+  wrap.setAttribute('role', 'group');
+  wrap.setAttribute('aria-label', 'Page scope');
 
   const segment = el('div', 'bulk-pp-pages-scope-segment');
   const folderBtn = el('button', 'bulk-pp-pages-scope-segment-btn');
   folderBtn.type = 'button';
-  folderBtn.textContent = 'This folder only';
+  folderBtn.textContent = 'This folder';
   folderBtn.disabled = locked;
   folderBtn.classList.toggle('bulk-pp-pages-scope-segment-btn-active', !isTree);
   folderBtn.setAttribute('aria-pressed', isTree ? 'false' : 'true');
@@ -421,8 +409,8 @@ function buildPagesScopeControl(state, workspaceLocked) {
   });
 
   segment.append(folderBtn, treeBtn);
-  card.append(segment);
-  return card;
+  wrap.append(segment);
+  return wrap;
 }
 
 /**
@@ -573,7 +561,7 @@ function buildPageListColumnHeader(state) {
     cb,
     el('span', 'bulk-pp-list-colhead-icon'),
     el('span', 'bulk-pp-list-colhead-name', 'Name'),
-    el('span', 'bulk-pp-list-colhead-modified', 'Last deployed'),
+    el('span', 'bulk-pp-list-colhead-modified', formatLastDeployedColumnLabel()),
     el('span', 'bulk-pp-list-colhead-actions'),
   );
   return head;
@@ -1385,9 +1373,13 @@ function buildPagesHeader(state, workspaceLocked, statusTools = null) {
   locationBlock.append(
     el('h3', 'bulk-pp-pages-location-title', 'Page location'),
     breadcrumb,
+  );
+  const locationFoot = el('div', 'bulk-pp-pages-location-foot');
+  locationFoot.append(
     buildPagesLocationMeta(state),
     buildPagesScopeControl(state, workspaceLocked),
   );
+  locationBlock.append(locationFoot);
   mainSection.append(locationBlock);
 
   const aside = el('div', 'bulk-pp-pages-header-aside bulk-pp-pages-header-panel');
@@ -1564,6 +1556,67 @@ async function runRemovePartitionJob(
     state.jobAbort?.signal,
   );
   return resolveJobOutcome(finalJob);
+}
+
+/**
+ * @param {string[]} paths
+ * @param {Record<string, { previewedAt?: number, publishedAt?: number }>} platformStatus
+ */
+function pathsNeedingPreviewBeforePublish(paths, platformStatus) {
+  return paths.filter((path) => {
+    const entry = platformStatus[path];
+    return !entry?.previewedAt;
+  });
+}
+
+/**
+ * @param {ReturnType<typeof createAppState>} state
+ * @param {Function} daFetch
+ * @param {'preview'|'live'} topic
+ * @param {string[]} paths
+ * @param {string} [phaseLabel]
+ */
+async function runBulkDeployJob(state, daFetch, topic, paths, phaseLabel = '') {
+  const bulkResp = await startBulkJob(
+    daFetch,
+    state.org,
+    state.site,
+    state.ref,
+    topic,
+    paths,
+  );
+  if (state.jobAbort?.signal.aborted) {
+    return { statusType: /** @type {const} */ ('info'), message: 'cancelled', finalJob: null };
+  }
+
+  const jobUrl = getJobPollUrl(
+    bulkResp,
+    state.org,
+    state.site,
+    state.ref,
+    topic,
+  );
+  if (!jobUrl) {
+    return {
+      statusType: /** @type {const} */ ('success'),
+      message: `scheduled (${paths.length} page${paths.length === 1 ? '' : 's'})`,
+      finalJob: bulkResp,
+    };
+  }
+
+  const finalJob = await pollJob(
+    daFetch,
+    jobUrl,
+    (job) => {
+      if (state.jobAbort?.signal.aborted) return;
+      applyJobProgress(state, paths, phaseLabel, job);
+    },
+    state.jobAbort?.signal,
+  );
+  if (state.jobAbort?.signal.aborted) {
+    return { statusType: /** @type {const} */ ('info'), message: 'cancelled', finalJob: null };
+  }
+  return { ...resolveJobOutcome(finalJob), finalJob };
 }
 
 /**
@@ -2984,93 +3037,94 @@ async function main() {
     const action = topic === 'live' ? 'Bulk publish' : 'Bulk preview';
 
     try {
-      const bulkResp = await startBulkJob(
-        daFetch,
-        state.org,
-        state.site,
-        state.ref,
-        topic,
-        paths,
-      );
-      if (state.jobAbort?.signal.aborted) return;
-
-      const jobUrl = getJobPollUrl(
-        bulkResp,
-        state.org,
-        state.site,
-        state.ref,
-        topic,
-      );
-      if (!jobUrl) {
-        const urls = buildUrlsForPaths(
-          paths,
-          state.org,
-          state.site,
-          state.ref,
-          env,
-        );
-        const summary = topic === 'live'
-          ? `Bulk publish scheduled (${paths.length} paths).`
-          : `Bulk preview scheduled (${paths.length} paths).`;
-        state.statusType = 'success';
-        state.status = null;
-        updateJobModal({
-          jobStartedAt: state.jobStartedAt,
-          processed: paths.length,
-          total: paths.length,
-          failed: 0,
-          stateLabel: 'complete',
-        });
-        await refreshPlatformStatusAfterJob(state, daFetch, paths, topic);
-        showJobCompleteModal({
-          summary,
-          topic,
-          urls,
-          host,
-          onClose: () => finishProgressModal(state),
-        });
-        return;
+      /** @type {string[]} */
+      let previewFirst = [];
+      if (topic === 'live') {
+        previewFirst = pathsNeedingPreviewBeforePublish(paths, state.platformStatus);
+        if (previewFirst.length > 0) {
+          const previewPhase = previewFirst.length === paths.length
+            ? 'Step 1 of 2 · Preview before publish'
+            : `Step 1 of 2 · Preview ${previewFirst.length} page${previewFirst.length === 1 ? '' : 's'} before publish`;
+          state.jobProgressProcessed = 0;
+          state.jobProgressTotal = previewFirst.length;
+          updateJobModal({
+            jobStartedAt: state.jobStartedAt,
+            processed: 0,
+            total: previewFirst.length,
+            failed: 0,
+            stateLabel: 'running',
+            phaseLabel: previewPhase,
+          });
+          const previewOutcome = await runBulkDeployJob(
+            state,
+            daFetch,
+            'preview',
+            previewFirst,
+            previewPhase,
+          );
+          if (state.jobAbort?.signal.aborted) return;
+          if (previewOutcome.statusType === 'error') {
+            const previewMessage = `Preview before publish ${previewOutcome.message}`;
+            state.status = previewMessage;
+            state.statusType = 'error';
+            showJobErrorModal({
+              message: previewMessage,
+              topic: 'preview',
+              hint: permissionErrorHint(0, previewMessage),
+              onClose: () => finishProgressModal(state),
+            });
+            return;
+          }
+          await refreshPlatformStatusAfterJob(state, daFetch, previewFirst, 'preview');
+          state.jobProgressProcessed = 0;
+          state.jobProgressTotal = paths.length;
+          updateJobModal({
+            jobStartedAt: state.jobStartedAt,
+            processed: 0,
+            total: paths.length,
+            failed: 0,
+            stateLabel: 'running',
+            phaseLabel: 'Step 2 of 2 · Publish',
+          });
+        }
       }
 
-      const finalJob = await pollJob(
+      const publishPhase = previewFirst.length > 0 ? 'Step 2 of 2 · Publish' : '';
+      const deployOutcome = await runBulkDeployJob(
+        state,
         daFetch,
-        jobUrl,
-        (job) => {
-          if (state.jobAbort?.signal.aborted) return;
-          const progress = job.progress || job.job?.progress;
-          if (progress && typeof progress === 'object') {
-            const { total, processed, failed } =
-              /** @type {{ total?: number, processed?: number, failed?: number }} */ (
-                progress
-              );
-            const proc = Number(processed ?? 0);
-            const tot = Number(total ?? paths.length);
-            state.jobProgressProcessed = proc;
-            state.jobProgressTotal = tot || paths.length;
-            updateJobModal({
-              jobStartedAt: state.jobStartedAt,
-              processed: proc,
-              total: tot || paths.length,
-              failed: Number(failed ?? 0),
-              stateLabel: String(job.state || job.job?.state || 'running'),
-            });
-          }
-        },
-        state.jobAbort?.signal,
+        topic,
+        paths,
+        publishPhase,
       );
-
       if (state.jobAbort?.signal.aborted) return;
+      if (deployOutcome.message === 'cancelled') return;
 
-      const outcome = resolveJobOutcome(finalJob);
+      const { finalJob } = deployOutcome;
+      const outcome = {
+        statusType: deployOutcome.statusType,
+        message: deployOutcome.message,
+      };
       const statusMessage = `${action} ${outcome.message}`;
       state.statusType = outcome.statusType;
       state.status = outcome.statusType === 'error' ? statusMessage : null;
 
       let urls = [];
-      if (outcome.statusType === 'success') {
-        urls = buildUrlsForPaths(paths, state.org, state.site, state.ref, env);
+      if (outcome.statusType === 'success' || outcome.statusType === 'info') {
+        if (outcome.statusType === 'success') {
+          urls = buildUrlsForPaths(paths, state.org, state.site, state.ref, env);
+        }
         await refreshPlatformStatusAfterJob(state, daFetch, paths, topic);
       }
+
+      updateJobModal({
+        jobStartedAt: state.jobStartedAt,
+        processed: paths.length,
+        total: paths.length,
+        failed: 0,
+        stateLabel: 'complete',
+        phaseLabel: publishPhase,
+      });
 
       state.jobDetail = outcome.statusType === 'error'
         || new URLSearchParams(window.location.search).has('debug')
@@ -3085,8 +3139,11 @@ async function main() {
           onClose: () => finishProgressModal(state),
         });
       } else {
+        const summary = previewFirst.length > 0 && topic === 'live'
+          ? `Published ${paths.length} page${paths.length === 1 ? '' : 's'} (${previewFirst.length} previewed first).`
+          : statusMessage;
         showJobCompleteModal({
-          summary: statusMessage,
+          summary,
           topic,
           urls,
           host,

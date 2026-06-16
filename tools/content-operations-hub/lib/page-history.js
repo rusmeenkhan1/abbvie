@@ -223,14 +223,21 @@ export function formatUtcOffset(date) {
 export function formatStatusDate(ts) {
   if (!ts) return '';
   const dt = new Date(ts);
-  const formatted = dt.toLocaleString(undefined, {
+  return dt.toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
   });
-  return `${formatted} ${formatUtcOffset(dt)}`;
+}
+
+/**
+ * Column header for the last-deployed date column (UTC shown once for all rows).
+ * @returns {string}
+ */
+export function formatLastDeployedColumnLabel() {
+  return `Last deployed (${formatUtcOffset(new Date())})`;
 }
 
 /**
