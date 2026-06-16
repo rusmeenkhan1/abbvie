@@ -102,7 +102,7 @@ html:has(.bulk-pp-body) {
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
-  padding: 8px 16px 0;
+  padding: 8px 16px 12px;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -332,17 +332,6 @@ html:has(.bulk-pp-body) {
   inset: 0;
   background:
     radial-gradient(ellipse 60% 120% at 100% 0%, rgb(0 102 245 / 18%) 0%, transparent 55%);
-  pointer-events: none;
-}
-
-.bulk-pp-header::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #eb1000 0%, #eb1000 32px, rgb(255 255 255 / 20%) 32px);
   pointer-events: none;
 }
 
@@ -937,6 +926,7 @@ html:has(.bulk-pp-body) {
 .bulk-pp-selection-strip-anchor {
   position: relative;
   z-index: 2;
+  flex: 0 0 auto;
   flex-shrink: 0;
   width: 100%;
   padding: 0;
@@ -980,16 +970,15 @@ html:has(.bulk-pp-body) {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px 16px;
-  min-height: 52px;
-  padding: 8px 12px;
-  border-radius: 0;
+  gap: 10px 14px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border-radius: 0 0 calc(var(--pp-radius-sm) - 1px) calc(var(--pp-radius-sm) - 1px);
   background: var(--pp-command-bg);
   color: var(--pp-command-text);
   border: none;
   border-top: 1px solid var(--pp-command-border);
-  box-shadow: none;
-  backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
   pointer-events: auto;
 }
 
@@ -1103,6 +1092,8 @@ html:has(.bulk-pp-body) {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .bulk-pp-selection-strip-group {
@@ -1169,14 +1160,14 @@ html:has(.bulk-pp-body) {
   border-color: var(--pp-blue);
   color: #fff;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgb(0 102 245 / 35%);
+  box-shadow: none;
 }
 
 .bulk-pp-selection-strip-btn-primary:hover:not(:disabled) {
   background: var(--pp-blue-hover);
   border-color: var(--pp-blue-hover);
   color: #fff;
-  box-shadow: 0 4px 12px rgb(0 102 245 / 40%);
+  box-shadow: none;
 }
 
 .bulk-pp-selection-strip-btn-deploy {
@@ -2313,6 +2304,7 @@ html:has(.bulk-pp-body) {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  isolation: isolate;
 }
 
 .bulk-pp-content-section-pages .bulk-pp-pages-controls {
@@ -2320,8 +2312,8 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-list-wrap-fill {
-  flex: 1 1 auto;
-  min-height: calc(var(--pp-page-row-height) * var(--pp-page-list-min-rows));
+  flex: 1 1 0;
+  min-height: 0;
   max-height: none;
   overflow: hidden;
   display: flex;
