@@ -669,7 +669,7 @@ function buildPageRow(
   );
   const multiSelected = getActiveSelectionCount(state) > 1;
   const daDisabled = interactionsLocked || multiSelected;
-  const daLink = el('a', 'bulk-pp-btn bulk-pp-btn-open-da', 'da');
+  const daLink = el('a', 'bulk-pp-btn bulk-pp-btn-open-da', 'DA');
   daLink.dataset.href = daUrl;
   if (daDisabled) {
     daLink.classList.add('bulk-pp-btn-open-da-disabled');
@@ -2542,9 +2542,7 @@ function startStatusCheck(
       state.statusProgressTotal = pathsToCheck.length;
       state.statusFetchedAt = Date.now();
       state.statusFetchedFromCache = false;
-      state.status = forceRefresh
-        ? 'Fetched the latest deployment status from server.'
-        : null;
+      state.status = null;
       state.statusType = 'info';
       refreshDeploymentUi(state);
       finishStatusFetch(state);
