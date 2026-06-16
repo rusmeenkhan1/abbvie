@@ -5,15 +5,8 @@ import {
 import { resolveContentFolderPath } from './paths.js';
 
 /** @typedef {{ kind: 'folder', name: string, folderPath: string }} FolderEntry */
-/** @typedef {{
- *   kind: 'document',
- *   helixPath: string,
- *   sourcePath: string,
- *   name: string,
- * }} DocumentEntry */
-/** @typedef {
- *   'preview'|'live'|'unpreview'|'unpublish'|'delete'|'open-da'|'open-preview'|'open-live'
- * } PageOperationId */
+/** @typedef {{ kind: 'document', helixPath: string, sourcePath: string, name: string }} DocumentEntry */
+/** @typedef {'preview'|'live'|'unpreview'|'unpublish'|'delete'|'open-da'|'open-preview'|'open-live'} PageOperationId */
 
 export const SEARCH_MIN_LEN = 3;
 
@@ -92,6 +85,53 @@ export function createAppState(ctx) {
 }
 
 /**
+ * Full reset on browser reload — empty workspace.
+ * @param {ReturnType<typeof createAppState>} state
+ */
+export function resetWorkspace(state) {
+  state.folderPath = '';
+  state.pageScope = 'folder';
+  state.loading = false;
+  state.contentLoading = false;
+  state.initialContentLoaded = false;
+  state.firstSessionLoad = true;
+  state.statusFetchBackground = false;
+  state.hasCompletedInitialStatusFetch = false;
+  state.error = null;
+  state.status = null;
+  state.statusType = 'info';
+  state.jobDetail = null;
+  state.pageFilter = 'all';
+  state.pageSearch = '';
+  state.folderSearch = '';
+  state.statusFetched = false;
+  state.platformStatus = {};
+  state.statusCheckFailed = false;
+  state.statusError = null;
+  state.statusChecking = false;
+  state.statusRevalidating = false;
+  state.statusCancelled = false;
+  state.statusProgressDone = 0;
+  state.statusProgressTotal = 0;
+  state.statusFetchedAt = null;
+  state.statusFetchedFromCache = false;
+  state.statusFetchStartedAt = null;
+  state.statusPanelNote = null;
+  state.jobStartedAt = null;
+  state.jobProgressProcessed = 0;
+  state.jobProgressTotal = 0;
+  state.jobTopic = null;
+  state.folders = [];
+  state.folderTreeCache = {};
+  state.expandedFolders = new Set(['']);
+  state.folderTreeLoading = new Set();
+  state.pages = [];
+  state.selected.clear();
+  cancelStatusCheck(state, false);
+  cancelBulkJob(state, false);
+}
+
+/**
  * @param {ReturnType<typeof createAppState>} state
  * @param {boolean} [setMessage]
  */
@@ -153,8 +193,7 @@ export function resetPagesViewState(state) {
 }
 
 /**
- * Clears selection, filters, search, and the preview/publish checkbox
- * after a page operation starts.
+ * Clears selection, filters, search, and the preview/publish checkbox after a page operation starts.
  * @param {ReturnType<typeof createAppState>} state
  */
 export function clearPageWorkspaceAfterOperation(state) {
@@ -162,54 +201,6 @@ export function clearPageWorkspaceAfterOperation(state) {
   state.pageFilter = 'all';
   state.pageSearch = '';
   state.folderSearch = '';
-}
-
-/**
- * Full reset on browser reload.
- * Empty workspace plus cleared in-flight operations.
- * @param {ReturnType<typeof createAppState>} state
- */
-export function resetWorkspace(state) {
-  state.folderPath = '';
-  state.pageScope = 'folder';
-  state.loading = false;
-  state.contentLoading = false;
-  state.initialContentLoaded = false;
-  state.firstSessionLoad = true;
-  state.statusFetchBackground = false;
-  state.hasCompletedInitialStatusFetch = false;
-  state.error = null;
-  state.status = null;
-  state.statusType = 'info';
-  state.jobDetail = null;
-  state.pageFilter = 'all';
-  state.pageSearch = '';
-  state.folderSearch = '';
-  state.statusFetched = false;
-  state.platformStatus = {};
-  state.statusCheckFailed = false;
-  state.statusError = null;
-  state.statusChecking = false;
-  state.statusRevalidating = false;
-  state.statusCancelled = false;
-  state.statusProgressDone = 0;
-  state.statusProgressTotal = 0;
-  state.statusFetchedAt = null;
-  state.statusFetchedFromCache = false;
-  state.statusFetchStartedAt = null;
-  state.statusPanelNote = null;
-  state.jobStartedAt = null;
-  state.jobProgressProcessed = 0;
-  state.jobProgressTotal = 0;
-  state.jobTopic = null;
-  state.folders = [];
-  state.folderTreeCache = {};
-  state.expandedFolders = new Set(['']);
-  state.folderTreeLoading = new Set();
-  state.pages = [];
-  state.selected.clear();
-  cancelStatusCheck(state, false);
-  cancelBulkJob(state, false);
 }
 
 /**

@@ -188,8 +188,8 @@ function extractJobFailureDetail(job) {
   push(job.error);
   const progress = job.progress || job.job?.progress;
   if (progress && typeof progress === 'object') {
-    const { errors = [] } = /** @type {{ errors?: unknown[] }} */ (progress);
     push(/** @type {{ message?: string }} */ (progress).message);
+    const errors = /** @type {{ errors?: unknown[] }} */ (progress).errors;
     if (Array.isArray(errors)) {
       errors.slice(0, 3).forEach((item) => {
         if (typeof item === 'string') push(item);
@@ -224,7 +224,7 @@ function extractJobFailureDetail(job) {
 export function assertAdminContext(org, site, ref) {
   if (!org || !site) {
     throw new Error(
-      `Missing org, site, or ref for AEM Admin API (got org="${org}", site="${site}", ref="${ref}"). ${DA_SITE_CONTEXT_MESSAGE}`,
+      `Missing org or site for AEM Admin API (got org="${org}", site="${site}"). ${DA_SITE_CONTEXT_MESSAGE}`,
     );
   }
 }
@@ -645,9 +645,7 @@ export async function deleteDaSourceDocument(
  * @param {string} org
  * @param {string} repo
  * @param {DaPageRef[]} pages
- * @param {(
- *   opts: { processed: number, total: number, failed: number, currentPath?: string },
- * ) => void} [onProgress]
+ * @param {(opts: { processed: number, total: number, failed: number, currentPath?: string }) => void} [onProgress]
  * @param {AbortSignal} [signal]
  */
 export async function deleteDaDocumentsSequential(
@@ -724,7 +722,6 @@ export async function runBulkRemoveJob(
   });
   if (signal?.aborted) throw new DOMException('Job cancelled', 'AbortError');
 
-  // eslint-disable-next-line no-use-before-define
   const jobUrl = getJobPollUrl(bulkResp, org, site, ref, topic);
   if (!jobUrl) {
     return {
@@ -733,7 +730,6 @@ export async function runBulkRemoveJob(
     };
   }
 
-  // eslint-disable-next-line no-use-before-define
   return pollJob(daFetch, jobUrl, onProgress, signal);
 }
 
@@ -762,33 +758,6 @@ async function fetchJobDetails(daFetch, jobUrl) {
   return null;
 }
 
-/**
- * Resolve job self link from bulk response.
- * @param {Record<string, unknown>} bulkResponse
- * @param {string} org
- * @param {string} site
- * @param {string} ref
- * @param {'preview'|'live'|'status'} topic
- * @returns {string|null}
- */
-export function getJobPollUrl(bulkResponse, org, site, ref, topic) {
-  const { links, job } = bulkResponse || {};
-  if (links && typeof links === 'object') {
-    const { self } = /** @type {{ self?: string }} */ (links);
-    if (self) return resolveAdminUrl(self);
-  }
-
-  if (job && typeof job === 'object') {
-    const { name, topic: jobTopic } = /** @type {{ name?: string, topic?: string }} */ (job);
-    const resolvedTopic = jobTopic || topic;
-    if (name && resolvedTopic) {
-      return `${adminApiBase}/job/${org}/${site}/${ref}/${resolvedTopic}/${name}`;
-    }
-  }
-
-  return null;
-}
-
 export async function pollJob(
   daFetch,
   jobUrl,
@@ -814,22 +783,23 @@ export async function pollJob(
       if (notFoundCount >= 2) return last || { state: 'stopped' };
       await sleep(1000);
       if (signal?.aborted) throw new DOMException('Job cancelled', 'AbortError');
-    } else {
-      if (resp.status === 401 || resp.status === 403) {
-        const data = await parseJson(resp);
-        const msg = formatAdminApiError(data, resp.status)
-          || `Not authorized to track this job (${resp.status})`;
-        throw createApiError(msg, resp.status, data);
-      }
+      continue;
+    }
 
-      notFoundCount = 0;
+    if (resp.status === 401 || resp.status === 403) {
       const data = await parseJson(resp);
-      if (data) {
-        last = /** @type {Record<string, unknown>} */ (data);
-        if (onProgress) onProgress(last);
-        const state = last.state || last.job?.state;
-        if (state && terminal.has(String(state))) return last;
-      }
+      const msg = formatAdminApiError(data, resp.status)
+        || `Not authorized to track this job (${resp.status})`;
+      throw createApiError(msg, resp.status, data);
+    }
+
+    notFoundCount = 0;
+    const data = await parseJson(resp);
+    if (data) {
+      last = /** @type {Record<string, unknown>} */ (data);
+      if (onProgress) onProgress(last);
+      const state = last.state || last.job?.state;
+      if (state && terminal.has(String(state))) return last;
     }
     await sleep(pollMs);
     if (signal?.aborted) throw new DOMException('Job cancelled', 'AbortError');
@@ -888,20 +858,38 @@ export function resolveJobOutcome(job) {
 }
 
 /**
+ * Resolve job self link from bulk response.
+ * @param {Record<string, unknown>} bulkResponse
+ * @param {string} org
+ * @param {string} site
+ * @param {string} ref
+ * @param {'preview'|'live'} topic
+ * @returns {string|null}
+ */
+export function getJobPollUrl(bulkResponse, org, site, ref, topic) {
+  const { links, job } = bulkResponse || {};
+  if (links && typeof links === 'object') {
+    const { self } = /** @type {{ self?: string }} */ (links);
+    if (self) return resolveAdminUrl(self);
+  }
+
+  if (job && typeof job === 'object') {
+    const { name, topic: jobTopic } =
+      /** @type {{ name?: string, topic?: string }} */ (job);
+    const resolvedTopic = jobTopic || topic;
+    if (name && resolvedTopic) {
+      return `${adminApiBase}/job/${org}/${site}/${ref}/${resolvedTopic}/${name}`;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Path keys to try for GET /status/{org}/{site}/{ref}/{path segments…}
  * @param {string} helixPath
  * @returns {string[]}
  */
-function normalizeWebPath(path) {
-  if (!path) return '/';
-  let p = decodeHelixPath(String(path).trim());
-  if (p.endsWith('.html')) p = p.slice(0, -5);
-  if (p.endsWith('.md')) p = p.slice(0, -3);
-  p = p.startsWith('/') ? p : `/${p}`;
-  if (p.length > 1 && p.endsWith('/')) return p.slice(0, -1);
-  return p || '/';
-}
-
 function helixPathToStatusPathKeys(helixPath) {
   const decoded = decodeHelixPath(helixPath);
   const norm = normalizeWebPath(decoded);
@@ -969,9 +957,10 @@ function partitionTimestamp(partition) {
   const status = Number(/** @type {{ status?: number }} */ (partition).status);
   if (status === 404) return undefined;
   if (status && status >= 400) return undefined;
-  /** @type {{ lastModified?: string, contentBusId?: string, url?: string }} */
-  const partitionData = partition;
-  const { lastModified: lm } = partitionData;
+  const lm =
+    /** @type {{ lastModified?: string, contentBusId?: string, url?: string }} */ (
+      partition
+    ).lastModified;
   if (lm) {
     const ts = Date.parse(String(lm));
     if (!Number.isNaN(ts)) return ts;
@@ -988,9 +977,10 @@ function partitionTimestamp(partition) {
  */
 function parseStatusPayload(data) {
   if (!data || typeof data !== 'object') return {};
-  /** @type {{ preview?: Record<string, unknown>, live?: Record<string, unknown> }} */
-  const statusData = data;
-  const { preview, live } = statusData;
+  const { preview, live } = /** @type {{
+    preview?: Record<string, unknown>,
+    live?: Record<string, unknown>,
+  }} */ (data);
   /** @type {{ previewedAt?: number, publishedAt?: number }} */
   const entry = {};
   const previewTs = partitionTimestamp(preview);
@@ -1163,7 +1153,8 @@ async function fetchHardcodedIndexStatus(daFetch, org, site, ref) {
     }
     if (resp.ok && data) {
       const parsed = parseStatusPayload(data);
-      const previewPart = /** @type {Record<string, unknown>} */ (data).preview || data;
+      const previewPart =
+        /** @type {Record<string, unknown>} */ (data).preview || data;
       entry.previewedAt = parsed.previewedAt || partitionTimestamp(previewPart);
     }
   } catch (err) {
@@ -1209,50 +1200,6 @@ function mergeStatusTimestamps(a, b) {
     previewedAt: a.previewedAt || b.previewedAt,
     publishedAt: a.publishedAt || b.publishedAt,
   };
-}
-
-/**
- * @param {unknown} data
- * @returns {{ previewedAt?: number, publishedAt?: number }}
- */
-function entryFromPreviewBody(data) {
-  if (!data || typeof data !== 'object') return {};
-  const parsed = parseStatusPayload(data);
-  const previewPart = /** @type {Record<string, unknown>} */ (data).preview || data;
-  const previewTs = partitionTimestamp(previewPart);
-  if (previewTs) {
-    return {
-      previewedAt: parsed.previewedAt || previewTs,
-      publishedAt: parsed.publishedAt,
-    };
-  }
-  if (Number(/** @type {{ status?: number }} */ (previewPart).status) === 200) {
-    return {
-      previewedAt: parsed.previewedAt || Date.now(),
-      publishedAt: parsed.publishedAt,
-    };
-  }
-  return parsed;
-}
-
-/**
- * Follow links.status from a preview response (same pattern as site index).
- * @param {Function} daFetch
- * @param {unknown} data
- */
-async function fetchLinkedStatusFromPreview(daFetch, data) {
-  if (!data || typeof data !== 'object') return {};
-  const { links } = /** @type {{ links?: { status?: string } }} */ (data);
-  const statusUrl = links?.status;
-  if (!statusUrl || typeof statusUrl !== 'string') return {};
-  try {
-    const resp = await daFetchWithRetry(daFetch, statusUrl, { method: 'GET' });
-    const json = await parseJson(resp);
-    if (resp.ok && json) return parseStatusPayload(json);
-  } catch {
-    // ignore
-  }
-  return {};
 }
 
 /**
@@ -1415,6 +1362,64 @@ async function fetchSinglePagePlatformStatus(
 }
 
 /**
+ * @param {string} path
+ */
+function normalizeWebPath(path) {
+  if (!path) return '/';
+  let p = decodeHelixPath(String(path).trim());
+  if (p.endsWith('.html')) p = p.slice(0, -5);
+  if (p.endsWith('.md')) p = p.slice(0, -3);
+  p = p.startsWith('/') ? p : `/${p}`;
+  if (p.length > 1 && p.endsWith('/')) return p.slice(0, -1);
+  return p || '/';
+}
+
+/**
+ * @param {unknown} data
+ * @returns {{ previewedAt?: number, publishedAt?: number }}
+ */
+function entryFromPreviewBody(data) {
+  if (!data || typeof data !== 'object') return {};
+  const parsed = parseStatusPayload(data);
+  const previewPart =
+    /** @type {Record<string, unknown>} */ (data).preview || data;
+  const previewTs = partitionTimestamp(previewPart);
+  if (previewTs) {
+    return {
+      previewedAt: parsed.previewedAt || previewTs,
+      publishedAt: parsed.publishedAt,
+    };
+  }
+  if (Number(/** @type {{ status?: number }} */ (previewPart).status) === 200) {
+    return {
+      previewedAt: parsed.previewedAt || Date.now(),
+      publishedAt: parsed.publishedAt,
+    };
+  }
+  return parsed;
+}
+
+/**
+ * Follow links.status from a preview response (same pattern as site index).
+ * @param {Function} daFetch
+ * @param {unknown} data
+ */
+async function fetchLinkedStatusFromPreview(daFetch, data) {
+  if (!data || typeof data !== 'object') return {};
+  const links = /** @type {{ status?: string }} */ (data).links;
+  const statusUrl = links?.status;
+  if (!statusUrl || typeof statusUrl !== 'string') return {};
+  try {
+    const resp = await daFetchWithRetry(daFetch, statusUrl, { method: 'GET' });
+    const json = await parseJson(resp);
+    if (resp.ok && json) return parseStatusPayload(json);
+  } catch {
+    // ignore
+  }
+  return {};
+}
+
+/**
  * @param {unknown} jobData
  * @returns {Array<Record<string, unknown>>}
  */
@@ -1434,11 +1439,11 @@ function extractStatusResources(jobData) {
       if (!Array.isArray(bucket)) return;
       bucket.forEach((item) => {
         if (typeof item === 'string') {
-          merged.push({ webPath: item, bucketType: key });
+          merged.push({ webPath: item, _bucket: key });
         } else if (item && typeof item === 'object') {
           merged.push({
             ...(item),
-            bucketType: key,
+            _bucket: key,
           });
         }
       });
@@ -1469,16 +1474,14 @@ function entryFromStatusRow(row) {
     );
     if (!Number.isNaN(ts)) entry.publishedAt = ts;
   }
-  const bucket = String(row.bucketType || '');
+  const bucket = String(row._bucket || '');
   if (bucket === 'live' && !entry.publishedAt) {
     const livePart = row.live && typeof row.live === 'object' ? row.live : row;
     const liveTs = partitionTimestamp(livePart);
     if (liveTs) entry.publishedAt = liveTs;
   }
   if (bucket === 'preview' && !entry.previewedAt) {
-    const previewPart = row.preview && typeof row.preview === 'object'
-      ? row.preview
-      : row;
+    const previewPart = row.preview && typeof row.preview === 'object' ? row.preview : row;
     const previewTs = partitionTimestamp(previewPart);
     if (previewTs) entry.previewedAt = previewTs;
   }
@@ -1516,10 +1519,7 @@ function mapStatusJobToEntries(jobData, helixPaths) {
         : { previewedAt: Date.now() };
     } else if (item && typeof item === 'object') {
       const row = /** @type {Record<string, unknown>} */ (item);
-      patch = entryFromStatusRow({
-        ...row,
-        bucketType: bucket || row.bucketType,
-      });
+      patch = entryFromStatusRow({ ...row, _bucket: bucket || row._bucket });
     }
     mergeEntry(result, helix, patch);
   };
@@ -1529,7 +1529,7 @@ function mapStatusJobToEntries(jobData, helixPaths) {
       touchEntry(item, 'preview', null);
       return;
     }
-    const bucket = String(item.bucketType || '');
+    const bucket = String(item._bucket || '');
     touchEntry(
       String(item.webPath || item.path || item.resourcePath || ''),
       bucket,
@@ -1540,7 +1540,7 @@ function mapStatusJobToEntries(jobData, helixPaths) {
   walkStatusNodes(jobData, (row) => {
     const path = String(row.webPath || row.path || row.resourcePath || '');
     if (!path) return;
-    const bucket = String(row.bucketType || '');
+    const bucket = String(row._bucket || '');
     if (
       row.preview
       || row.live
@@ -1751,11 +1751,7 @@ async function fetchFolderWildcardPlatformStatus(
 }
 
 /**
- * @typedef {(
- *   partial: Record<string, { previewedAt?: number, publishedAt?: number }>,
- *   checked: number,
- *   total: number,
- * ) => void} StatusProgressFn
+ * @typedef {(partial: Record<string, { previewedAt?: number, publishedAt?: number }>, checked: number, total: number) => void} StatusProgressFn
  */
 
 /**
@@ -1765,10 +1761,7 @@ async function fetchFolderWildcardPlatformStatus(
  * @param {string} site
  * @param {string} ref
  * @param {string[]} helixPaths
- * @param {(
- *   partial: Record<string, { previewedAt?: number, publishedAt?: number }>,
- *   done: number,
- * ) => void} [onProgress]
+ * @param {(partial: Record<string, { previewedAt?: number, publishedAt?: number }>, done: number) => void} [onProgress]
  * @param {AbortSignal} [signal]
  */
 async function fetchStatusParallel(
@@ -1790,7 +1783,6 @@ async function fetchStatusParallel(
   const workers = Math.min(STATUS_PARALLEL_BATCH_SIZE, unique.length);
 
   const worker = async () => {
-    /* eslint-disable no-await-in-loop -- each worker processes one path at a time */
     while (nextIndex < unique.length) {
       if (signal?.aborted) throw new DOMException('Status check cancelled', 'AbortError');
       const path = unique[nextIndex];
@@ -1813,7 +1805,6 @@ async function fetchStatusParallel(
       done += 1;
       if (onProgress) onProgress({ [path]: result[path] }, done);
     }
-    /* eslint-enable no-await-in-loop */
   };
 
   await Promise.all(Array.from({ length: workers }, () => worker()));

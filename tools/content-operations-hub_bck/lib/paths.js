@@ -26,10 +26,9 @@ export function decodeHelixPath(path) {
 /** Helix bulk path → AEM web path (strip /index folder homepage suffix). */
 export function helixToWebPath(helixPath) {
   const decoded = decodeHelixPath(helixPath);
-  let norm = '/';
-  if (decoded && decoded !== '/') {
-    norm = decoded.startsWith('/') ? decoded : `/${decoded}`;
-  }
+  const norm = !decoded || decoded === '/' ? '/' : (
+    decoded.startsWith('/') ? decoded : `/${decoded}`
+  );
   if (norm === '/index' || norm.endsWith('/index')) {
     const parent = norm === '/index' ? '' : norm.slice(0, -'/index'.length);
     return parent || '/';
@@ -107,19 +106,6 @@ export function getContentType(item) {
   return String(item.contentType || item['content-type'] || '').toLowerCase();
 }
 
-/**
- * @param {Record<string, unknown>} item
- * @returns {string}
- */
-export function getEntryName(item) {
-  const name = String(item.name || '').replace(/\/$/, '');
-  if (name) return name;
-  const path = String(item.path || '');
-  if (!path) return '';
-  const segments = path.split('/').filter(Boolean);
-  return segments[segments.length - 1] || '';
-}
-
 export function isFolderEntry(item) {
   if (item.isFolder || item.folder) return true;
   const name = String(item.name || '');
@@ -189,6 +175,7 @@ export function isDataDocument(item) {
 export function isSectionFolder(item) {
   if (isFolderEntry(item)) return true;
   if (isDataDocument(item)) return false;
+  if (isPageDocument(item)) return false;
 
   const name = getEntryName(item);
   if (!name) return false;
@@ -204,6 +191,22 @@ export function isSectionFolder(item) {
   return true;
 }
 
+/**
+ * @typedef {'folder' | 'document' | 'data'} EntryKind
+ */
+
+/**
+ * Classify a DA list item the same way as DA Browse (folder / page / config).
+ * @param {Record<string, unknown>} item
+ * @returns {EntryKind | null}
+ */
+export function classifyEntry(item) {
+  if (isFolderEntry(item) || isSectionFolder(item)) return 'folder';
+  if (isDataDocument(item)) return 'data';
+  if (isPageDocument(item)) return 'document';
+  return null;
+}
+
 /** MIME types that are never bulk preview/publish pages */
 const NON_PAGE_CONTENT_TYPES = [
   'application/json',
@@ -217,6 +220,19 @@ const NON_PAGE_CONTENT_TYPES = [
 const NON_PAGE_EXTENSIONS = new Set([
   'json', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'pdf', 'mp4', 'webp', 'ico',
 ]);
+
+/**
+ * @param {Record<string, unknown>} item
+ * @returns {string}
+ */
+export function getEntryName(item) {
+  const name = String(item.name || '').replace(/\/$/, '');
+  if (name) return name;
+  const path = String(item.path || '');
+  if (!path) return '';
+  const segments = path.split('/').filter(Boolean);
+  return segments[segments.length - 1] || '';
+}
 
 /**
  * DA lists pages as documents (e.g. index, nav, footer) — not always *.html names.
@@ -254,22 +270,6 @@ export function isPageDocument(item) {
   }
 
   return false;
-}
-
-/**
- * @typedef {'folder' | 'document' | 'data'} EntryKind
- */
-
-/**
- * Classify a DA list item the same way as DA Browse (folder / page / config).
- * @param {Record<string, unknown>} item
- * @returns {EntryKind | null}
- */
-export function classifyEntry(item) {
-  if (isFolderEntry(item) || isSectionFolder(item)) return 'folder';
-  if (isDataDocument(item)) return 'data';
-  if (isPageDocument(item)) return 'document';
-  return null;
 }
 
 /**
@@ -341,14 +341,6 @@ export function helixPathToListKey(helixPath) {
 }
 
 /**
- * @param {string} path
- */
-function lastSegment(path) {
-  const parts = String(path || '').split('/').filter(Boolean);
-  return parts[parts.length - 1] || '';
-}
-
-/**
  * Label for the page list: path relative to the folder you are browsing.
  * Root: page1, ab/page4. Inside ab/: page4, bc/page3.
  * @param {string} helixPath
@@ -372,6 +364,14 @@ export function pageListDepth(relativePath) {
   const rel = String(relativePath || '');
   if (!rel) return 0;
   return (rel.match(/\//g) || []).length;
+}
+
+/**
+ * @param {string} path
+ */
+function lastSegment(path) {
+  const parts = String(path || '').split('/').filter(Boolean);
+  return parts[parts.length - 1] || '';
 }
 
 /**

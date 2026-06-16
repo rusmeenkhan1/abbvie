@@ -1,8 +1,4 @@
-/** @typedef {{
- *   previewedAt?: number,
- *   publishedAt?: number,
- *   checkedAt: number,
- * }} CachedStatusEntry */
+/** @typedef {{ previewedAt?: number, publishedAt?: number, checkedAt: number }} CachedStatusEntry */
 
 const STORAGE_KEY = 'bulk-pp-deployment-status-v1';
 const CACHE_VERSION = 1;
@@ -34,9 +30,7 @@ function readStore() {
     if (!parsed.sites || typeof parsed.sites !== 'object') {
       return { v: CACHE_VERSION, sites: {} };
     }
-    /** @type {{ v: number, sites: Record<string, Record<string, CachedStatusEntry>> }} */
-    const store = parsed;
-    return store;
+    return /** @type {{ v: number, sites: Record<string, Record<string, CachedStatusEntry>> }} */ (parsed);
   } catch {
     return { v: CACHE_VERSION, sites: {} };
   }
@@ -50,7 +44,6 @@ function writeStore(store) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
     return true;
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn('[bulk-pp] deployment status cache write failed', err);
     return false;
   }

@@ -21,12 +21,7 @@ function modalIds(kind) {
   };
 }
 
-/** @type {{
- *   kind: ProgressModalKind,
- *   backdrop: HTMLElement,
- *   panel: HTMLElement,
- *   ids: ReturnType<typeof modalIds>,
- * } | null} */
+/** @type {{ kind: ProgressModalKind, backdrop: HTMLElement, panel: HTMLElement, ids: ReturnType<typeof modalIds> } | null} */
 let modalRef = null;
 
 /**
@@ -441,17 +436,6 @@ function jobHeadErrorTitle(topic) {
 }
 
 /**
- * @param {JobTopic} topic
- */
-function jobStoppedTitle(topic) {
-  if (topic === 'delete') return 'Delete tracking stopped';
-  if (topic === 'unpublish') return 'Unpublish tracking stopped';
-  if (topic === 'unpreview') return 'Unpreview tracking stopped';
-  if (topic === 'live') return 'Publish tracking stopped';
-  return 'Preview tracking stopped';
-}
-
-/**
  * @param {{ message: string, topic: JobTopic, onClose: () => void, hint?: string }} opts
  */
 export function showJobErrorModal(opts) {
@@ -483,6 +467,15 @@ export function showJobCancelledModal(opts) {
     el('p', 'bulk-pp-status-modal-summary', message),
     actionRow([closeActionBtn(onClose)]),
   ]);
-  setHeadTitle(jobStoppedTitle(topic));
+  const headTitle = topic === 'delete'
+    ? 'Delete tracking stopped'
+    : topic === 'unpublish'
+      ? 'Unpublish tracking stopped'
+      : topic === 'unpreview'
+        ? 'Unpreview tracking stopped'
+        : topic === 'live'
+          ? 'Publish tracking stopped'
+          : 'Preview tracking stopped';
+  setHeadTitle(headTitle);
   hideHeaderCancel();
 }

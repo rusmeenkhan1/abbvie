@@ -58,15 +58,13 @@ export function showConfirmModal(opts) {
     backdrop.append(dialog);
     document.body.append(backdrop);
 
-    let onKey;
-
     const close = (result) => {
       backdrop.remove();
       document.removeEventListener('keydown', onKey);
       resolve(result);
     };
 
-    onKey = (e) => {
+    const onKey = (e) => {
       if (e.key === 'Escape') close(false);
     };
 
@@ -125,35 +123,6 @@ export function promptFolderLoadMode(folderLabel) {
     /** @type {HTMLButtonElement[]} */
     const segmentButtons = [];
 
-    const syncScopeSegment = () => {
-      segmentButtons.forEach((btn, index) => {
-        const value = index === 0 ? 'folder' : 'tree';
-        const active = selectedScope === value;
-        btn.classList.toggle('bulk-pp-modal-scope-segment-btn-active', active);
-        btn.setAttribute('aria-checked', active ? 'true' : 'false');
-      });
-    };
-
-    const scopeHint = el(
-      'p',
-      'bulk-pp-modal-scope-hint-line',
-      'Includes nested folders — may take longer.',
-    );
-    scopeHint.hidden = true;
-
-    const actions = el('div', 'bulk-pp-modal-choice-actions');
-
-    const updateScopeUi = () => {
-      const scopeText = selectedScope === 'tree'
-        ? 'Including all subfolders'
-        : 'This folder only';
-      scopeHint.hidden = selectedScope !== 'tree';
-      actions.querySelectorAll('.bulk-pp-modal-choice-btn-scope').forEach((node) => {
-        node.textContent = scopeText;
-      });
-      syncScopeSegment();
-    };
-
     /**
      * @param {'folder'|'tree'} value
      * @param {string} label
@@ -177,7 +146,16 @@ export function promptFolderLoadMode(folderLabel) {
       makeSegmentButton('tree', 'All subdirectories'),
     );
 
+    const scopeHint = el(
+      'p',
+      'bulk-pp-modal-scope-hint-line',
+      'Includes nested folders — may take longer.',
+    );
+    scopeHint.hidden = true;
+
     content.append(scopeSegment, scopeHint);
+
+    const actions = el('div', 'bulk-pp-modal-choice-actions');
 
     /**
      * @param {string} title
@@ -206,7 +184,25 @@ export function promptFolderLoadMode(folderLabel) {
     backdrop.append(dialog);
     document.body.append(backdrop);
 
-    let onKey;
+    const syncScopeSegment = () => {
+      segmentButtons.forEach((btn, index) => {
+        const value = index === 0 ? 'folder' : 'tree';
+        const active = selectedScope === value;
+        btn.classList.toggle('bulk-pp-modal-scope-segment-btn-active', active);
+        btn.setAttribute('aria-checked', active ? 'true' : 'false');
+      });
+    };
+
+    const updateScopeUi = () => {
+      const scopeText = selectedScope === 'tree'
+        ? 'Including all subfolders'
+        : 'This folder only';
+      scopeHint.hidden = selectedScope !== 'tree';
+      actions.querySelectorAll('.bulk-pp-modal-choice-btn-scope').forEach((node) => {
+        node.textContent = scopeText;
+      });
+      syncScopeSegment();
+    };
 
     const close = (result) => {
       backdrop.remove();
@@ -214,7 +210,7 @@ export function promptFolderLoadMode(folderLabel) {
       resolve(result);
     };
 
-    onKey = (e) => {
+    const onKey = (e) => {
       if (e.key === 'Escape') close(null);
     };
 
@@ -421,15 +417,13 @@ function showKeywordConfirmModal(opts) {
     backdrop.append(dialog);
     document.body.append(backdrop);
 
-    let onKey;
-
     const close = (result) => {
       backdrop.remove();
       document.removeEventListener('keydown', onKey);
       resolve(result);
     };
 
-    onKey = (e) => {
+    const onKey = (e) => {
       if (e.key === 'Escape') close(false);
       if (e.key === 'Enter' && !proceedBtn.disabled) close(true);
     };
