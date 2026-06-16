@@ -24,13 +24,13 @@ function syncPageRowDaLinks(root, state) {
       linkEl.setAttribute('aria-disabled', 'true');
       linkEl.removeAttribute('href');
       linkEl.title = multi
-        ? 'Use More → Open in Document Authoring when multiple pages are selected'
+        ? 'Use More → Open in DA when multiple pages are selected'
         : 'Unavailable while status is loading';
     } else {
       linkEl.classList.remove('bulk-pp-btn-open-da-disabled');
       linkEl.removeAttribute('aria-disabled');
       if (href) linkEl.href = href;
-      linkEl.title = 'Open this page in Document Authoring';
+      linkEl.title = 'Open this page in DA';
     }
   });
 }

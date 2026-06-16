@@ -79,13 +79,13 @@ export function formatDeploymentSummary(platformStatus, pageList) {
     historyMapFrom(platformStatus, pageList),
     pageList,
   );
-  return `${live} published · ${orphanedLive} published without preview · ${preview} preview only · ${none} draft (${pageList.length} total)`;
+  return `${live} published · ${orphanedLive} published without preview · ${preview} preview only · ${none} not deployed (${pageList.length} total)`;
 }
 
 /** @type {ReadonlyArray<[string, string]>} */
 export const PAGE_FILTERS = [
   ['all', 'All pages'],
-  ['never-previewed', 'Draft (not previewed)'],
+  ['never-previewed', 'Not deployed (not previewed)'],
   ['never-published', 'Not published'],
   ['preview-only', 'Preview only'],
   ['orphaned-live', 'Published without preview'],
@@ -272,5 +272,5 @@ export function formatStatusFetchedAt(ts) {
 export function statusLabel(status) {
   if (status === 'published') return 'Published';
   if (status === 'previewed') return 'Preview only';
-  return 'Draft';
+  return 'Not deployed';
 }

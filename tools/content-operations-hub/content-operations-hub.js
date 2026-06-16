@@ -181,7 +181,7 @@ const MORE_SELECTION_GROUPS = [
   {
     title: 'Open',
     items: [
-      { id: 'open-da', label: 'Open in Document Authoring' },
+      { id: 'open-da', label: 'Open in DA' },
       { id: 'open-preview', label: 'Open preview URLs (.page)' },
       { id: 'open-live', label: 'Open published URLs (.live)' },
     ],
@@ -196,14 +196,14 @@ const MORE_SELECTION_GROUPS = [
   {
     title: 'Unpublish',
     items: [
-      { id: 'unpreview', label: 'Remove from preview' },
-      { id: 'unpublish', label: 'Remove from publish' },
+      { id: 'unpreview', label: 'Unpreview' },
+      { id: 'unpublish', label: 'Unpublish' },
     ],
   },
   {
     title: 'Remove content',
     items: [
-      { id: 'delete', label: 'Delete from authoring', danger: true },
+      { id: 'delete', label: 'Delete from DA', danger: true },
     ],
   },
 ];
@@ -668,7 +668,7 @@ function buildPageRow(
     daLink.classList.add('bulk-pp-btn-open-da-disabled');
     daLink.setAttribute('aria-disabled', 'true');
     const disabledLabel = multiSelected
-      ? 'Use More → Open in Document Authoring when multiple pages are selected'
+      ? 'Use More → Open in DA when multiple pages are selected'
       : 'Unavailable while status is loading';
     setAccessibilityLabel(daLink, disabledLabel);
     daLink.addEventListener('click', (e) => {
@@ -679,7 +679,7 @@ function buildPageRow(
     daLink.href = daUrl;
     daLink.target = '_top';
     daLink.rel = 'noopener noreferrer';
-    setAccessibilityLabel(daLink, 'Open this page in Document Authoring');
+    setAccessibilityLabel(daLink, 'Open this page in DA');
     daLink.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1737,7 +1737,7 @@ function buildPagesStatusSummary(state) {
   const items = [
     ['live', live, 'Published'],
     ['preview', previewOnly, 'Preview only'],
-    ['none', none, 'Draft'],
+    ['none', none, 'Not deployed'],
     ['total', total, 'Total'],
   ];
   items.forEach(([mod, value, label]) => {
