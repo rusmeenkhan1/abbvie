@@ -785,7 +785,7 @@ html:has(.bulk-pp-body) {
   border-top: 1px solid rgb(7 29 73 / 10%);
 }
 
-/* —— Bottom selection command bar —— */
+/* —— Copy toast (anchored above selection strip) —— */
 .bulk-pp-selection-strip-anchor {
   position: fixed;
   bottom: 18px;
@@ -796,6 +796,30 @@ html:has(.bulk-pp-body) {
   box-sizing: border-box;
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+.bulk-pp-copy-toast {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  z-index: 860;
+  min-width: 240px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border-radius: var(--pp-radius-sm);
+  background: var(--pp-surface);
+  border: 1px solid var(--pp-border);
+  box-shadow: var(--pp-shadow-lg);
+  transform: translateX(-50%);
+  pointer-events: auto;
+  animation: bulk-pp-toast-in 0.22s ease-out;
+}
+
+.bulk-pp-copy-toast-fallback {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .bulk-pp-selection-strip-anchor:not([hidden]) {
@@ -1073,31 +1097,32 @@ html:has(.bulk-pp-body) {
   list-style: none;
 }
 
-/* —— Copy toast —— */
-.bulk-pp-copy-toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 10050;
-  min-width: 240px;
-  max-width: min(360px, calc(100vw - 32px));
-  padding: 14px 16px;
-  border-radius: var(--pp-radius-sm);
-  background: var(--pp-surface);
-  border: 1px solid var(--pp-border);
-  box-shadow: var(--pp-shadow-lg);
-  animation: bulk-pp-toast-in 0.22s ease-out;
-}
-
+/* —— Copy toast (detail styles) —— */
 @keyframes bulk-pp-toast-in {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateX(-50%) translateY(8px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.bulk-pp-copy-toast-fallback {
+  animation-name: bulk-pp-toast-in-fallback;
+}
+
+@keyframes bulk-pp-toast-in-fallback {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }
 
@@ -1314,7 +1339,7 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-pages-summary-preview .bulk-pp-pages-summary-value {
-  color: #b45309;
+  color: var(--pp-status-yellow);
 }
 
 .bulk-pp-pages-summary-none .bulk-pp-pages-summary-value {
@@ -1902,6 +1927,18 @@ html:has(.bulk-pp-body) {
   box-shadow: 0 0 0 1px rgb(255 255 255 / 90%);
 }
 
+.bulk-pp-legend-dot-untouched {
+  background: var(--pp-status-red);
+}
+
+.bulk-pp-legend-dot-previewed {
+  background: var(--pp-status-yellow);
+}
+
+.bulk-pp-legend-dot-published {
+  background: var(--pp-status-green);
+}
+
 .bulk-pp-status-note {
   margin: 0 0 12px;
   font-size: 0.78rem;
@@ -1927,21 +1964,18 @@ html:has(.bulk-pp-body) {
   min-height: 38px;
   margin: 0;
   padding: 10px 16px;
-  background-color: #eef2f8;
-  background-image: linear-gradient(180deg, #f4f7fc 0%, #eef2f8 100%);
+  background: #eef2f8;
   border: 1px solid var(--pp-border);
-  border-bottom: 1px solid var(--pp-border-strong);
+  border-bottom: none;
   border-radius: var(--pp-radius-sm) var(--pp-radius-sm) 0 0;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--pp-navy);
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  box-shadow: 0 2px 6px rgb(7 29 73 / 10%);
-  isolation: isolate;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
 }
 
 .bulk-pp-list-colhead-name,
@@ -1952,28 +1986,27 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-list-colhead-modified {
-  text-align: right;
-  padding-right: 4px;
+  text-align: left;
+  padding-left: 2px;
 }
 
 .bulk-pp-list-wrap-pages .bulk-pp-list li.bulk-pp-list-item-document {
   position: relative;
-  z-index: 1;
+  z-index: 0;
 }
 
 .bulk-pp-list-wrap-pages .bulk-pp-list li.bulk-pp-list-item-document:hover,
 .bulk-pp-list-wrap-pages .bulk-pp-list li.bulk-pp-list-item-document:has(.bulk-pp-page-cb:checked) {
-  z-index: 1;
+  z-index: 0;
 }
 
 .bulk-pp-list-wrap-pages .bulk-pp-list {
   margin: 0;
-  border: 1px solid var(--pp-border);
-  border-top: none;
-  border-radius: 0 0 var(--pp-radius-sm) var(--pp-radius-sm);
+  border: none;
+  border-radius: 0;
   background: var(--pp-surface);
-  box-shadow: var(--pp-shadow);
-  overflow: hidden;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .bulk-pp-list li.bulk-pp-list-item-document,
@@ -2047,7 +2080,9 @@ html:has(.bulk-pp-body) {
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--pp-text-muted);
-  padding-right: 2px;
+  text-align: left;
+  padding-left: 2px;
+  padding-right: 0;
 }
 
 .bulk-pp-list-wrap-pages .bulk-pp-row-actions {
@@ -2057,8 +2092,8 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-list-wrap-pages .bulk-pp-btn-open-da {
   min-height: 28px;
-  min-width: 44px;
-  padding: 4px 10px;
+  min-width: 32px;
+  padding: 4px 8px;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -2244,9 +2279,10 @@ html:has(.bulk-pp-body) {
   flex: 1 1 auto;
   min-height: calc(var(--pp-page-row-height) * var(--pp-page-list-min-rows));
   max-height: none;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   padding-bottom: 8px;
-  overscroll-behavior: contain;
   border-top: none;
   border-radius: 0;
   border-left: none;
@@ -2254,8 +2290,32 @@ html:has(.bulk-pp-body) {
   border-bottom: none;
 }
 
+.bulk-pp-page-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--pp-border);
+  border-top: none;
+  border-radius: 0 0 var(--pp-radius-sm) var(--pp-radius-sm);
+  background: var(--pp-surface);
+  box-shadow: var(--pp-shadow);
+}
+
+.bulk-pp-page-list-scroll .bulk-pp-list {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
 .bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) .bulk-pp-content-section-pages .bulk-pp-list-wrap-fill {
   padding-bottom: 104px;
+}
+
+.bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) .bulk-pp-content-section-pages .bulk-pp-page-list-scroll {
+  scroll-padding-bottom: 8px;
 }
 
 .bulk-pp-list-wrap-pages .bulk-pp-list-colhead-icon {

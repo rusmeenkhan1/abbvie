@@ -203,18 +203,59 @@ export function filterAndSortPages(
 }
 
 /**
+ * Unambiguous worldwide offset label, e.g. UTC+05:30 or UTC-07:00.
+ * @param {Date} date
+ * @returns {string}
+ */
+export function formatUtcOffset(date) {
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const abs = Math.abs(offsetMinutes);
+  const hours = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mins = String(abs % 60).padStart(2, '0');
+  return `UTC${sign}${hours}:${mins}`;
+}
+
+/**
  * @param {number | undefined} ts
  * @returns {string}
  */
 export function formatStatusDate(ts) {
   if (!ts) return '';
-  return new Date(ts).toLocaleString(undefined, {
+  const dt = new Date(ts);
+  const formatted = dt.toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
   });
+  return `${formatted} ${formatUtcOffset(dt)}`;
+}
+
+/**
+ * Compact label for “Last updated” — time only when today, always with UTC offset.
+ * @param {number | null | undefined} ts
+ * @returns {string}
+ */
+export function formatStatusFetchedAt(ts) {
+  if (!ts || Number.isNaN(ts)) return '';
+  const dt = new Date(ts);
+  const now = new Date();
+  const offset = formatUtcOffset(dt);
+  const time = dt.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  if (dt.toDateString() === now.toDateString()) {
+    return `${time} ${offset}`;
+  }
+  const date = dt.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(dt.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+  });
+  return `${date}, ${time} ${offset}`;
 }
 
 /**

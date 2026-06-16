@@ -46,6 +46,7 @@ import {
 } from './lib/urls.js';
 import {
   formatStatusDate,
+  formatStatusFetchedAt,
   getPageStatus,
   PAGE_FILTERS,
   countStatusBreakdown,
@@ -142,12 +143,12 @@ function destructiveStartMessage(action, count) {
   return `Starting unpreview for ${count} ${noun}…`;
 }
 
-/** @type {Record<'untouched'|'previewed'|'published', string>} */
-const STATUS_COLOR = {
-  untouched: '#c9252d',
-  previewed: '#d6ad00',
-  published: '#2d8a4e',
-};
+/** @type {ReadonlyArray<['untouched' | 'previewed' | 'published', string]>} */
+const STATUS_LEGEND_ITEMS = [
+  ['untouched', 'Draft'],
+  ['previewed', 'Preview only'],
+  ['published', 'Published'],
+];
 
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
@@ -170,13 +171,6 @@ function buildMetaBadge(label, value, muted = false) {
   );
   return badge;
 }
-
-/** @type {ReadonlyArray<[keyof typeof STATUS_COLOR, string]>} */
-const STATUS_LEGEND_ITEMS = [
-  ['untouched', 'Draft'],
-  ['previewed', 'Preview only'],
-  ['published', 'Published'],
-];
 
 /** @typedef {import('./lib/state.js').PageOperationId} PageOperationId */
 
@@ -673,7 +667,7 @@ function buildPageRow(
   );
   const multiSelected = getActiveSelectionCount(state) > 1;
   const daDisabled = interactionsLocked || multiSelected;
-  const daLink = el('a', 'bulk-pp-btn bulk-pp-btn-open-da', 'Edit');
+  const daLink = el('a', 'bulk-pp-btn bulk-pp-btn-open-da', 'da');
   daLink.dataset.href = daUrl;
   if (daDisabled) {
     daLink.classList.add('bulk-pp-btn-open-da-disabled');
@@ -795,7 +789,13 @@ function showCopyToast(title, message) {
   head.append(icon, el('span', 'bulk-pp-copy-toast-title', title));
   toast.append(head, el('p', 'bulk-pp-copy-toast-message', message));
 
-  document.body.append(toast);
+  const stripAnchor = document.getElementById('bulk-pp-selection-bar');
+  if (stripAnchor && !stripAnchor.hidden) {
+    stripAnchor.append(toast);
+  } else {
+    toast.classList.add('bulk-pp-copy-toast-fallback');
+    document.body.append(toast);
+  }
   copyToastTimer = window.setTimeout(() => {
     toast.remove();
     copyToastTimer = 0;
@@ -1532,8 +1532,7 @@ function buildStatusLegend() {
   legend.setAttribute('aria-label', 'Deployment status key');
   STATUS_LEGEND_ITEMS.forEach(([key, text]) => {
     const item = el('span', 'bulk-pp-legend-item');
-    const dot = el('span', 'bulk-pp-legend-dot');
-    dot.style.background = STATUS_COLOR[key];
+    const dot = el('span', `bulk-pp-legend-dot bulk-pp-legend-dot-${key}`);
     item.append(dot, document.createTextNode(text));
     legend.append(item);
   });
@@ -1661,24 +1660,6 @@ function buildRealtimeStatusButton(state) {
     }
   });
   return btn;
-}
-
-/**
- * @param {number | null | undefined} ts
- */
-function formatStatusFetchedAt(ts) {
-  if (!ts || Number.isNaN(ts)) return '';
-  const dt = new Date(ts);
-  const now = new Date();
-  if (dt.toDateString() === now.toDateString()) {
-    return dt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  }
-  return dt.toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
 }
 
 /**
@@ -1979,7 +1960,7 @@ function buildPagesStatusSummaryLoading() {
  * @param {ReturnType<typeof createAppState>} state
  */
 function render(root, state) {
-  const listWrapBefore = document.getElementById('bulk-pp-page-list-wrap');
+  const listWrapBefore = document.getElementById('bulk-pp-page-list-scroll');
   const savedListScroll = listWrapBefore ? listWrapBefore.scrollTop : null;
 
   const {
@@ -2204,7 +2185,10 @@ function render(root, state) {
           );
         });
       }
-      pageWrap.append(pageList);
+      const listScroll = el('div', 'bulk-pp-page-list-scroll');
+      listScroll.id = 'bulk-pp-page-list-scroll';
+      listScroll.append(pageList);
+      pageWrap.append(listScroll);
     }
     pagesSection.append(pageWrap);
     contentGrid.append(pagesSection);
@@ -2247,7 +2231,7 @@ function render(root, state) {
 
   requestAnimationFrame(() => {
     if (savedListScroll != null) {
-      const listWrap = document.getElementById('bulk-pp-page-list-wrap');
+      const listWrap = document.getElementById('bulk-pp-page-list-scroll');
       if (listWrap) listWrap.scrollTop = savedListScroll;
     }
   });
