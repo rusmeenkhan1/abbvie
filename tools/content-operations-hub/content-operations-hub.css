@@ -861,8 +861,8 @@ html:has(.bulk-pp-body) {
   min-height: 32px;
   padding: 0 12px 0 4px;
   border-radius: var(--pp-radius-sm);
-  background: rgb(255 255 255 / 12%);
-  border: 1px solid rgb(255 255 255 / 18%);
+  background: rgb(255 255 255 / 10%);
+  border: 1px solid rgb(255 255 255 / 16%);
 }
 
 .bulk-pp-selection-dismiss {
@@ -876,21 +876,28 @@ html:has(.bulk-pp-body) {
   margin: 0;
   border: none;
   border-radius: var(--pp-radius-xs);
-  background: transparent;
-  color: rgb(255 255 255 / 90%);
+  background: rgb(255 255 255 / 22%);
+  color: #fff;
   font-family: inherit;
-  font-size: 1.25rem;
-  font-weight: 400;
   line-height: 1;
   cursor: pointer;
-  transition:
-    background var(--pp-transition),
-    color var(--pp-transition);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.bulk-pp-selection-dismiss-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .bulk-pp-selection-dismiss:hover:not(:disabled) {
-  background: rgb(255 255 255 / 16%);
+  background: rgb(255 255 255 / 40%);
   color: #fff;
+}
+
+.bulk-pp-selection-dismiss:active:not(:disabled) {
+  background: rgb(255 255 255 / 32%);
 }
 
 .bulk-pp-selection-dismiss:disabled {
@@ -900,7 +907,7 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-selection-dismiss:focus-visible {
   outline: 2px solid #fff;
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
 .bulk-pp-selection-count {

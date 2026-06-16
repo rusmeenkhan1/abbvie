@@ -1005,7 +1005,7 @@ function buildSelectionActionBar(state) {
   const dismissBtn = el('button', 'bulk-pp-selection-dismiss');
   dismissBtn.type = 'button';
   dismissBtn.id = 'bulk-pp-selection-clear';
-  dismissBtn.innerHTML = '<span aria-hidden="true">&times;</span>';
+  dismissBtn.innerHTML = '<span class="bulk-pp-selection-dismiss-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></span>';
   setAccessibilityLabel(dismissBtn, 'Clear selection');
   dismissBtn.addEventListener('click', () => {
     state.selected.clear();
