@@ -144,13 +144,6 @@ function destructiveStartMessage(action, count) {
   return `Starting unpreview for ${count} ${noun}…`;
 }
 
-/** @type {ReadonlyArray<['untouched' | 'previewed' | 'published', string]>} */
-const STATUS_LEGEND_ITEMS = [
-  ['untouched', 'Draft'],
-  ['previewed', 'Preview only'],
-  ['published', 'Published'],
-];
-
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
 const SDK_TIMEOUT_MS = 8000;
 let copyToastTimer = 0;
@@ -417,7 +410,7 @@ function buildPagesScopeControl(state, workspaceLocked) {
  * @param {ReturnType<typeof createAppState>} state
  */
 function buildPagesLocationMeta(state) {
-  const meta = el('p', 'bulk-pp-pages-location-meta');
+  const meta = el('span', 'bulk-pp-pages-location-meta');
   meta.id = 'bulk-pp-page-count';
   const text = pagesLocationMetaText(state);
   if (state.pages.length === 0) {
@@ -1297,9 +1290,8 @@ function clearPagesStatusDisplay(state) {
 function patchPagesHeader(root, state) {
   const host = safeQuery(root, '.bulk-pp-pages-header');
   if (!host) return;
-  const statusTools = safeQuery(host, '.bulk-pp-pages-status-tools');
   host.replaceWith(
-    buildPagesHeader(state, isStatusFetchBlocking(state), statusTools),
+    buildPagesHeader(state, isStatusFetchBlocking(state)),
   );
 }
 
@@ -1355,46 +1347,74 @@ function buildPagesSelectionRow(state, { visiblePages }) {
 }
 
 /**
+ * Compact last-updated label + refresh control for the unified header toolbar.
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function buildStatusActionInline(state) {
+  const wrap = el('div', 'bulk-pp-pages-status-inline');
+  const when = formatStatusFetchedAt(state.statusFetchedAt);
+  const meta = el('span', 'bulk-pp-pages-status-inline-meta');
+  if (!when) {
+    meta.textContent = 'Status not loaded';
+  } else if (state.statusFetchedFromCache) {
+    meta.textContent = `Updated ${when} · cached`;
+  } else {
+    meta.textContent = `Updated ${when}`;
+  }
+  wrap.append(meta, buildRealtimeStatusButton(state));
+  return wrap;
+}
+
+/**
  * @param {ReturnType<typeof createAppState>} state
  * @param {boolean} workspaceLocked
  */
-function buildPagesHeader(state, workspaceLocked, statusTools = null) {
+function buildPagesHeader(state, workspaceLocked) {
   const header = el('div', 'bulk-pp-pages-header');
-  const topRow = el('div', 'bulk-pp-pages-header-top');
-  const mainSection = el('div', 'bulk-pp-pages-header-main');
+  const bar = el('div', 'bulk-pp-pages-context-bar');
 
-  const locationBlock = el('div', 'bulk-pp-pages-location bulk-pp-pages-header-panel');
+  const primary = el('div', 'bulk-pp-pages-context-primary');
   const breadcrumb = buildBreadcrumb(
     state.folderPath,
     (path) => state.onNavigate(path),
     workspaceLocked,
   );
   breadcrumb.classList.add('bulk-pp-pages-breadcrumb');
-  locationBlock.append(
-    el('h3', 'bulk-pp-pages-location-title', 'Page location'),
-    breadcrumb,
-  );
-  const locationFoot = el('div', 'bulk-pp-pages-location-foot');
-  locationFoot.append(
+  primary.append(breadcrumb);
+
+  if (state.pages.length > 0) {
+    primary.append(buildPagesStatusSummary(state));
+  }
+  bar.append(primary);
+
+  const toolbar = el('div', 'bulk-pp-pages-context-toolbar');
+  const toolbarLeft = el('div', 'bulk-pp-pages-context-toolbar-left');
+  toolbarLeft.append(
     buildPagesLocationMeta(state),
     buildPagesScopeControl(state, workspaceLocked),
   );
-  locationBlock.append(locationFoot);
-  mainSection.append(locationBlock);
+  toolbar.append(toolbarLeft);
 
-  const aside = el('div', 'bulk-pp-pages-header-aside bulk-pp-pages-header-panel');
+  const toolbarRight = el('div', 'bulk-pp-pages-context-toolbar-right');
   if (state.pages.length > 0) {
-    aside.append(el('h3', 'bulk-pp-pages-aside-title', 'Deployment status'));
-    aside.append(buildPagesStatusSummary(state));
-    aside.append(buildStatusActionCard(state));
-    if (statusTools) aside.append(statusTools);
+    toolbarRight.append(buildStatusActionInline(state));
+    if (
+      (state.statusChecking || state.statusRevalidating)
+      && !isDeploymentStatusPending(state)
+    ) {
+      const hintText = state.statusRevalidating && !state.statusChecking
+        ? 'Refreshing…'
+        : 'Updating…';
+      toolbarRight.append(el('span', 'bulk-pp-pages-status-hint', hintText));
+    }
   } else {
-    aside.append(el('h3', 'bulk-pp-pages-aside-title', 'Deployment status'));
-    const emptyAside = el('p', 'bulk-pp-pages-aside-empty', 'Load a folder with pages to see deployment counts.');
-    aside.append(emptyAside);
+    toolbarRight.append(
+      el('p', 'bulk-pp-pages-context-empty', 'Open a folder with pages to see deployment status.'),
+    );
   }
-  topRow.append(mainSection, aside);
-  header.append(topRow);
+  toolbar.append(toolbarRight);
+  bar.append(toolbar);
+  header.append(bar);
 
   return header;
 }
@@ -1648,18 +1668,6 @@ function buildPagesStatusNotice(state) {
   return null;
 }
 
-function buildStatusLegend() {
-  const legend = el('div', 'bulk-pp-status-legend');
-  legend.setAttribute('aria-label', 'Deployment status key');
-  STATUS_LEGEND_ITEMS.forEach(([key, text]) => {
-    const item = el('span', 'bulk-pp-legend-item');
-    const dot = el('span', `bulk-pp-legend-dot bulk-pp-legend-dot-${key}`);
-    item.append(dot, document.createTextNode(text));
-    legend.append(item);
-  });
-  return legend;
-}
-
 /**
  * @param {ReturnType<typeof createAppState>} state
  */
@@ -1781,26 +1789,6 @@ function buildRealtimeStatusButton(state) {
     }
   });
   return btn;
-}
-
-/**
- * @param {ReturnType<typeof createAppState>} state
- */
-function buildStatusActionCard(state) {
-  const card = el('div', 'bulk-pp-status-action-card');
-  const meta = el('span', 'bulk-pp-status-action-label');
-  const when = formatStatusFetchedAt(state.statusFetchedAt);
-  if (!when) {
-    meta.textContent = 'Status not loaded yet';
-  } else if (state.statusFetchedFromCache) {
-    meta.textContent = `Last updated ${when} (from cache)`;
-  } else {
-    meta.textContent = `Last updated ${when}`;
-  }
-  const actions = el('div', 'bulk-pp-status-action-right');
-  actions.append(buildRealtimeStatusButton(state));
-  card.append(meta, actions);
-  return card;
 }
 
 /**
@@ -2226,7 +2214,6 @@ function render(root, state) {
       pagesSection.append(buildPagesStatusProgressBar(state));
     }
 
-    const statusTools = el('div', 'bulk-pp-pages-status-tools');
     const { filterField, filterSelect } = buildPagesFilterField(
       state,
       String(pageFilter || 'all'),
@@ -2235,23 +2222,7 @@ function render(root, state) {
         || isDeploymentStatusPending(state),
     );
 
-    if (state.pages.length > 0 && !isFirstSessionStatusPending(state)) {
-      const legendRow = el('div', 'bulk-pp-pages-legend-row');
-      legendRow.id = 'bulk-pp-pages-legend-row';
-      legendRow.append(buildStatusLegend());
-      if (
-        (statusChecking || state.statusRevalidating)
-        && !isDeploymentStatusPending(state)
-      ) {
-        const hintText = state.statusRevalidating && !statusChecking
-          ? 'Refreshing status…'
-          : 'Updating status…';
-        legendRow.append(el('span', 'bulk-pp-pages-status-hint', hintText));
-      }
-      statusTools.append(legendRow);
-    }
-
-    pagesSection.append(buildPagesHeader(state, workspaceLocked, statusTools));
+    pagesSection.append(buildPagesHeader(state, workspaceLocked));
 
     const controls = el('div', 'bulk-pp-pages-controls');
 
