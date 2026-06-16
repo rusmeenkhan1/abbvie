@@ -931,6 +931,7 @@ html:has(.bulk-pp-body) {
   width: 100%;
   padding: 0;
   pointer-events: none;
+  overflow: visible;
 }
 
 .bulk-pp-copy-toast {
@@ -980,6 +981,7 @@ html:has(.bulk-pp-body) {
   border-top: 1px solid var(--pp-command-border);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
   pointer-events: auto;
+  overflow: visible;
 }
 
 .bulk-pp-selection-strip-left {
@@ -1277,6 +1279,7 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-selection-more-wrap {
   position: relative;
+  overflow: visible;
 }
 
 .bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) > .bulk-pp-status {
@@ -1366,35 +1369,48 @@ html:has(.bulk-pp-body) {
   position: absolute;
   right: 0;
   bottom: calc(100% + 8px);
-  z-index: 860;
+  z-index: 900;
   margin: 0;
   background: transparent;
   border: none;
   box-shadow: none;
-  max-height: min(60vh, 420px);
+  overflow: visible;
 }
 
 .bulk-pp-selection-more-menu-panel {
   min-width: 268px;
   max-width: min(340px, 90vw);
-  max-height: inherit;
-  overflow-y: auto;
-  padding: 6px;
+  padding: 4px;
   border-radius: var(--pp-radius-sm);
   background: #fff;
   color: var(--pp-text);
   border: 1px solid var(--pp-border-strong);
   box-shadow: var(--pp-shadow-lg);
+  overflow: visible;
+}
+
+.bulk-pp-shell:has(.bulk-pp-selection-more-menu-open),
+.bulk-pp-panel-fill:has(.bulk-pp-selection-more-menu-open),
+.bulk-pp-panel-fill > .bulk-pp-content-body:has(.bulk-pp-selection-more-menu-open),
+.bulk-pp-workspace:has(.bulk-pp-selection-more-menu-open),
+.bulk-pp-content-grid:has(.bulk-pp-selection-more-menu-open),
+.bulk-pp-content-section-pages:has(.bulk-pp-selection-more-menu-open) {
+  overflow: visible;
+}
+
+.bulk-pp-selection-strip-anchor:has(.bulk-pp-selection-more-menu-open) {
+  z-index: 20;
+  overflow: visible;
 }
 
 .bulk-pp-selection-more-divider {
   height: 1px;
-  margin: 6px 2px;
+  margin: 4px 2px;
   background: var(--pp-border);
 }
 
 .bulk-pp-selection-more-section-title {
-  padding: 4px 10px 5px;
+  padding: 3px 10px 4px;
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.07em;
@@ -1414,7 +1430,7 @@ html:has(.bulk-pp-body) {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 9px 10px;
+  padding: 7px 10px;
   border: none;
   border-radius: var(--pp-radius-xs);
   background: transparent;
