@@ -81,7 +81,6 @@ import {
   pagesLocationMetaText,
   patchFolderSearchResults,
   patchPageSearchResults,
-  populateSelectionPageChips,
   searchHintText,
   syncSelectionUI,
 } from './lib/search-ui.js';
@@ -1049,7 +1048,6 @@ function buildSelectionActionBar(state) {
   bar.setAttribute('role', 'toolbar');
   setAccessibilityLabel(bar, 'Actions for selected pages');
 
-  const main = el('div', 'bulk-pp-selection-strip-main');
   const left = el('div', 'bulk-pp-selection-strip-left');
   const badge = el('div', 'bulk-pp-selection-strip-badge');
 
@@ -1149,13 +1147,7 @@ function buildSelectionActionBar(state) {
 
   moreWrap.append(moreBtn, menu);
   actions.append(el('div', 'bulk-pp-selection-strip-divider'), moreWrap);
-  main.append(left, actions);
-
-  const pagesRow = el('div', 'bulk-pp-selection-strip-pages');
-  pagesRow.id = 'bulk-pp-selection-pages';
-  populateSelectionPageChips(pagesRow, state);
-
-  bar.append(main, pagesRow);
+  bar.append(left, actions);
   anchor.append(bar);
   return anchor;
 }
@@ -2294,6 +2286,9 @@ function render(root, state) {
       pageWrap.append(listScroll);
     }
     pagesSection.append(pageWrap);
+    if (!isFirstSessionStatusPending(state)) {
+      pagesSection.append(buildSelectionActionBar(state));
+    }
     contentGrid.append(pagesSection);
     workspace.append(contentGrid);
     contentBody.append(workspace);
@@ -2306,10 +2301,6 @@ function render(root, state) {
   }
   contentPanel.append(contentBody);
   root.append(contentPanel);
-
-  if (!isFirstSessionStatusPending(state)) {
-    root.append(buildSelectionActionBar(state));
-  }
 
   if (
     status

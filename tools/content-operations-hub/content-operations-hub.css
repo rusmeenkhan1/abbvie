@@ -534,7 +534,7 @@ html:has(.bulk-pp-body) {
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
-  align-content: start;
+  align-content: stretch;
 }
 
 @media (width >= 960px) {
@@ -933,16 +933,13 @@ html:has(.bulk-pp-body) {
   border-top: 1px solid rgb(7 29 73 / 10%);
 }
 
-/* —— Copy toast (anchored above selection strip) —— */
+/* —— Selection strip (docked to pages panel bottom) —— */
 .bulk-pp-selection-strip-anchor {
-  position: fixed;
-  bottom: 18px;
-  left: 50%;
-  z-index: 850;
-  width: min(100%, 1400px);
-  padding: 0 24px;
-  box-sizing: border-box;
-  transform: translateX(-50%);
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  width: 100%;
+  padding: 0;
   pointer-events: none;
 }
 
@@ -980,69 +977,20 @@ html:has(.bulk-pp-body) {
 
 .bulk-pp-selection-strip {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-  min-height: 56px;
-  padding: 10px 14px 12px;
-  border-radius: var(--pp-radius);
-  background: var(--pp-command-bg);
-  color: var(--pp-command-text);
-  border: 1px solid var(--pp-command-border);
-  box-shadow: var(--pp-command-shadow);
-  backdrop-filter: blur(12px);
-  pointer-events: auto;
-}
-
-.bulk-pp-selection-strip-main {
-  display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px 16px;
-}
-
-.bulk-pp-selection-strip-pages {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  align-content: flex-start;
-  gap: 6px;
-  min-height: 28px;
-  max-height: 58px;
-  overflow: hidden;
-  padding-top: 2px;
-  border-top: 1px solid rgb(255 255 255 / 14%);
-}
-
-.bulk-pp-selection-strip-pages[hidden] {
-  display: none;
-}
-
-.bulk-pp-selection-chip {
-  display: inline-flex;
-  align-items: center;
-  max-width: min(220px, 42vw);
-  min-height: 26px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 12%);
-  border: 1px solid rgb(255 255 255 / 22%);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.2;
-  color: rgb(255 255 255 / 94%);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bulk-pp-selection-chip-more {
-  flex-shrink: 0;
-  max-width: none;
-  background: rgb(255 255 255 / 18%);
-  border-color: rgb(255 255 255 / 28%);
-  font-weight: 700;
+  min-height: 52px;
+  padding: 8px 12px;
+  border-radius: 0;
+  background: var(--pp-command-bg);
+  color: var(--pp-command-text);
+  border: none;
+  border-top: 1px solid var(--pp-command-border);
+  box-shadow: none;
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
 }
 
 .bulk-pp-selection-strip-left {
@@ -1284,7 +1232,7 @@ html:has(.bulk-pp-body) {
 }
 
 .bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) > .bulk-pp-status {
-  bottom: 88px;
+  bottom: 24px;
 }
 
 .bulk-pp-folder-tree-children-empty {
@@ -2363,6 +2311,8 @@ html:has(.bulk-pp-body) {
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .bulk-pp-content-section-pages .bulk-pp-pages-controls {
@@ -2376,7 +2326,7 @@ html:has(.bulk-pp-body) {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding-bottom: 8px;
+  padding-bottom: 0;
   border-top: none;
   border-radius: 0;
   border-left: none;
@@ -2404,12 +2354,9 @@ html:has(.bulk-pp-body) {
   overflow: visible;
 }
 
-.bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) .bulk-pp-content-section-pages .bulk-pp-list-wrap-fill {
-  padding-bottom: 148px;
-}
-
-.bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) .bulk-pp-content-section-pages .bulk-pp-page-list-scroll {
-  scroll-padding-bottom: 8px;
+.bulk-pp-content-section-pages:has(#bulk-pp-selection-bar:not([hidden])) .bulk-pp-page-list-scroll {
+  border-bottom: none;
+  border-radius: 0;
 }
 
 .bulk-pp-list-wrap-pages .bulk-pp-list-colhead-icon {
@@ -4081,31 +4028,14 @@ html:has(.bulk-pp-body) {
   }
 
   .bulk-pp-selection-strip-anchor {
-    bottom: 10px;
-    padding: 0 12px;
+    padding: 0;
   }
 
   .bulk-pp-selection-strip {
     flex-direction: column;
     align-items: stretch;
-    padding: 10px 12px 12px;
+    padding: 10px;
     gap: 10px;
-    border-radius: var(--pp-radius-sm);
-  }
-
-  .bulk-pp-selection-strip-main {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .bulk-pp-selection-strip-pages {
-    max-height: 72px;
-  }
-
-  .bulk-pp-selection-chip {
-    max-width: min(240px, 88vw);
-    font-size: 0.75rem;
   }
 
   .bulk-pp-selection-strip-left {
@@ -4157,10 +4087,6 @@ html:has(.bulk-pp-body) {
   .bulk-pp-pages-selection-actions {
     width: 100%;
     justify-content: flex-start;
-  }
-
-  .bulk-pp-shell:has(#bulk-pp-selection-bar:not([hidden])) .bulk-pp-content-section-pages .bulk-pp-list-wrap-fill {
-    padding-bottom: 196px;
   }
 
 }
