@@ -2211,6 +2211,7 @@ function render(root, state) {
   if (
     status
     && !statusChecking
+    && !contentLoading
     && !isDaAccessError(status)
     && (statusType === 'error' || statusType === 'success' || statusType === 'info')
   ) {
@@ -2754,7 +2755,7 @@ async function main() {
     state.statusCheckFailed = false;
     state.statusError = null;
     state.statusPanelNote = null;
-    state.status = 'Fetching content…';
+    state.status = null;
     state.statusType = 'info';
     render(app, state);
 
@@ -3211,7 +3212,7 @@ async function main() {
   }
 
   state.contentLoading = true;
-  state.status = 'Fetching content…';
+  state.status = null;
   state.statusType = 'info';
   render(app, state);
   await state.onFetch(false);
