@@ -1341,6 +1341,7 @@ async function main() {
     render(app, state);
 
     try {
+      const isFirstWorkspaceLoad = !state.initialContentLoaded;
       const browseEntries = await listFolderEntries(
         daFetch,
         state.org,
@@ -1380,7 +1381,9 @@ async function main() {
       const docCount = state.pages.length;
       const location = displayFolderPath(state.folderPath) || 'site root';
       state.initialContentLoaded = true;
-      state.contentLoading = false;
+      if (!isFirstWorkspaceLoad) {
+        state.contentLoading = false;
+      }
 
       if (docCount > 0) {
         const helixPaths = state.pages.map((p) => p.helixPath);
