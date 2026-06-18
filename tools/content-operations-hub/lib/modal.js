@@ -1,6 +1,57 @@
 import { el } from './dom.js';
 
 /**
+ * Wires Escape, backdrop click, and optional cancel/confirm buttons for boolean modals.
+ * @param {HTMLElement} backdrop
+ * @param {(result: boolean) => void} resolve
+ * @param {{
+ *   cancelBtn?: HTMLButtonElement,
+ *   confirmBtn?: HTMLButtonElement,
+ *   allowEnterConfirm?: boolean | (() => boolean),
+ *   focusOnMount?: HTMLElement,
+ * }} [options]
+ */
+export function bindModalDismiss(backdrop, resolve, options = {}) {
+  const {
+    cancelBtn,
+    confirmBtn,
+    allowEnterConfirm = true,
+    focusOnMount,
+  } = options;
+
+  /** @type {(e: KeyboardEvent) => void} */
+  let onKey;
+
+  const close = (result) => {
+    backdrop.remove();
+    document.removeEventListener('keydown', onKey);
+    resolve(result);
+  };
+
+  onKey = (e) => {
+    if (e.key === 'Escape') close(false);
+    if (e.key === 'Enter') {
+      const canConfirm = typeof allowEnterConfirm === 'function'
+        ? allowEnterConfirm()
+        : allowEnterConfirm && (!confirmBtn || !confirmBtn.disabled);
+      if (canConfirm) close(true);
+    }
+  };
+
+  if (cancelBtn) cancelBtn.addEventListener('click', () => close(false));
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', () => {
+      if (!confirmBtn.disabled) close(true);
+    });
+  }
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) close(false);
+  });
+  document.addEventListener('keydown', onKey);
+  (focusOnMount || confirmBtn || cancelBtn)?.focus();
+}
+
+/**
  * @param {{
  *   title: string,
  *   body: string,
@@ -58,25 +109,11 @@ export function showConfirmModal(opts) {
     backdrop.append(dialog);
     document.body.append(backdrop);
 
-    let onKey;
-
-    const close = (result) => {
-      backdrop.remove();
-      document.removeEventListener('keydown', onKey);
-      resolve(result);
-    };
-
-    onKey = (e) => {
-      if (e.key === 'Escape') close(false);
-    };
-
-    cancelBtn.addEventListener('click', () => close(false));
-    confirmBtn.addEventListener('click', () => close(true));
-    backdrop.addEventListener('click', (e) => {
-      if (e.target === backdrop) close(false);
+    bindModalDismiss(backdrop, resolve, {
+      cancelBtn,
+      confirmBtn,
+      focusOnMount: confirmBtn,
     });
-    document.addEventListener('keydown', onKey);
-    confirmBtn.focus();
   });
 }
 
@@ -421,33 +458,17 @@ function showKeywordConfirmModal(opts) {
     backdrop.append(dialog);
     document.body.append(backdrop);
 
-    let onKey;
-
-    const close = (result) => {
-      backdrop.remove();
-      document.removeEventListener('keydown', onKey);
-      resolve(result);
-    };
-
-    onKey = (e) => {
-      if (e.key === 'Escape') close(false);
-      if (e.key === 'Enter' && !proceedBtn.disabled) close(true);
-    };
-
     const syncProceed = () => {
       proceedBtn.disabled = input.value.trim().toLowerCase() !== keyword.toLowerCase();
     };
 
     input.addEventListener('input', syncProceed);
-    cancelBtn.addEventListener('click', () => close(false));
-    proceedBtn.addEventListener('click', () => {
-      if (!proceedBtn.disabled) close(true);
+    bindModalDismiss(backdrop, resolve, {
+      cancelBtn,
+      confirmBtn: proceedBtn,
+      allowEnterConfirm: () => !proceedBtn.disabled,
+      focusOnMount: input,
     });
-    backdrop.addEventListener('click', (e) => {
-      if (e.target === backdrop) close(false);
-    });
-    document.addEventListener('keydown', onKey);
-    input.focus();
   });
 }
 

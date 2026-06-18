@@ -3,6 +3,7 @@ import {
   filterPagesBySearch,
 } from './page-history.js';
 import { resolveContentFolderPath } from './paths.js';
+import { isJobModalOpen } from './progress-modal.js';
 
 /** @typedef {{ kind: 'folder', name: string, folderPath: string }} FolderEntry */
 /** @typedef {{
@@ -51,8 +52,6 @@ export function createAppState(ctx) {
     statusCheckFailed: false,
     statusError: null,
     statusChecking: false,
-    /** True while silently refreshing cached deployment status from the API. */
-    statusRevalidating: false,
     statusCancelled: false,
     statusProgressDone: 0,
     statusProgressTotal: 0,
@@ -65,8 +64,6 @@ export function createAppState(ctx) {
     statusPanelNote: null,
     /** @type {AbortController | null} */
     statusAbort: null,
-    /** @type {AbortController | null} */
-    statusRevalidateAbort: null,
     /** @type {AbortController | null} */
     jobAbort: null,
     /** @type {number | null} */
@@ -110,21 +107,9 @@ export function cancelBulkJob(state, setMessage = true) {
 
 /**
  * @param {ReturnType<typeof createAppState>} state
- */
-export function cancelStatusRevalidate(state) {
-  if (state.statusRevalidateAbort) {
-    state.statusRevalidateAbort.abort();
-    state.statusRevalidateAbort = null;
-  }
-  state.statusRevalidating = false;
-}
-
-/**
- * @param {ReturnType<typeof createAppState>} state
  * @param {boolean} [setMessage]
  */
 export function cancelStatusCheck(state, setMessage = true) {
-  cancelStatusRevalidate(state);
   if (state.statusAbort) {
     state.statusAbort.abort();
     state.statusAbort = null;
@@ -190,7 +175,6 @@ export function resetWorkspace(state) {
   state.statusCheckFailed = false;
   state.statusError = null;
   state.statusChecking = false;
-  state.statusRevalidating = false;
   state.statusCancelled = false;
   state.statusProgressDone = 0;
   state.statusProgressTotal = 0;
@@ -318,13 +302,6 @@ export function filterFoldersBySearch(folders, query, minLen = SEARCH_MIN_LEN) {
 }
 
 /**
- * @param {ReturnType<typeof createAppState>} state
- */
-export function getVisibleFolders(state) {
-  return filterFoldersBySearch(state.folders, state.folderSearch, SEARCH_MIN_LEN);
-}
-
-/**
  * Selected pages that exist in the current page list.
  * @param {ReturnType<typeof createAppState>} state
  */
@@ -361,10 +338,21 @@ export function selectAllVisible(state, checked) {
 }
 
 /**
+ * Whether bulk UI actions should be disabled (loading, status fetch, job modal).
  * @param {ReturnType<typeof createAppState>} state
+ * @param {{ requireSelection?: boolean }} [options]
+ * @returns {boolean}
  */
-export function formatSelectionPillText(state) {
-  const activeCount = getActiveSelectionCount(state);
-  const totalCount = state.pages.length;
-  return `${activeCount} selected out of ${totalCount}`;
+export function isUiActionsBlocked(state, options = {}) {
+  const { requireSelection = false } = options;
+  const blocked = (
+    state.loading
+    || state.contentLoading
+    || isStatusFetchBlocking(state)
+    || isJobModalOpen()
+  );
+  if (requireSelection) {
+    return blocked || getActiveSelectionCount(state) === 0;
+  }
+  return blocked;
 }

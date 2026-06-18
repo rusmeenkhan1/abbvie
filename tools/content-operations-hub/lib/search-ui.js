@@ -2,11 +2,13 @@ import {
   getActiveSelectionCount,
   getVisiblePages,
   isStatusFetchBlocking,
+  isUiActionsBlocked,
   shouldShowPageStatus,
   SEARCH_MIN_LEN,
 } from './state.js';
-import { isJobModalOpen } from './progress-modal.js';
-import { el } from './dom.js';
+import { el, DOM_IDS } from './dom.js';
+import { formatSelectionBarText, formatShareTooltipText } from './selection-copy.js';
+import { applyDaLinkState } from './da-link.js';
 import { patchFolderTree } from './folder-tree.js';
 
 /**
@@ -19,50 +21,37 @@ function syncPageRowDaLinks(root, state) {
   root.querySelectorAll('.bulk-pp-btn-open-da').forEach((linkEl) => {
     if (!(linkEl instanceof HTMLAnchorElement)) return;
     const href = linkEl.dataset.href || '';
-    if (locked || multi) {
-      linkEl.classList.add('bulk-pp-btn-open-da-disabled');
-      linkEl.setAttribute('aria-disabled', 'true');
-      linkEl.removeAttribute('href');
-      linkEl.title = multi
-        ? 'Use More → Open in DA when multiple pages are selected'
-        : 'Unavailable while status is loading';
-    } else {
-      linkEl.classList.remove('bulk-pp-btn-open-da-disabled');
-      linkEl.removeAttribute('aria-disabled');
-      if (href) linkEl.href = href;
-      linkEl.title = 'Open this page in DA';
-    }
+    applyDaLinkState(linkEl, {
+      disabled: locked || multi,
+      href,
+      reason: multi ? 'multi' : 'locked',
+    });
   });
 }
 
 function syncSelectionActionBar(root, state) {
   const count = getActiveSelectionCount(state);
-  const blocked = count === 0
-    || isStatusFetchBlocking(state)
-    || state.loading
-    || state.contentLoading
-    || isJobModalOpen();
+  const blocked = count === 0 || isUiActionsBlocked(state);
 
-  const bar = root.querySelector('#bulk-pp-selection-bar');
+  const bar = root.querySelector(`#${DOM_IDS.SELECTION_BAR}`);
   if (bar instanceof HTMLElement) {
     bar.hidden = count === 0;
   }
-  const countEl = root.querySelector('#bulk-pp-selection-count');
-  if (countEl) countEl.textContent = count === 1 ? '1 page selected' : `${count} pages selected`;
+  const countEl = root.querySelector(`#${DOM_IDS.SELECTION_COUNT}`);
+  if (countEl) countEl.textContent = formatSelectionBarText(count);
 
-  const clearBtn = root.querySelector('#bulk-pp-selection-clear');
+  const clearBtn = root.querySelector(`#${DOM_IDS.SELECTION_CLEAR}`);
   if (clearBtn instanceof HTMLButtonElement) {
     clearBtn.disabled = count === 0;
   }
 
-  const shareTip = root.querySelector('#bulk-pp-selection-share-tooltip');
-  const shareBtn = root.querySelector('#bulk-pp-selection-share');
-  const shareLabel = count === 1
-    ? 'Copy preview URL to clipboard'
-    : `Copy ${count} preview URLs to clipboard`;
+  const shareTip = root.querySelector(`#${DOM_IDS.SELECTION_SHARE_TOOLTIP}`);
+  const shareBtn = root.querySelector(`#${DOM_IDS.SELECTION_SHARE}`);
+  const shareLabel = formatShareTooltipText(count);
   if (shareTip) shareTip.textContent = shareLabel;
   if (shareBtn instanceof HTMLButtonElement) {
     shareBtn.setAttribute('aria-label', shareLabel);
+    shareBtn.title = shareLabel;
   }
 
   root.querySelectorAll('.bulk-pp-selection-strip-btn, .bulk-pp-selection-more-item').forEach((btnEl) => {
