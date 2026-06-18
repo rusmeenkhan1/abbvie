@@ -85,7 +85,7 @@ export function formatDeploymentSummary(platformStatus, pageList) {
 /** @type {ReadonlyArray<[string, string]>} */
 export const PAGE_FILTERS = [
   ['all', 'All pages'],
-  ['never-previewed', 'Not deployed (not previewed)'],
+  ['never-previewed', 'Not deployed'],
   ['never-published', 'Not published'],
   ['preview-only', 'Preview only'],
   ['orphaned-live', 'Published without preview'],
@@ -156,7 +156,7 @@ export function filterAndSortPages(
 
   switch (filterId) {
     case 'never-previewed':
-      filtered = withMeta.filter((m) => !m.entry.previewedAt);
+      filtered = withMeta.filter((m) => getPageStatus(m.entry) === 'untouched');
       break;
     case 'never-published':
       filtered = withMeta.filter((m) => !m.entry.publishedAt);
