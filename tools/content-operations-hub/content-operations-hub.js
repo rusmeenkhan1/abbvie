@@ -39,6 +39,7 @@ import {
   patchPageSearchResults,
   searchHintText,
   syncSelectionUI,
+  syncWorkspaceInteractivity,
 } from './lib/search-ui.js';
 import {
   cancelBulkJob,
@@ -69,7 +70,7 @@ import {
 import { el, safeQuery, setAccessibilityLabel, DOM_IDS, DOM_SELECTORS } from './lib/dom.js';
 import { TIMING } from './lib/constants.js';
 import { configureAppHooks } from './lib/app-hooks.js';
-import { patchWorkspaceUi } from './lib/ui-patch.js';
+import { patchOrRender } from './lib/ui-patch.js';
 import { patchStatusBanner } from './lib/status-banner.js';
 import { buildPageRow, buildPageListColumnHeader, bindPageListSelection } from './lib/page-list.js';
 import { buildSelectionActionBar } from './lib/selection-bar.js';
@@ -371,6 +372,10 @@ function patchPagesFilterControls(root, state) {
     opt.textContent = baseLabel;
   });
 
+  filterSelect.disabled = state.contentLoading
+    || isStatusFetchBlocking(state)
+    || isDeploymentStatusPending(state);
+
   const filterNote = root.querySelector('.bulk-pp-pages-filter-note');
   if (filterNote) filterNote.remove();
 }
@@ -430,6 +435,7 @@ function refreshDeploymentUi(state) {
   patchPagesStatusNotice(root, state);
   patchPagesStatusLoading(root, state);
   patchPagesFilterControls(root, state);
+  syncWorkspaceInteractivity(root, state);
   patchPageSearchResults(root, state, siteCtx, buildPageRow);
   syncSelectionUI(root, state);
 }
@@ -1213,7 +1219,7 @@ async function main() {
     state.statusPanelNote = checked > 0
       ? `Stopped after ${checked} of ${total} pages. Partial results are shown.`
       : 'Status check cancelled.';
-    if (root) patchWorkspaceUi(state);
+    if (root) patchOrRender(state);
   };
 
   state.onRefreshStatus = () => {
@@ -1335,7 +1341,6 @@ async function main() {
     render(app, state);
 
     try {
-      const isFirstWorkspaceLoad = !state.initialContentLoaded;
       const browseEntries = await listFolderEntries(
         daFetch,
         state.org,
@@ -1375,10 +1380,7 @@ async function main() {
       const docCount = state.pages.length;
       const location = displayFolderPath(state.folderPath) || 'site root';
       state.initialContentLoaded = true;
-      const cacheOnlyStatus = false;
-      if ((!cacheOnlyStatus || docCount === 0) && !isFirstWorkspaceLoad) {
-        state.contentLoading = false;
-      }
+      state.contentLoading = false;
 
       if (docCount > 0) {
         const helixPaths = state.pages.map((p) => p.helixPath);
@@ -1390,7 +1392,7 @@ async function main() {
           docCount,
           state.folders.length,
           {
-            cacheOnly: cacheOnlyStatus,
+            cacheOnly: false,
             background: false,
           },
         );
@@ -1438,7 +1440,6 @@ async function main() {
   };
 
   bindJobRunHandlers(state, app, daFetch);
-
 
   if (!daFetch) {
     state.error = DA_LOGIN_REQUIRED_MESSAGE;

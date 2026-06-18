@@ -14,10 +14,11 @@ import {
 } from './status-cache.js';
 import {
   cancelStatusCheck,
+  isFirstSessionStatusPending,
   markInitialStatusFetchComplete,
 } from './state.js';
 import { appHooks } from './app-hooks.js';
-import { patchOrRender, patchWorkspaceUi } from './ui-patch.js';
+import { patchOrRender } from './ui-patch.js';
 
 /**
  * @param {string} message
@@ -32,7 +33,16 @@ export function formatStatusAccessMessage(message) {
  * @param {ReturnType<typeof import('./state.js').createAppState>} state
  */
 function finishStatusFetch(state) {
-  patchWorkspaceUi(state);
+  const { root } = state;
+  const needsFullRender = root instanceof HTMLElement && (
+    !root.querySelector('.bulk-pp-workspace')
+    || (
+      state.pages.length > 0
+      && !isFirstSessionStatusPending(state)
+      && !root.querySelector('#bulk-pp-page-list')
+    )
+  );
+  patchOrRender(state, { forceRender: needsFullRender });
 }
 
 /**
@@ -157,7 +167,7 @@ export function startStatusCheck(
     }
     state.status = null;
     markInitialStatusFetchComplete(state);
-    patchWorkspaceUi(state);
+    finishStatusFetch(state);
     return;
   }
 
@@ -174,7 +184,7 @@ export function startStatusCheck(
     state.statusFetchedAt = cachedCheckedAt;
     state.statusFetchedFromCache = Boolean(cachedCheckedAt);
     state.statusType = 'info';
-    patchWorkspaceUi(state);
+    finishStatusFetch(state);
     return;
   }
 

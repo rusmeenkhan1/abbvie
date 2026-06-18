@@ -1,6 +1,7 @@
 import {
   getActiveSelectionCount,
   getVisiblePages,
+  isDeploymentStatusPending,
   isStatusFetchBlocking,
   isUiActionsBlocked,
   shouldShowPageStatus,
@@ -142,6 +143,42 @@ export function syncSelectionUI(root, state) {
   }
 
   syncSelectionActionBar(root, state);
+}
+
+/**
+ * Keeps search fields, filter, and folder tree lock state in sync after status patches.
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof import('./state.js').createAppState>} state
+ */
+export function syncWorkspaceInteractivity(root, state) {
+  const workspaceLocked = isStatusFetchBlocking(state);
+  const filterDisabled = state.contentLoading
+    || workspaceLocked
+    || isDeploymentStatusPending(state);
+  const folderSearchDisabled = workspaceLocked;
+  const pageSearchDisabled = workspaceLocked || state.pages.length === 0;
+
+  const folderSearch = root.querySelector('#bulk-pp-folder-search');
+  if (folderSearch instanceof HTMLInputElement) {
+    folderSearch.disabled = folderSearchDisabled;
+  }
+
+  const pageSearch = root.querySelector('#bulk-pp-page-search');
+  if (pageSearch instanceof HTMLInputElement) {
+    pageSearch.disabled = pageSearchDisabled;
+  }
+
+  const filterSelect = root.querySelector(`#${DOM_IDS.PAGE_FILTER}`);
+  if (filterSelect instanceof HTMLSelectElement) {
+    filterSelect.disabled = filterDisabled;
+  }
+
+  patchFolderTree(
+    root,
+    state,
+    (path) => state.onNavigate(path),
+    workspaceLocked,
+  );
 }
 
 /**
