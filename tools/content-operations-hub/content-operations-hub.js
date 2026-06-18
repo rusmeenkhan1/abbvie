@@ -28,7 +28,6 @@ import {
 } from './lib/page-history.js';
 import {
   closeProgressModal,
-  isProgressModalOpen,
   showJobCancelledModal,
 } from './lib/progress-modal.js';
 import { formatRuntimeStatusEta } from './lib/status-estimate.js';
@@ -68,9 +67,11 @@ import {
   seedFolderTreeCache,
 } from './lib/folder-tree.js';
 import { el, safeQuery, setAccessibilityLabel, DOM_IDS, DOM_SELECTORS } from './lib/dom.js';
-import { TIMING, statusAutoDismissDelay } from './lib/constants.js';
+import { TIMING } from './lib/constants.js';
 import { configureAppHooks } from './lib/app-hooks.js';
-import { buildPageRow, buildPageListColumnHeader } from './lib/page-list.js';
+import { patchWorkspaceUi } from './lib/ui-patch.js';
+import { patchStatusBanner } from './lib/status-banner.js';
+import { buildPageRow, buildPageListColumnHeader, bindPageListSelection } from './lib/page-list.js';
 import { buildSelectionActionBar } from './lib/selection-bar.js';
 import {
   startStatusCheck,
@@ -90,8 +91,6 @@ import {
 /** @typedef {'preview'|'live'|'unpreview'|'unpublish'|'delete'} JobTopic */
 
 const SDK_URL = 'https://da.live/nx/utils/sdk.js';
-let transientStatusTimer = 0;
-let transientStatusKey = '';
 
 const APP_TITLE = 'Content Operations Hub';
 const APP_DESCRIPTION = 'Browse site content, monitor deployment status, and run bulk preview, publish, and removal operations.';
@@ -897,44 +896,10 @@ function buildPagesStatusSummaryLoading() {
 
 /**
  * @param {HTMLElement} root
- * @param {ReturnType<typeof createAppState>} state
+ * @param {{ org: string, site: string, ref: string }} ctx
  */
-function render(root, state) {
-  const listWrapBefore = document.getElementById('bulk-pp-page-list-scroll');
-  const savedListScroll = listWrapBefore ? listWrapBefore.scrollTop : null;
-
-  const {
-    org,
-    site,
-    ref,
-    folderPath,
-    error,
-    status,
-    statusType,
-    jobDetail,
-    pageFilter,
-    statusChecking,
-    pageSearch,
-    folderSearch,
-    contentLoading,
-  } = state;
-  const siteCtx = { org, site, ref };
-
-  const {
-    visible: visiblePages,
-    statusMap,
-    browseFolder,
-  } = getVisiblePages(state);
-  const workspaceLocked = isStatusFetchBlocking(state);
-  const safeFolder = resolveContentFolderPath(folderPath);
-  const searchDraft = String(pageSearch || '').trim();
-  const searchTooShort = searchDraft.length > 0 && searchDraft.length < SEARCH_MIN_LEN;
-
-  root.replaceChildren();
-  root.classList.add('bulk-pp-shell');
-  root.classList.toggle('bulk-pp-modal-open', isProgressModalOpen());
-  syncStatusFetchLockUi(root, state);
-  syncFirstSessionLockUi(root, state);
+function renderAppHeader(root, ctx) {
+  const { org, site, ref } = ctx;
   const header = el('header', 'bulk-pp-header');
   const headerInner = el('div', 'bulk-pp-header-inner');
   const headerBrand = el('div', 'bulk-pp-header-brand');
@@ -956,6 +921,44 @@ function render(root, state) {
   headerInner.append(headerBrand, headerMeta);
   header.append(headerInner);
   root.append(header);
+}
+
+/**
+ * @param {HTMLElement} root
+ * @param {ReturnType<typeof createAppState>} state
+ */
+function render(root, state) {
+  const listWrapBefore = document.getElementById('bulk-pp-page-list-scroll');
+  const savedListScroll = listWrapBefore ? listWrapBefore.scrollTop : null;
+
+  const {
+    org,
+    site,
+    ref,
+    folderPath,
+    error,
+    pageFilter,
+    pageSearch,
+    folderSearch,
+    contentLoading,
+  } = state;
+  const siteCtx = { org, site, ref };
+
+  const {
+    visible: visiblePages,
+    statusMap,
+    browseFolder,
+  } = getVisiblePages(state);
+  const workspaceLocked = isStatusFetchBlocking(state);
+  const safeFolder = resolveContentFolderPath(folderPath);
+  const searchDraft = String(pageSearch || '').trim();
+  const searchTooShort = searchDraft.length > 0 && searchDraft.length < SEARCH_MIN_LEN;
+
+  root.replaceChildren();
+  root.classList.add('bulk-pp-shell');
+  syncStatusFetchLockUi(root, state);
+  syncFirstSessionLockUi(root, state);
+  renderAppHeader(root, { org, site, ref });
 
   const contentPanel = el(
     'section',
@@ -1084,6 +1087,7 @@ function render(root, state) {
       }
       const pageList = el('ul', 'bulk-pp-list');
       pageList.id = 'bulk-pp-page-list';
+      bindPageListSelection(pageList, state);
       if (state.pages.length === 0) {
         pageList.append(
           el('li', 'bulk-pp-list-empty', 'No pages in this location.'),
@@ -1130,51 +1134,7 @@ function render(root, state) {
   contentPanel.append(contentBody);
   root.append(contentPanel);
 
-  if (
-    status
-    && !statusChecking
-    && !contentLoading
-    && !isDaAccessError(status)
-    && (statusType === 'error' || statusType === 'info')
-  ) {
-    const statusEl = el('div', `bulk-pp-status bulk-pp-status-${statusType}`);
-    statusEl.setAttribute('role', statusType === 'error' ? 'alert' : 'status');
-    statusEl.setAttribute('aria-live', 'polite');
-    const body = el('div', 'bulk-pp-status-main');
-    const icon = el('span', `bulk-pp-status-icon bulk-pp-status-icon-${statusType}`);
-    icon.setAttribute('aria-hidden', 'true');
-    const iconSvg = statusType === 'error'
-      ? '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"></circle><path d="M8 4.5v4"></path><path d="M8 11.5h.01"></path></svg>'
-      : '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"></path></svg>';
-    icon.innerHTML = iconSvg;
-    const text = el('div', 'bulk-pp-status-text');
-    text.append(el('strong', null, status));
-    body.append(icon, text);
-    statusEl.append(body);
-    if (jobDetail) statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
-
-    const closeBtn = el('button', 'bulk-pp-status-close', 'Dismiss');
-    closeBtn.type = 'button';
-    closeBtn.setAttribute('aria-label', 'Dismiss status message');
-    closeBtn.addEventListener('click', () => clearTransientStatus(state));
-    statusEl.append(closeBtn);
-
-    scheduleTransientStatusClear(state, statusType);
-    root.append(statusEl);
-  } else if (
-    jobDetail
-    && new URLSearchParams(window.location.search).has('debug')
-  ) {
-    const statusEl = el('div', 'bulk-pp-status bulk-pp-status-info');
-    statusEl.append(el('pre', 'bulk-pp-error-detail', jobDetail));
-    root.append(statusEl);
-  } else {
-    if (transientStatusTimer) {
-      window.clearTimeout(transientStatusTimer);
-      transientStatusTimer = 0;
-    }
-    transientStatusKey = '';
-  }
+  patchStatusBanner(root, state);
 
   requestAnimationFrame(() => {
     if (savedListScroll != null) {
@@ -1213,6 +1173,7 @@ async function main() {
     render,
     refreshDeploymentUi,
     applyOperationWorkspaceReset,
+    patchStatusBanner,
   });
   const urlParams = new URLSearchParams(window.location.search);
   const urlRef = urlParams.get('ref');
@@ -1252,7 +1213,7 @@ async function main() {
     state.statusPanelNote = checked > 0
       ? `Stopped after ${checked} of ${total} pages. Partial results are shown.`
       : 'Status check cancelled.';
-    if (root) render(root, state);
+    if (root) patchWorkspaceUi(state);
   };
 
   state.onRefreshStatus = () => {
@@ -1273,8 +1234,6 @@ async function main() {
       state.folders.length,
       { forceRefresh: true },
     );
-    const root = /** @type {HTMLElement | null} */ (state.root);
-    if (root) render(root, state);
   };
 
   state.onCancelJob = () => {

@@ -66,6 +66,28 @@ export function buildPageListColumnHeader(state) {
   return head;
 }
 
+const boundPageLists = new WeakSet();
+
+/**
+ * Delegates checkbox changes on the page list (one listener per list instance).
+ * @param {HTMLElement} pageList
+ * @param {ReturnType<typeof import('./state.js').createAppState>} state
+ */
+export function bindPageListSelection(pageList, state) {
+  if (boundPageLists.has(pageList)) return;
+  boundPageLists.add(pageList);
+  pageList.addEventListener('change', (e) => {
+    const input = e.target;
+    if (!(input instanceof HTMLInputElement) || !input.classList.contains('bulk-pp-page-cb')) {
+      return;
+    }
+    const path = input.dataset.path || input.value;
+    if (input.checked) state.selected.add(path);
+    else state.selected.delete(path);
+    state.onSelectionChange();
+  });
+}
+
 /**
  * @param {import('./state.js').DocumentEntry} page
  * @param {{ previewedAt?: number, publishedAt?: number } | undefined} entry
@@ -93,13 +115,6 @@ export function buildPageRow(
   cb.checked = state.selected.has(page.helixPath);
   cb.disabled = interactionsLocked;
   cb.id = `page-${page.helixPath.replace(/\W/g, '_')}`;
-  cb.addEventListener('change', (e) => {
-    const input = /** @type {HTMLInputElement} */ (e.target);
-    const path = input.dataset.path || input.value;
-    if (input.checked) state.selected.add(path);
-    else state.selected.delete(path);
-    state.onSelectionChange();
-  });
 
   const icon = el('span', 'bulk-pp-item-icon bulk-pp-icon-document', '');
   icon.setAttribute('aria-hidden', 'true');

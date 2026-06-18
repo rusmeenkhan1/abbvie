@@ -17,6 +17,7 @@ import {
   markInitialStatusFetchComplete,
 } from './state.js';
 import { appHooks } from './app-hooks.js';
+import { patchOrRender, patchWorkspaceUi } from './ui-patch.js';
 
 /**
  * @param {string} message
@@ -31,8 +32,7 @@ export function formatStatusAccessMessage(message) {
  * @param {ReturnType<typeof import('./state.js').createAppState>} state
  */
 function finishStatusFetch(state) {
-  const { root } = state;
-  if (root && appHooks.render) appHooks.render(/** @type {HTMLElement} */ (root), state);
+  patchWorkspaceUi(state);
 }
 
 /**
@@ -63,9 +63,7 @@ export function finishContentLoadWithoutStatus(
     state.status = `Loaded ${docCount} page(s) and ${folderCount} folder(s) in ${location}.`;
   }
   state.statusType = 'info';
-  if (appHooks.render && state.root) {
-    appHooks.render(/** @type {HTMLElement} */ (state.root), state);
-  }
+  patchOrRender(state);
 }
 
 /**
@@ -126,13 +124,10 @@ export function startStatusCheck(
       ? `No folders or pages in ${location}.`
       : `Loaded ${docCount} page(s) in ${location}.`;
     state.statusType = 'info';
-    if (appHooks.render && state.root) {
-      appHooks.render(/** @type {HTMLElement} */ (state.root), state);
-    }
+    patchOrRender(state);
     return;
   }
 
-  const { root } = state;
   const { hydrated, complete } = hydratePlatformStatusFromCache(
     state,
     pathsToCheck,
@@ -162,8 +157,7 @@ export function startStatusCheck(
     }
     state.status = null;
     markInitialStatusFetchComplete(state);
-    appHooks.refreshDeploymentUi?.(state);
-    if (root && appHooks.render) appHooks.render(root, state);
+    patchWorkspaceUi(state);
     return;
   }
 
@@ -180,8 +174,7 @@ export function startStatusCheck(
     state.statusFetchedAt = cachedCheckedAt;
     state.statusFetchedFromCache = Boolean(cachedCheckedAt);
     state.statusType = 'info';
-    appHooks.refreshDeploymentUi?.(state);
-    if (root && appHooks.render) appHooks.render(root, state);
+    patchWorkspaceUi(state);
     return;
   }
 
@@ -238,7 +231,6 @@ export function startStatusCheck(
         state.statusFetchBackground = false;
         state.statusAbort = null;
         state.statusFetchStartedAt = null;
-        const rootNode = /** @type {HTMLElement | null} */ (state.root);
         const checked = state.statusProgressDone;
         const total = state.statusProgressTotal;
         if (checked > 0) {
@@ -252,7 +244,7 @@ export function startStatusCheck(
         state.statusPanelNote = checked > 0
           ? `Stopped after ${checked} of ${total} pages. Partial results are shown.`
           : 'Status check cancelled.';
-        if (rootNode && appHooks.render) appHooks.render(rootNode, state);
+        patchOrRender(state);
         return;
       }
       state.statusChecking = false;
@@ -260,7 +252,6 @@ export function startStatusCheck(
       state.statusAbort = null;
       state.statusFetchStartedAt = null;
       const hadProgress = state.statusProgressDone > 0;
-      const rootNode = /** @type {HTMLElement | null} */ (state.root);
       if (hadProgress) {
         persistCurrentPlatformStatus(state);
         state.statusFetched = true;
@@ -301,6 +292,6 @@ export function startStatusCheck(
         state.statusType = 'error';
       }
       console.warn('[bulk-pp] platform status failed', statusErr);
-      if (rootNode && appHooks.render) appHooks.render(rootNode, state);
+      patchOrRender(state);
     });
 }

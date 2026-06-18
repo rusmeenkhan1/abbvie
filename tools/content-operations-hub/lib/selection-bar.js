@@ -13,6 +13,7 @@ import { el, setAccessibilityLabel, DOM_IDS } from './dom.js';
 import { TIMING } from './constants.js';
 import { formatSelectionBarText, formatShareTooltipText } from './selection-copy.js';
 import { appHooks } from './app-hooks.js';
+import { patchOrRender } from './ui-patch.js';
 import { buildSelectionOpIcon } from './selection-bar-icons.js';
 
 /** @typedef {import('./state.js').PageOperationId} PageOperationId */
@@ -102,10 +103,10 @@ export async function openUrlsInNewTabs(urls, state = null) {
     appHooks.applyOperationWorkspaceReset(state);
   }
   const result = openUrlsInNewTabsQuiet(urls);
-  if (shouldWarnPopupBlock(result) && state && appHooks.render && state.root) {
+  if (shouldWarnPopupBlock(result) && state) {
     state.status = 'Your browser blocked new tabs. Allow pop-ups for this site, or copy URLs from the operation completion dialog.';
     state.statusType = 'error';
-    appHooks.render(/** @type {HTMLElement} */ (state.root), state);
+    patchOrRender(state);
   }
 }
 
@@ -152,9 +153,7 @@ async function copySelectedPreviewUrls(state) {
   } catch {
     state.status = 'Unable to copy preview URLs. Check clipboard permissions and try again.';
     state.statusType = 'error';
-    if (appHooks.render && state.root) {
-      appHooks.render(/** @type {HTMLElement} */ (state.root), state);
-    }
+    patchOrRender(state);
   }
 }
 
@@ -249,8 +248,7 @@ export async function runPageOperation(state, operationId) {
     const msg = messageFromApiError(err, 'Operation failed.', op);
     state.status = msg;
     state.statusType = 'error';
-    const { root } = state;
-    if (root && appHooks.render) appHooks.render(/** @type {HTMLElement} */ (root), state);
+    patchOrRender(state);
   }
 }
 

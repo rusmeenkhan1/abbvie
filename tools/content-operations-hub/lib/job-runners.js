@@ -25,6 +25,7 @@ import {
 } from './progress-modal.js';
 import { getSelectedHelixPaths } from './state.js';
 import { appHooks } from './app-hooks.js';
+import { patchWorkspaceUi } from './ui-patch.js';
 
 /** @typedef {'preview'|'live'|'unpreview'|'unpublish'|'delete'} JobTopic */
 
@@ -62,7 +63,7 @@ function finishProgressModal(state) {
   if (state.statusType === 'success') {
     state.status = null;
   }
-  if (root && appHooks.render) appHooks.render(/** @type {HTMLElement} */ (root), state);
+  if (root instanceof HTMLElement) patchWorkspaceUi(state);
 }
 
 /**

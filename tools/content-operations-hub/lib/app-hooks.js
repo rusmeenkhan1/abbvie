@@ -2,6 +2,7 @@
  *   render: (root: HTMLElement, state: object) => void,
  *   refreshDeploymentUi: (state: object) => void,
  *   applyOperationWorkspaceReset: (state: object) => void,
+ *   patchStatusBanner: (root: HTMLElement, state: object) => void,
  * }} AppHooks */
 
 /** @type {Partial<AppHooks>} */
